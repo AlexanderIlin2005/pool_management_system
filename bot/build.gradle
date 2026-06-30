@@ -1,0 +1,19 @@
+dependencies {
+    implementation project(':common')
+
+    // VK SDK
+    implementation 'com.vk.api:sdk:1.0.16'
+
+
+
+    // PostgreSQL
+    implementation 'org.postgresql:postgresql:42.7.1'
+
+    // Логирование
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+    implementation 'ch.qos.logback:logback-classic:1.4.11'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+}

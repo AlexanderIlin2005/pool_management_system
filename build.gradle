@@ -5,16 +5,48 @@ plugins {
 group = 'ru.sashil'
 version = '1.0-SNAPSHOT'
 
-
 repositories {
     mavenCentral()
 }
 
-dependencies {
-    testImplementation platform('org.junit:junit-bom:5.10.0')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
+// Указываем, что все подмодули будут использовать Java 17
+subprojects {
+    apply plugin: 'java'
+
+    sourceCompatibility = '17'
+    targetCompatibility = '17'
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
+        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.1'
+    }
+
+    test {
+        useJUnitPlatform()
+    }
 }
 
-test {
-    useJUnitPlatform()
+// Для корневого проекта (где лежит Main.java) подключаем зависимости от модулей
+dependencies {
+    implementation project(':bot')
+    implementation project(':admin')
+    implementation project(':common')
+
+    implementation 'com.vk.api:sdk:1.0.16'
+}
+
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Main-Class': 'ru.sashil.Main'
+    }
+    archiveBaseName = 'pool-management'
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    with jar
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }

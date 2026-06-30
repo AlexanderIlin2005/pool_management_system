@@ -1,17 +1,39 @@
 package ru.sashil;
 
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
+import java.util.Scanner;
+
 public class Main {
     public static void main(String[] args) {
-        //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-        // to see how IntelliJ IDEA suggests fixing it.
-        System.out.printf("Hello and welcome!");
+        System.out.println("╔═══════════════════════════════════════╗");
+        System.out.println("║   Бассейн - Система управления       ║");
+        System.out.println("║   1. Запустить VK Бота              ║");
+        System.out.println("║   2. Запустить Админ-панель (Spring)║");
+        System.out.println("║   3. Выйти                          ║");
+        System.out.println("╚═══════════════════════════════════════╝");
+        System.out.print("Выберите действие: ");
 
-        for (int i = 1; i <= 5; i++) {
-            //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-            // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-            System.out.println("i = " + i);
+        try (Scanner scanner = new Scanner(System.in)) {
+            int choice = scanner.nextInt();
+
+            switch (choice) {
+                case 1 -> {
+                    System.out.println("🚀 Запуск VK Бота...");
+                    // Теперь путь правильный
+                    ru.sashil.bot.BotApplication.main(args);
+                }
+                case 2 -> {
+                    System.out.println("🚀 Запуск Админ-панели...");
+                    System.out.println("⚠️  Админ-панель на Spring Boot пока не реализована");
+                }
+                case 3 -> {
+                    System.out.println("👋 Выход...");
+                    System.exit(0);
+                }
+                default -> System.out.println("❌ Неверный выбор");
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Ошибка: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }
