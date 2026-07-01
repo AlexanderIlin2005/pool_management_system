@@ -103,7 +103,7 @@ public class BotApplication {
                             try {
                                 vk.messages()
                                         .sendDeprecated(actor)
-                                        .message("Ты написал: " + message.getText())
+                                        .message(message.getText())
                                         .userId(message.getFromId())
                                         .randomId(random.nextInt(10000))
                                         .execute();

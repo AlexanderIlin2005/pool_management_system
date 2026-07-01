@@ -1,0 +1,6 @@
+<configuration>
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+    <logger name="com.vk.api.sdk" level="WARN"/>
+</configuration>
