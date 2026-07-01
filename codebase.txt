@@ -1,0 +1,996 @@
+Скрипт запущен в Wed Jul  1 14:31:32 MSK 2026
+--------------------------------------------------
+
+==================================================
+Содержимое файла: ./init_db.sql
+==================================================
+-- Подключаемся к базе
+\c pool_db;
+
+-- Создание схемы
+CREATE SCHEMA IF NOT EXISTS pool;
+
+-- Таблица пользователей
+CREATE TABLE IF NOT EXISTS pool.users (
+    id BIGSERIAL PRIMARY KEY,
+    vk_id BIGINT UNIQUE,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    parent_first_name VARCHAR(100),
+    parent_last_name VARCHAR(100),
+    birth_date DATE NOT NULL,
+    grade VARCHAR(20),
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    group_id BIGINT,
+    subscription_type VARCHAR(20) DEFAULT 'MONTHLY',
+    is_active BOOLEAN DEFAULT true,
+    consent_to_data_processing BOOLEAN DEFAULT false,
+    consent_date DATE,
+    medical_certificate_expiry DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Группы
+CREATE TABLE IF NOT EXISTS pool.groups (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    max_participants INTEGER NOT NULL,
+    current_participants INTEGER DEFAULT 0,
+    description TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Расписание
+CREATE TABLE IF NOT EXISTS pool.schedule (
+    id BIGSERIAL PRIMARY KEY,
+    group_id BIGINT REFERENCES pool.groups(id),
+    weekday INTEGER NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Абонементы
+CREATE TABLE IF NOT EXISTS pool.subscriptions (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT REFERENCES pool.users(id),
+    schedule_id BIGINT REFERENCES pool.schedule(id),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    total_sessions INTEGER,
+    used_sessions INTEGER DEFAULT 0,
+    remaining_sessions INTEGER,
+    price DECIMAL(10,2),
+    status VARCHAR(20) DEFAULT 'ACTIVE',
+    frozen_until DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Посещаемость
+CREATE TABLE IF NOT EXISTS pool.attendance (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT REFERENCES pool.users(id),
+    schedule_id BIGINT REFERENCES pool.schedule(id),
+    attendance_date DATE NOT NULL,
+    status VARCHAR(20) DEFAULT 'ATTENDED',
+    is_excused BOOLEAN DEFAULT false,
+    excuse_reason VARCHAR(255),
+    medical_certificate_url VARCHAR(500),
+    note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Медицинские справки
+CREATE TABLE IF NOT EXISTS pool.medical_certificates (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT REFERENCES pool.users(id),
+    certificate_number VARCHAR(100),
+    issue_date DATE NOT NULL,
+    expiry_date DATE NOT NULL,
+    file_url VARCHAR(500),
+    is_verified BOOLEAN DEFAULT false,
+    verified_by BIGINT,
+    verified_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Индексы
+CREATE INDEX IF NOT EXISTS idx_attendance_user_date ON pool.attendance(user_id, attendance_date);
+CREATE INDEX IF NOT EXISTS idx_attendance_schedule_date ON pool.attendance(schedule_id, attendance_date);
+CREATE INDEX IF NOT EXISTS idx_schedule_group_weekday ON pool.schedule(group_id, weekday);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_status ON pool.subscriptions(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_medical_certificates_user_expiry ON pool.medical_certificates(user_id, expiry_date);
+
+-- Триггер для обновления updated_at
+CREATE OR REPLACE FUNCTION pool.update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON pool.users
+    FOR EACH ROW EXECUTE FUNCTION pool.update_updated_at_column();
+
+CREATE TRIGGER update_subscriptions_updated_at BEFORE UPDATE ON pool.subscriptions
+    FOR EACH ROW EXECUTE FUNCTION pool.update_updated_at_column();
+
+CREATE TRIGGER update_attendance_updated_at BEFORE UPDATE ON pool.attendance
+    FOR EACH ROW EXECUTE FUNCTION pool.update_updated_at_column();
+
+CREATE TRIGGER update_medical_certificates_updated_at BEFORE UPDATE ON pool.medical_certificates
+    FOR EACH ROW EXECUTE FUNCTION pool.update_updated_at_column();
+
+==================================================
+Содержимое файла: ./setup_and_run.sh
+==================================================
+
+==================================================
+Содержимое файла: ./admin/src/build.gradle
+==================================================
+dependencies {
+    implementation project(':common')
+
+    // Spring Boot (пока заглушка, добавим позже)
+    implementation 'org.springframework.boot:spring-boot-starter-web:3.2.0'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa:3.2.0'
+
+    // PostgreSQL
+    implementation 'org.postgresql:postgresql:42.7.1'
+
+    // Логирование
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+    implementation 'ch.qos.logback:logback-classic:1.4.11'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+}
+==================================================
+Содержимое файла: ./common/build.gradle
+==================================================
+dependencies {
+    // JPA аннотации
+    implementation 'jakarta.persistence:jakarta.persistence-api:3.1.0'
+    implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+}
+==================================================
+Содержимое файла: ./gradlew
+==================================================
+#!/bin/sh
+
+#
+# Copyright © 2015-2021 the original authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+##############################################################################
+#
+#   Gradle start up script for POSIX generated by Gradle.
+#
+#   Important for running:
+#
+#   (1) You need a POSIX-compliant shell to run this script. If your /bin/sh is
+#       noncompliant, but you have some other compliant shell such as ksh or
+#       bash, then to run this script, type that shell name before the whole
+#       command line, like:
+#
+#           ksh Gradle
+#
+#       Busybox and similar reduced shells will NOT work, because this script
+#       requires all of these POSIX shell features:
+#         * functions;
+#         * expansions «$var», «${var}», «${var:-default}», «${var+SET}»,
+#           «${var#prefix}», «${var%suffix}», and «$( cmd )»;
+#         * compound commands having a testable exit status, especially «case»;
+#         * various built-in commands including «command», «set», and «ulimit».
+#
+#   Important for patching:
+#
+#   (2) This script targets any POSIX shell, so it avoids extensions provided
+#       by Bash, Ksh, etc; in particular arrays are avoided.
+#
+#       The "traditional" practice of packing multiple parameters into a
+#       space-separated string is a well documented source of bugs and security
+#       problems, so this is (mostly) avoided, by progressively accumulating
+#       options in "$@", and eventually passing that to Java.
+#
+#       Where the inherited environment variables (DEFAULT_JVM_OPTS, JAVA_OPTS,
+#       and GRADLE_OPTS) rely on word-splitting, this is performed explicitly;
+#       see the in-line comments for details.
+#
+#       There are tweaks for specific operating systems such as AIX, CygWin,
+#       Darwin, MinGW, and NonStop.
+#
+#   (3) This script is generated from the Groovy template
+#       https://github.com/gradle/gradle/blob/master/subprojects/plugins/src/main/resources/org/gradle/api/internal/plugins/unixStartScript.txt
+#       within the Gradle project.
+#
+#       You can find Gradle at https://github.com/gradle/gradle/.
+#
+##############################################################################
+
+# Attempt to set APP_HOME
+
+# Resolve links: $0 may be a link
+app_path=$0
+
+# Need this for daisy-chained symlinks.
+while
+    APP_HOME=${app_path%"${app_path##*/}"}  # leaves a trailing /; empty if no leading path
+    [ -h "$app_path" ]
+do
+    ls=$( ls -ld "$app_path" )
+    link=${ls#*' -> '}
+    case $link in             #(
+      /*)   app_path=$link ;; #(
+      *)    app_path=$APP_HOME$link ;;
+    esac
+done
+
+APP_HOME=$( cd "${APP_HOME:-./}" && pwd -P ) || exit
+
+APP_NAME="Gradle"
+APP_BASE_NAME=${0##*/}
+
+# Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
+DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
+
+# Use the maximum available, or set MAX_FD != -1 to use that value.
+MAX_FD=maximum
+
+warn () {
+    echo "$*"
+} >&2
+
+die () {
+    echo
+    echo "$*"
+    echo
+    exit 1
+} >&2
+
+# OS specific support (must be 'true' or 'false').
+cygwin=false
+msys=false
+darwin=false
+nonstop=false
+case "$( uname )" in                #(
+  CYGWIN* )         cygwin=true  ;; #(
+  Darwin* )         darwin=true  ;; #(
+  MSYS* | MINGW* )  msys=true    ;; #(
+  NONSTOP* )        nonstop=true ;;
+esac
+
+CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
+
+
+# Determine the Java command to use to start the JVM.
+if [ -n "$JAVA_HOME" ] ; then
+    if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
+        # IBM's JDK on AIX uses strange locations for the executables
+        JAVACMD=$JAVA_HOME/jre/sh/java
+    else
+        JAVACMD=$JAVA_HOME/bin/java
+    fi
+    if [ ! -x "$JAVACMD" ] ; then
+        die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME
+
+Please set the JAVA_HOME variable in your environment to match the
+location of your Java installation."
+    fi
+else
+    JAVACMD=java
+    which java >/dev/null 2>&1 || die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
+
+Please set the JAVA_HOME variable in your environment to match the
+location of your Java installation."
+fi
+
+# Increase the maximum file descriptors if we can.
+if ! "$cygwin" && ! "$darwin" && ! "$nonstop" ; then
+    case $MAX_FD in #(
+      max*)
+        MAX_FD=$( ulimit -H -n ) ||
+            warn "Could not query maximum file descriptor limit"
+    esac
+    case $MAX_FD in  #(
+      '' | soft) :;; #(
+      *)
+        ulimit -n "$MAX_FD" ||
+            warn "Could not set maximum file descriptor limit to $MAX_FD"
+    esac
+fi
+
+# Collect all arguments for the java command, stacking in reverse order:
+#   * args from the command line
+#   * the main class name
+#   * -classpath
+#   * -D...appname settings
+#   * --module-path (only if needed)
+#   * DEFAULT_JVM_OPTS, JAVA_OPTS, and GRADLE_OPTS environment variables.
+
+# For Cygwin or MSYS, switch paths to Windows format before running java
+if "$cygwin" || "$msys" ; then
+    APP_HOME=$( cygpath --path --mixed "$APP_HOME" )
+    CLASSPATH=$( cygpath --path --mixed "$CLASSPATH" )
+
+    JAVACMD=$( cygpath --unix "$JAVACMD" )
+
+    # Now convert the arguments - kludge to limit ourselves to /bin/sh
+    for arg do
+        if
+            case $arg in                                #(
+              -*)   false ;;                            # don't mess with options #(
+              /?*)  t=${arg#/} t=/${t%%/*}              # looks like a POSIX filepath
+                    [ -e "$t" ] ;;                      #(
+              *)    false ;;
+            esac
+        then
+            arg=$( cygpath --path --ignore --mixed "$arg" )
+        fi
+        # Roll the args list around exactly as many times as the number of
+        # args, so each arg winds up back in the position where it started, but
+        # possibly modified.
+        #
+        # NB: a `for` loop captures its iteration list before it begins, so
+        # changing the positional parameters here affects neither the number of
+        # iterations, nor the values presented in `arg`.
+        shift                   # remove old arg
+        set -- "$@" "$arg"      # push replacement arg
+    done
+fi
+
+# Collect all arguments for the java command;
+#   * $DEFAULT_JVM_OPTS, $JAVA_OPTS, and $GRADLE_OPTS can contain fragments of
+#     shell script including quotes and variable substitutions, so put them in
+#     double quotes to make sure that they get re-expanded; and
+#   * put everything else in single quotes, so that it's not re-expanded.
+
+set -- \
+        "-Dorg.gradle.appname=$APP_BASE_NAME" \
+        -classpath "$CLASSPATH" \
+        org.gradle.wrapper.GradleWrapperMain \
+        "$@"
+
+# Use "xargs" to parse quoted args.
+#
+# With -n1 it outputs one arg per line, with the quotes and backslashes removed.
+#
+# In Bash we could simply go:
+#
+#   readarray ARGS < <( xargs -n1 <<<"$var" ) &&
+#   set -- "${ARGS[@]}" "$@"
+#
+# but POSIX shell has neither arrays nor command substitution, so instead we
+# post-process each arg (as a line of input to sed) to backslash-escape any
+# character that might be a shell metacharacter, then use eval to reverse
+# that process (while maintaining the separation between arguments), and wrap
+# the whole thing up as a single "set" statement.
+#
+# This will of course break if any of these variables contains a newline or
+# an unmatched quote.
+#
+
+eval "set -- $(
+        printf '%s\n' "$DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS" |
+        xargs -n1 |
+        sed ' s~[^-[:alnum:]+,./:=@_]~\\&~g; ' |
+        tr '\n' ' '
+    )" '"$@"'
+
+exec "$JAVACMD" "$@"
+
+==================================================
+Содержимое файла: ./.gitignore
+==================================================
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### IntelliJ IDEA ###
+.idea/modules.xml
+.idea/jarRepositories.xml
+.idea/compiler.xml
+.idea/libraries/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+==================================================
+Содержимое файла: ./.env
+==================================================
+# PostgreSQL
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=pool_db
+DB_USER=pool_admin
+DB_PASSWORD=pool_admin_password
+
+# VK Bot (ЗАМЕНИТЕ НА РЕАЛЬНЫЙ ТОКЕН!)
+VK_BOT_TOKEN=vk1.a.Efsl5sOlMBti-bHSqDy7eWkYN9EhMdhVYuDAkiFgXE2mE6xwK6PUMIuodlVedXQwM7UNBaxWR2XeN_yUttwZQ0D24riUENKgNcr-aQc3_2IeVbZZ4cpYlSKO25zdaqEajtawNTRWGyd1F6gbdFkj968RN9fio9rcAF5ZHBkBojc5J1bwV066GkAI6rEGBrD5F3vWoLCN0EqmOdSEaFBg-w
+
+# Spring (для админки)
+SPRING_PROFILES_ACTIVE=dev
+SERVER_PORT=8080
+
+# Время ожидания в секундах для Long Poll
+LONG_POLL_TIMEOUT=25
+
+# Максимальное количество попыток подключения к БД
+DB_MAX_RETRIES=5
+DB_RETRY_DELAY=5
+
+
+
+==================================================
+Содержимое файла: ./build.gradle
+==================================================
+plugins {
+    id 'java'
+}
+
+group = 'ru.sashil'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+// Указываем, что все подмодули будут использовать Java 17
+subprojects {
+    apply plugin: 'java'
+
+    sourceCompatibility = '17'
+    targetCompatibility = '17'
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
+        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.1'
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+}
+
+// Для корневого проекта (где лежит Main.java) подключаем зависимости от модулей
+dependencies {
+    implementation project(':bot')
+    implementation project(':admin')
+    implementation project(':common')
+
+    implementation 'com.vk.api:sdk:1.0.16'
+}
+
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Main-Class': 'ru.sashil.Main'
+    }
+    archiveBaseName = 'pool-management'
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    with jar
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+==================================================
+Содержимое файла: ./gradlew.bat
+==================================================
+@rem
+@rem Copyright 2015 the original author or authors.
+@rem
+@rem Licensed under the Apache License, Version 2.0 (the "License");
+@rem you may not use this file except in compliance with the License.
+@rem You may obtain a copy of the License at
+@rem
+@rem      https://www.apache.org/licenses/LICENSE-2.0
+@rem
+@rem Unless required by applicable law or agreed to in writing, software
+@rem distributed under the License is distributed on an "AS IS" BASIS,
+@rem WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+@rem See the License for the specific language governing permissions and
+@rem limitations under the License.
+@rem
+
+@if "%DEBUG%" == "" @echo off
+@rem ##########################################################################
+@rem
+@rem  Gradle startup script for Windows
+@rem
+@rem ##########################################################################
+
+@rem Set local scope for the variables with windows NT shell
+if "%OS%"=="Windows_NT" setlocal
+
+set DIRNAME=%~dp0
+if "%DIRNAME%" == "" set DIRNAME=.
+set APP_BASE_NAME=%~n0
+set APP_HOME=%DIRNAME%
+
+@rem Resolve any "." and ".." in APP_HOME to make it shorter.
+for %%i in ("%APP_HOME%") do set APP_HOME=%%~fi
+
+@rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
+set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
+
+@rem Find java.exe
+if defined JAVA_HOME goto findJavaFromJavaHome
+
+set JAVA_EXE=java.exe
+%JAVA_EXE% -version >NUL 2>&1
+if "%ERRORLEVEL%" == "0" goto execute
+
+echo.
+echo ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
+echo.
+echo Please set the JAVA_HOME variable in your environment to match the
+echo location of your Java installation.
+
+goto fail
+
+:findJavaFromJavaHome
+set JAVA_HOME=%JAVA_HOME:"=%
+set JAVA_EXE=%JAVA_HOME%/bin/java.exe
+
+if exist "%JAVA_EXE%" goto execute
+
+echo.
+echo ERROR: JAVA_HOME is set to an invalid directory: %JAVA_HOME%
+echo.
+echo Please set the JAVA_HOME variable in your environment to match the
+echo location of your Java installation.
+
+goto fail
+
+:execute
+@rem Setup the command line
+
+set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
+
+
+@rem Execute Gradle
+"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %*
+
+:end
+@rem End local scope for the variables with windows NT shell
+if "%ERRORLEVEL%"=="0" goto mainEnd
+
+:fail
+rem Set variable GRADLE_EXIT_CONSOLE if you need the _script_ return code instead of
+rem the _cmd.exe /c_ return code!
+if  not "" == "%GRADLE_EXIT_CONSOLE%" exit 1
+exit /b 1
+
+:mainEnd
+if "%OS%"=="Windows_NT" endlocal
+
+:omega
+
+==================================================
+Содержимое файла: ./settings.gradle
+==================================================
+rootProject.name = 'pool_management_system'
+include 'bot', 'admin', 'common'
+==================================================
+Содержимое файла: ./.idea/gradle.xml
+==================================================
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GradleSettings">
+    <option name="linkedExternalProjectsSettings">
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="gradleHome" value="" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+    </option>
+  </component>
+</project>
+==================================================
+Содержимое файла: ./.idea/vcs.xml
+==================================================
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$" vcs="Git" />
+  </component>
+</project>
+==================================================
+Содержимое файла: ./.idea/.gitignore
+==================================================
+# Default ignored files
+/shelf/
+/workspace.xml
+
+==================================================
+Содержимое файла: ./.idea/workspace.xml
+==================================================
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="1ed90050-89f7-4c20-bdec-c9964e2b0ab8" name="Changes" comment="_" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RESET_MODE" value="HARD" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "AlexanderIlin2005"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/AlexanderIlin2005/pool_management_system.git",
+    "accountId": "e2bbda1b-6e82-412d-b1e4-9f715d546b2f"
+  }
+}]]></component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 5
+}]]></component>
+  <component name="ProjectId" id="3FqWgtvAZWC2F4SNl0577ITmGjO" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "kotlin-language-version-configured": "true",
+    "onboarding.tips.debug.path": "/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/Main.java"
+  }
+}]]></component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="1ed90050-89f7-4c20-bdec-c9964e2b0ab8" name="Changes" comment="" />
+      <created>1782803232489</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1782803232489</updated>
+    </task>
+    <task id="LOCAL-00001" summary="initial commin">
+      <option name="closed" value="true" />
+      <created>1782822762680</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1782822762680</updated>
+    </task>
+    <task id="LOCAL-00002" summary="initial commit">
+      <option name="closed" value="true" />
+      <created>1782822809412</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1782822809412</updated>
+    </task>
+    <task id="LOCAL-00003" summary="first structure, test echo vk bot">
+      <option name="closed" value="true" />
+      <created>1782832015286</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1782832015286</updated>
+    </task>
+    <task id="LOCAL-00004" summary="_">
+      <option name="closed" value="true" />
+      <created>1782891118132</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1782891118132</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="initial commin" />
+    <MESSAGE value="initial commit" />
+    <MESSAGE value="first structure, test echo vk bot" />
+    <MESSAGE value="_" />
+    <option name="LAST_COMMIT_MESSAGE" value="_" />
+  </component>
+</project>
+==================================================
+Содержимое файла: ./.idea/misc.xml
+==================================================
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ExternalStorageConfigurationManager" enabled="true" />
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_17" default="true" project-jdk-name="17" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/out" />
+  </component>
+</project>
+==================================================
+Содержимое файла: ./.idea/compiler.xml
+==================================================
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Gradle Imported" enabled="true">
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.projectlombok/lombok/1.18.30/f195ee86e6c896ea47a1d39defbe20eb59cd149d/lombok-1.18.30.jar" />
+        </processorPath>
+        <module name="pool_management_system.main" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel target="17" />
+  </component>
+</project>
+==================================================
+Содержимое файла: ./src/main/java/ru/sashil/Main.java
+==================================================
+package ru.sashil;
+
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("╔═══════════════════════════════════════╗");
+        System.out.println("║   Бассейн - Система управления       ║");
+        System.out.println("║   1. Запустить VK Бота              ║");
+        System.out.println("║   2. Запустить Админ-панель (Spring)║");
+        System.out.println("║   3. Выйти                          ║");
+        System.out.println("╚═══════════════════════════════════════╝");
+        System.out.print("Выберите действие: ");
+
+        try (Scanner scanner = new Scanner(System.in)) {
+            int choice = scanner.nextInt();
+
+            switch (choice) {
+                case 1 -> {
+                    System.out.println("🚀 Запуск VK Бота...");
+                    // Теперь путь правильный
+                    ru.sashil.bot.BotApplication.main(args);
+                }
+                case 2 -> {
+                    System.out.println("🚀 Запуск Админ-панели...");
+                    System.out.println("⚠️  Админ-панель на Spring Boot пока не реализована");
+                }
+                case 3 -> {
+                    System.out.println("👋 Выход...");
+                    System.exit(0);
+                }
+                default -> System.out.println("❌ Неверный выбор");
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Ошибка: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+}
+==================================================
+Содержимое файла: ./src/main/java/ru/sashil/bot/BotApplication.java
+==================================================
+package ru.sashil.bot;
+
+import com.vk.api.sdk.client.TransportClient;
+import com.vk.api.sdk.client.VkApiClient;
+import com.vk.api.sdk.client.actors.GroupActor;
+import com.vk.api.sdk.exceptions.ApiException;
+import com.vk.api.sdk.exceptions.ClientException;
+import com.vk.api.sdk.httpclient.HttpTransportClient;
+import com.vk.api.sdk.queries.messages.MessagesGetLongPollHistoryQuery;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
+import java.util.logging.Logger;
+import java.util.stream.Stream;
+
+public class BotApplication {
+    private static final Logger LOGGER = Logger.getLogger(BotApplication.class.getName());
+    private static final long GROUP_ID = 239874040L;
+
+    private static Map<String, String> loadEnvFile() {
+        Map<String, String> env = new HashMap<>();
+        Path envPath = Paths.get(".env");
+
+        if (!Files.exists(envPath)) {
+            LOGGER.warning("⚠️ .env файл не найден в корне проекта");
+            return env;
+        }
+
+        try (Stream<String> lines = Files.lines(envPath)) {
+            lines.filter(line -> !line.trim().startsWith("#") && line.contains("="))
+                    .forEach(line -> {
+                        String[] parts = line.split("=", 2);
+                        if (parts.length == 2) {
+                            env.put(parts[0].trim(), parts[1].trim());
+                        }
+                    });
+            LOGGER.info("✅ .env файл загружен, найдено " + env.size() + " переменных");
+        } catch (IOException e) {
+            LOGGER.severe("❌ Ошибка чтения .env: " + e.getMessage());
+        }
+
+        return env;
+    }
+
+    private static String getEnv(String key, Map<String, String> envMap) {
+        if (envMap.containsKey(key)) {
+            return envMap.get(key);
+        }
+        return System.getenv(key);
+    }
+
+    public static void main(String[] args) {
+        Map<String, String> envMap = loadEnvFile();
+
+        String accessToken = getEnv("VK_BOT_TOKEN", envMap);
+
+        if (accessToken == null || accessToken.isEmpty()) {
+            LOGGER.severe("❌ Ошибка: VK_BOT_TOKEN не найден ни в .env, ни в системных переменных");
+            System.exit(1);
+        }
+
+        try {
+            TransportClient transportClient = new HttpTransportClient();
+            VkApiClient vk = new VkApiClient(transportClient);
+            Random random = new Random();
+
+            GroupActor actor = new GroupActor(GROUP_ID, accessToken);
+
+            Integer ts = vk.messages()
+                    .getLongPollServer(actor)
+                    .execute()
+                    .getTs();
+
+            LOGGER.info("🚀 Бот запущен. Начинаем прослушивание...");
+
+            while (true) {
+                try {
+                    MessagesGetLongPollHistoryQuery historyQuery = vk.messages()
+                            .getLongPollHistory(actor)
+                            .ts(ts);
+
+                    var messages = historyQuery.execute().getMessages().getItems();
+
+                    if (!messages.isEmpty()) {
+                        messages.forEach(message -> {
+                            LOGGER.info("📩 Сообщение от " + message.getFromId() + ": " + message.getText());
+                            try {
+                                vk.messages()
+                                        .sendDeprecated(actor)
+                                        .message("Ты написал: " + message.getText())
+                                        .userId(message.getFromId())
+                                        .randomId(random.nextInt(10000))
+                                        .execute();
+                                LOGGER.info("✅ Ответ отправлен");
+                            } catch (ApiException | ClientException e) {
+                                LOGGER.severe("❌ Ошибка отправки: " + e.getMessage());
+                            }
+                        });
+                    }
+
+                    ts = vk.messages()
+                            .getLongPollServer(actor)
+                            .execute()
+                            .getTs();
+
+                    Thread.sleep(500);
+
+                } catch (ApiException | ClientException | InterruptedException e) {
+                    LOGGER.severe("⚠️ Ошибка в цикле: " + e.getMessage());
+                    Thread.sleep(2000);
+                }
+            }
+
+        } catch (Exception e) {
+            LOGGER.severe("❌ Ошибка инициализации: " + e.getMessage());
+            System.exit(1);
+        }
+    }
+}
+
+--- Исключенные типы файлов и директории ---
+Файлы: .jar (двоичный формат)
+Директории: .gradle, build, gradle
+Пропущен (jar): ./admin/build/libs/admin.jar
+Пропущен (jar): ./gradle/wrapper/gradle-wrapper.jar
+Пропущен (jar): ./common/build/libs/common.jar
+Пропущен (jar): ./bot/build/libs/bot.jar
+Пропущен (jar): ./build/libs/pool-management-1.0-SNAPSHOT.jar
+Пропущен (jar): ./build/libs/pool_management_system-1.0-SNAPSHOT.jar
+
+Файлы в исключенных директориях:
+Директория .gradle:       17 файлов пропущено
+Директория build:        7 файлов пропущено
+Директория gradle:        2 файлов пропущено
+
+--------------------------------------------------
+Скрипт завершен.

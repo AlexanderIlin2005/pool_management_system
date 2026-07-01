@@ -8,60 +8,44 @@ import com.vk.api.sdk.exceptions.ClientException;
 import com.vk.api.sdk.httpclient.HttpTransportClient;
 import com.vk.api.sdk.queries.messages.MessagesGetLongPollHistoryQuery;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
+import ru.sashil.common.service.MinIOService;
+import ru.sashil.common.util.ConfigLoader;
+import ru.sashil.common.config.MinIOConfig;
+
+import java.io.File;
+import java.io.FileOutputStream;
 import java.util.Random;
 import java.util.logging.Logger;
-import java.util.stream.Stream;
 
 public class BotApplication {
     private static final Logger LOGGER = Logger.getLogger(BotApplication.class.getName());
-    private static final long GROUP_ID = 239874040L;
-
-    private static Map<String, String> loadEnvFile() {
-        Map<String, String> env = new HashMap<>();
-        Path envPath = Paths.get(".env");
-
-        if (!Files.exists(envPath)) {
-            LOGGER.warning("⚠️ .env файл не найден в корне проекта");
-            return env;
-        }
-
-        try (Stream<String> lines = Files.lines(envPath)) {
-            lines.filter(line -> !line.trim().startsWith("#") && line.contains("="))
-                    .forEach(line -> {
-                        String[] parts = line.split("=", 2);
-                        if (parts.length == 2) {
-                            env.put(parts[0].trim(), parts[1].trim());
-                        }
-                    });
-            LOGGER.info("✅ .env файл загружен, найдено " + env.size() + " переменных");
-        } catch (IOException e) {
-            LOGGER.severe("❌ Ошибка чтения .env: " + e.getMessage());
-        }
-
-        return env;
-    }
-
-    private static String getEnv(String key, Map<String, String> envMap) {
-        if (envMap.containsKey(key)) {
-            return envMap.get(key);
-        }
-        return System.getenv(key);
-    }
+    private static final Long GROUP_ID = 239874040L;
+    private static MinIOService minioService;
 
     public static void main(String[] args) {
-        Map<String, String> envMap = loadEnvFile();
+        // 1. Загружаем конфиг
+        ConfigLoader.load();
 
-        String accessToken = getEnv("VK_BOT_TOKEN", envMap);
+        String accessToken = ConfigLoader.get("VK_BOT_TOKEN");
 
         if (accessToken == null || accessToken.isEmpty()) {
-            LOGGER.severe("❌ Ошибка: VK_BOT_TOKEN не найден ни в .env, ни в системных переменных");
+            LOGGER.severe("❌ Ошибка: VK_BOT_TOKEN не найден в application.properties");
             System.exit(1);
+        }
+
+        LOGGER.info("✅ VK_BOT_TOKEN загружен");
+
+        // 2. Инициализируем MinIO при старте
+        try {
+            LOGGER.info("🔧 Инициализация MinIO...");
+            minioService = new MinIOService();
+            if (minioService.isClientNull()) {
+                LOGGER.warning("⚠️ MinIO клиент не инициализирован. Проверьте application.properties");
+            } else {
+                LOGGER.info("✅ MinIO готов к работе");
+            }
+        } catch (Exception e) {
+            LOGGER.warning("⚠️ Ошибка инициализации MinIO: " + e.getMessage());
         }
 
         try {
@@ -90,12 +74,57 @@ public class BotApplication {
                         messages.forEach(message -> {
                             LOGGER.info("📩 Сообщение от " + message.getFromId() + ": " + message.getText());
                             try {
-                                vk.messages()
+                                String text = message.getText();
+                                Long userId = message.getFromId();
+
+                                if (text != null && text.equalsIgnoreCase("Справка")) {
+                                    try {
+                                        LOGGER.info("📄 Обработка команды 'Справка' для пользователя " + userId);
+
+                                        if (minioService == null || minioService.isClientNull()) {
+                                            LOGGER.warning("⚠️ MinIO не инициализирован, пробую переподключиться...");
+                                            minioService = new MinIOService();
+                                            if (minioService.isClientNull()) {
+                                                throw new RuntimeException("MinIO клиент не инициализирован. Проверьте application.properties");
+                                            }
+                                        }
+
+                                        String fileName = "certificate_" + userId + "_" + System.currentTimeMillis() + ".txt";
+                                        File testFile = new File(fileName);
+                                        try (FileOutputStream fos = new FileOutputStream(testFile)) {
+                                            fos.write(("Тестовая справка для пользователя " + userId + "\n" +
+                                                      "Дата: " + new java.util.Date()).getBytes());
+                                        }
+
+                                        String url = minioService.uploadFile(testFile.getAbsolutePath(), fileName);
+                                        testFile.delete();
+
+                                        vk.messages()
+                                            .sendDeprecated(actor)
+                                            .message("📄 Ваша справка загружена!\nURL: " + url)
+                                            .userId(userId)
+                                            .randomId(random.nextInt(10000))
+                                            .execute();
+                                        LOGGER.info("✅ Справка загружена");
+
+                                    } catch (Exception e) {
+                                        LOGGER.severe("❌ Ошибка загрузки справки: " + e.getMessage());
+                                        e.printStackTrace();
+                                        vk.messages()
+                                            .sendDeprecated(actor)
+                                            .message("❌ Ошибка загрузки справки: " + e.getMessage())
+                                            .userId(userId)
+                                            .randomId(random.nextInt(10000))
+                                            .execute();
+                                    }
+                                } else {
+                                    vk.messages()
                                         .sendDeprecated(actor)
-                                        .message(message.getText())
-                                        .userId(message.getFromId())
+                                        .message("Ты написал: " + text)
+                                        .userId(userId)
                                         .randomId(random.nextInt(10000))
                                         .execute();
+                                }
                                 LOGGER.info("✅ Ответ отправлен");
                             } catch (ApiException | ClientException e) {
                                 LOGGER.severe("❌ Ошибка отправки: " + e.getMessage());

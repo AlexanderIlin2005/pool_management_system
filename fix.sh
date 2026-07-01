@@ -1,3 +1,4 @@
+cat > src/main/resources/application.properties << 'EOF'
 # PostgreSQL
 DB_HOST=localhost
 DB_PORT=5432
@@ -17,8 +18,24 @@ LONG_POLL_TIMEOUT=25
 DB_MAX_RETRIES=5
 DB_RETRY_DELAY=5
 
-# MinIO (фиксированные ключи)
-MINIO_ENDPOINT=http://localhost:9000
+# MinIO (порт 9002!)
+MINIO_ENDPOINT=http://localhost:9002
 MINIO_ACCESS_KEY=minioadmin
 MINIO_SECRET_KEY=minioadmin123
 MINIO_BUCKET=medical-certificates
+EOF
+
+# Устанавливаем mc если нет
+if ! command -v mc &> /dev/null; then
+    brew install minio/stable/mc
+fi
+
+# Настраиваем alias
+mc alias set local http://localhost:9002 minioadmin minioadmin123
+
+# Создаём bucket
+mc mb local/medical-certificates --ignore-existing
+mc anonymous set download local/medical-certificates
+
+mvn clean package
+java -jar target/pool-management-1.0-SNAPSHOT.jar

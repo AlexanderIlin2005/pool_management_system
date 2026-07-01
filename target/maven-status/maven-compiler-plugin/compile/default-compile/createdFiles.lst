@@ -1,0 +1,5 @@
+ru/sashil/bot/BotApplication.class
+ru/sashil/common/service/MinIOService.class
+ru/sashil/Main.class
+ru/sashil/common/config/MinIOConfig.class
+ru/sashil/common/util/ConfigLoader.class

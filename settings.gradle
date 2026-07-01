@@ -1,2 +1,1 @@
 rootProject.name = 'pool_management_system'
-include 'bot', 'admin', 'common'
