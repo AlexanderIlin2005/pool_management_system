@@ -22,12 +22,9 @@ public class BotApplication {
     private static final Logger LOGGER = Logger.getLogger(BotApplication.class.getName());
     private static final long GROUP_ID = 239874040L;
 
-    /**
-     * Загружает переменные из .env файла в Map
-     */
     private static Map<String, String> loadEnvFile() {
         Map<String, String> env = new HashMap<>();
-        Path envPath = Paths.get(".env"); // Файл в корне проекта
+        Path envPath = Paths.get(".env");
 
         if (!Files.exists(envPath)) {
             LOGGER.warning("⚠️ .env файл не найден в корне проекта");
@@ -50,23 +47,16 @@ public class BotApplication {
         return env;
     }
 
-    /**
-     * Получает переменную из .env или из системных переменных
-     */
     private static String getEnv(String key, Map<String, String> envMap) {
-        // Сначала проверяем .env
         if (envMap.containsKey(key)) {
             return envMap.get(key);
         }
-        // Если нет — проверяем системные переменные
         return System.getenv(key);
     }
 
     public static void main(String[] args) {
-        // Загружаем .env
         Map<String, String> envMap = loadEnvFile();
 
-        // Получаем токен
         String accessToken = getEnv("VK_BOT_TOKEN", envMap);
 
         if (accessToken == null || accessToken.isEmpty()) {
@@ -81,7 +71,6 @@ public class BotApplication {
 
             GroupActor actor = new GroupActor(GROUP_ID, accessToken);
 
-            // Получаем начальный ts
             Integer ts = vk.messages()
                     .getLongPollServer(actor)
                     .execute()
@@ -114,7 +103,6 @@ public class BotApplication {
                         });
                     }
 
-                    // Обновляем ts
                     ts = vk.messages()
                             .getLongPollServer(actor)
                             .execute()
