@@ -31,7 +31,6 @@ public class BotApplication {
 
     public static void main(String[] args) {
         try {
-            // 1. Загрузка конфига
             ConfigLoader.load();
             String vkToken = ConfigLoader.get("VK_BOT_TOKEN");
 
@@ -41,18 +40,15 @@ public class BotApplication {
 
             long groupId = 239874040L;
 
-            // 2. VK Client
             TransportClient transportClient = new HttpTransportClient();
             VkApiClient vk = new VkApiClient(transportClient);
             GroupActor actor = new GroupActor(groupId, vkToken);
             Random random = new Random();
 
-            // 3. MinIO
             MinIOService minioService = new MinIOService();
 
             LOGGER.info("🚀 Бот запущен!");
 
-            // 4. Long Poll Loop (как в твоем рабочем эхо-боте)
             Integer ts = vk.messages()
                     .getLongPollServer(actor)
                     .execute()
@@ -65,7 +61,6 @@ public class BotApplication {
                             .ts(ts)
                             .execute();
 
-                    // В SDK 1.0.16 сообщения лежат здесь
                     List<Message> messages = response.getMessages().getItems();
 
                     if (messages != null && !messages.isEmpty()) {
@@ -74,7 +69,6 @@ public class BotApplication {
                         }
                     }
 
-                    // Обновляем ts
                     ts = vk.messages()
                             .getLongPollServer(actor)
                             .execute()
@@ -100,13 +94,15 @@ public class BotApplication {
         if (processedMessageIds.contains(messageId)) return;
         processedMessageIds.add(messageId);
 
-        LOGGER.info("📩 Сообщение от " + userId + ": " + (text != null ? text : "[Файл]"));
+        boolean hasAttachments = message.getAttachments() != null && !message.getAttachments().isEmpty();
+
+        LOGGER.info("📩 Сообщение от " + userId + ": " + (text != null ? text : (hasAttachments ? "[Файл]" : "[Пусто]")));
 
         try {
-            // Если ждем файл
+            // 1. Если пользователь ждет файл
             if (waitingForFileUsers.contains(userId)) {
-                boolean fileProcessed = false;
-                if (message.getAttachments() != null && !message.getAttachments().isEmpty()) {
+                if (hasAttachments) {
+                    boolean fileProcessed = false;
                     for (MessageAttachment attachment : message.getAttachments()) {
                         String type = attachment.getType().name();
 
@@ -125,25 +121,34 @@ public class BotApplication {
                             }
                         }
                     }
-                }
 
-                if (fileProcessed) {
-                    waitingForFileUsers.remove(userId);
-                    sendMessage(vk, actor, userId, "✅ Файл успешно сохранен!", random);
+                    if (fileProcessed) {
+                        waitingForFileUsers.remove(userId);
+                    } else {
+                        sendMessage(vk, actor, userId, "⚠️ Не удалось обработать файл. Попробуйте другой формат (PDF, JPG, PNG).", random);
+                    }
                 } else {
-                    sendMessage(vk, actor, userId, "⚠️ Не нашел файл. Прикрепи документ или фото.", random);
+                    // Если ждем файл, а прислали текст (например, "Отмена")
+                    waitingForFileUsers.remove(userId);
+                    sendMessage(vk, actor, userId, "✅ Ожидание файла отменено.", random);
                 }
                 return;
             }
 
-            // Текстовые команды
+            // 2. Обработка команд (только если НЕ ждем файл)
             if (text != null) {
-                if (text.equalsIgnoreCase("Справка")) {
+                if (text.equalsIgnoreCase("Начать") || text.equalsIgnoreCase("/start")) {
+                    sendMessage(vk, actor, userId, "👋 Добро пожаловать в систему управления бассейном!\n\nЧтобы загрузить медицинскую справку, напишите команду 'Справка'.", random);
+                } else if (text.equalsIgnoreCase("Справка")) {
                     waitingForFileUsers.add(userId);
-                    sendMessage(vk, actor, userId, "📄 Пришлите файл справки (PDF, JPG).", random);
+                    sendMessage(vk, actor, userId, "📄 Пришлите файл справки (PDF, JPG, PNG).\n\nЕсли вы передумали, просто напишите любое текстовое сообщение.", random);
                 } else {
-                    sendMessage(vk, actor, userId, "Вы написали: " + text, random);
+                    // Игнорируем неизвестные команды, чтобы не спамить
+                    // sendMessage(vk, actor, userId, "Неизвестная команда. Используйте 'Начать' или 'Справка'.", random);
                 }
+            } else if (hasAttachments) {
+                // Если прислали файл без команды "Справка"
+                sendMessage(vk, actor, userId, "⚠️ Чтобы загрузить файл, сначала напишите команду 'Справка'.", random);
             }
 
         } catch (Exception e) {
@@ -175,7 +180,7 @@ public class BotApplication {
             String objectName = UUID.randomUUID() + "_" + fileName;
             String url = minioService.uploadFile(tempFile.getAbsolutePath(), objectName);
 
-            sendMessage(vk, actor, userId, "✅ Справка загружена!\n🔗 URL: " + url, random);
+            sendMessage(vk, actor, userId, "✅ Справка успешно загружена в систему!", random);
             return true;
 
         } catch (Exception e) {
@@ -194,8 +199,6 @@ public class BotApplication {
     }
 
     private static void sendMessage(VkApiClient vk, GroupActor actor, Long userId, String text, Random random) throws ApiException, ClientException {
-        // Используем sendDeprecated, как в твоем рабочем коде
-        // ИСПРАВЛЕНО: userId передается как Long, а не int
         vk.messages().sendDeprecated(actor)
                 .userId(userId)
                 .message(text)

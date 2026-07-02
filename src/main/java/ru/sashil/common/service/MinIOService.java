@@ -2,7 +2,6 @@ package ru.sashil.common.service;
 
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
-
 import ru.sashil.common.config.MinIOConfig;
 
 import java.io.File;
@@ -27,6 +26,18 @@ public class MinIOService {
         return client == null;
     }
 
+    // Вспомогательный метод для определения типа
+    private String getContentType(String fileName) {
+        if (fileName == null) return "application/octet-stream";
+        String lowerName = fileName.toLowerCase();
+        if (lowerName.endsWith(".pdf")) return "application/pdf";
+        if (lowerName.endsWith(".png")) return "image/png";
+        if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) return "image/jpeg";
+        if (lowerName.endsWith(".gif")) return "image/gif";
+        if (lowerName.endsWith(".txt")) return "text/plain";
+        return "application/octet-stream";
+    }
+
     public String uploadFile(String filePath, String originalName) throws Exception {
         if (client == null) {
             throw new IllegalStateException("MinIO клиент не инициализирован");
@@ -45,13 +56,16 @@ public class MinIOService {
 
         String objectName = "certificates/" + UUID.randomUUID().toString() + extension;
 
+        // Используем жесткое определение типа вместо Files.probeContentType
+        String contentType = getContentType(originalName);
+
         client.putObject(
-            PutObjectArgs.builder()
-                .bucket(bucket)
-                .object(objectName)
-                .stream(Files.newInputStream(file.toPath()), file.length(), -1)
-                .contentType(Files.probeContentType(file.toPath()))
-                .build()
+                PutObjectArgs.builder()
+                        .bucket(bucket)
+                        .object(objectName)
+                        .stream(Files.newInputStream(file.toPath()), file.length(), -1)
+                        .contentType(contentType)
+                        .build()
         );
 
         String endpoint = MinIOConfig.getEndpoint();
@@ -73,13 +87,16 @@ public class MinIOService {
 
         String objectName = "certificates/" + UUID.randomUUID().toString() + extension;
 
+        // Используем жесткое определение типа
+        String contentType = getContentType(originalName);
+
         client.putObject(
-            PutObjectArgs.builder()
-                .bucket(bucket)
-                .object(objectName)
-                .stream(stream, size, -1)
-                .contentType(Files.probeContentType(new File(originalName).toPath()))
-                .build()
+                PutObjectArgs.builder()
+                        .bucket(bucket)
+                        .object(objectName)
+                        .stream(stream, size, -1)
+                        .contentType(contentType)
+                        .build()
         );
 
         String endpoint = MinIOConfig.getEndpoint();
