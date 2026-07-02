@@ -19,7 +19,7 @@ public class MinIOService {
         LOGGER.info("🔧 Инициализация MinIOService...");
         this.client = MinIOConfig.getClient();
         this.bucket = MinIOConfig.getBucketName();
-        LOGGER.info("✅ MinIOService инициализирован. Client: " + (client != null ? "OK" : "NULL"));
+        LOGGER.info("MinIOService инициализирован. Client: " + (client != null ? "OK" : "NULL"));
     }
 
     public boolean isClientNull() {
@@ -70,7 +70,7 @@ public class MinIOService {
 
         String endpoint = MinIOConfig.getEndpoint();
         String url = endpoint + "/" + bucket + "/" + objectName;
-        LOGGER.info("✅ Файл загружен в MinIO: " + url);
+        LOGGER.info("Файл загружен в MinIO: " + url);
         return url;
     }
 

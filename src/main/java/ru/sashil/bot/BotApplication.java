@@ -7,16 +7,12 @@ import com.vk.api.sdk.exceptions.ApiException;
 import com.vk.api.sdk.exceptions.ClientException;
 import com.vk.api.sdk.httpclient.HttpTransportClient;
 import com.vk.api.sdk.objects.messages.Message;
-import com.vk.api.sdk.objects.messages.MessageAttachment;
-import com.vk.api.sdk.objects.docs.Doc;
-import com.vk.api.sdk.objects.photos.Photo;
+import ru.sashil.bot.handlers.DatabaseService;
+import ru.sashil.bot.handlers.ProfileEditHandler;
+import ru.sashil.bot.handlers.RegistrationHandler;
 import ru.sashil.common.service.MinIOService;
 import ru.sashil.common.util.ConfigLoader;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.net.URL;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,20 +20,27 @@ import java.util.logging.Logger;
 public class BotApplication {
     private static final Logger LOGGER = Logger.getLogger(BotApplication.class.getName());
 
-    // Храним ID сообщений, чтобы не отвечать дважды
     private static final Set<Integer> processedMessageIds = Collections.synchronizedSet(new HashSet<>());
-    // Пользователи, ждущие файл
-    private static final Set<Long> waitingForFileUsers = Collections.synchronizedSet(new HashSet<>());
+
+    // Сервисы
+    private static DatabaseService dbService;
+    private static RegistrationHandler regHandler;
+    private static ProfileEditHandler editHandler; // <-- Добавили хендлер редактирования
+    private static MinIOService minioService;
 
     public static void main(String[] args) {
         try {
             ConfigLoader.load();
+
+            // Инициализация БД
+            String dbUrl = "jdbc:postgresql://" + ConfigLoader.get("DB_HOST") + ":" + ConfigLoader.get("DB_PORT") + "/" + ConfigLoader.get("DB_NAME");
+            dbService = new DatabaseService(dbUrl, ConfigLoader.get("DB_USER"), ConfigLoader.get("DB_PASSWORD"));
+
+            regHandler = new RegistrationHandler();
+            editHandler = new ProfileEditHandler(); // <-- Инициализируем его здесь
+            minioService = new MinIOService();
+
             String vkToken = ConfigLoader.get("VK_BOT_TOKEN");
-
-            if (vkToken == null || vkToken.isEmpty()) {
-                throw new RuntimeException("❌ VK_BOT_TOKEN не найден");
-            }
-
             long groupId = 239874040L;
 
             TransportClient transportClient = new HttpTransportClient();
@@ -45,39 +48,24 @@ public class BotApplication {
             GroupActor actor = new GroupActor(groupId, vkToken);
             Random random = new Random();
 
-            MinIOService minioService = new MinIOService();
-
             LOGGER.info("🚀 Бот запущен!");
 
-            Integer ts = vk.messages()
-                    .getLongPollServer(actor)
-                    .execute()
-                    .getTs();
+            Integer ts = vk.messages().getLongPollServer(actor).execute().getTs();
 
             while (true) {
                 try {
-                    var response = vk.messages()
-                            .getLongPollHistory(actor)
-                            .ts(ts)
-                            .execute();
-
+                    var response = vk.messages().getLongPollHistory(actor).ts(ts).execute();
                     List<Message> messages = response.getMessages().getItems();
 
                     if (messages != null && !messages.isEmpty()) {
                         for (Message message : messages) {
-                            processMessage(vk, actor, message, minioService, random);
+                            processMessage(vk, actor, message, random);
                         }
                     }
-
-                    ts = vk.messages()
-                            .getLongPollServer(actor)
-                            .execute()
-                            .getTs();
-
+                    ts = vk.messages().getLongPollServer(actor).execute().getTs();
                     Thread.sleep(500);
-
-                } catch (ApiException | ClientException | InterruptedException e) {
-                    LOGGER.log(Level.SEVERE, "⚠️ Ошибка в цикле: " + e.getMessage(), e);
+                } catch (Exception e) {
+                    LOGGER.log(Level.SEVERE, "⚠️ Ошибка цикла: " + e.getMessage(), e);
                     Thread.sleep(2000);
                 }
             }
@@ -86,7 +74,7 @@ public class BotApplication {
         }
     }
 
-    private static void processMessage(VkApiClient vk, GroupActor actor, Message message, MinIOService minioService, Random random) {
+    private static void processMessage(VkApiClient vk, GroupActor actor, Message message, Random random) {
         Long userId = message.getFromId();
         Integer messageId = message.getId();
         String text = message.getText();
@@ -94,107 +82,58 @@ public class BotApplication {
         if (processedMessageIds.contains(messageId)) return;
         processedMessageIds.add(messageId);
 
-        boolean hasAttachments = message.getAttachments() != null && !message.getAttachments().isEmpty();
-
-        LOGGER.info("📩 Сообщение от " + userId + ": " + (text != null ? text : (hasAttachments ? "[Файл]" : "[Пусто]")));
-
         try {
-            // 1. Если пользователь ждет файл
-            if (waitingForFileUsers.contains(userId)) {
-                if (hasAttachments) {
-                    boolean fileProcessed = false;
-                    for (MessageAttachment attachment : message.getAttachments()) {
-                        String type = attachment.getType().name();
-
-                        if ("DOC".equals(type) && attachment.getDoc() != null) {
-                            Doc doc = attachment.getDoc();
-                            fileProcessed = downloadAndUpload(vk, actor, userId, doc.getUrl().toString(), doc.getTitle(), minioService, random);
-                            break;
-                        } else if ("PHOTO".equals(type) && attachment.getPhoto() != null) {
-                            Photo photo = attachment.getPhoto();
-                            if (photo.getSizes() != null && !photo.getSizes().isEmpty()) {
-                                var sizes = photo.getSizes();
-                                var largestSize = sizes.get(sizes.size() - 1);
-                                String fileName = "photo_" + System.currentTimeMillis() + ".jpg";
-                                fileProcessed = downloadAndUpload(vk, actor, userId, largestSize.getUrl().toString(), fileName, minioService, random);
-                                break;
-                            }
-                        }
-                    }
-
-                    if (fileProcessed) {
-                        waitingForFileUsers.remove(userId);
-                    } else {
-                        sendMessage(vk, actor, userId, "⚠️ Не удалось обработать файл. Попробуйте другой формат (PDF, JPG, PNG).", random);
-                    }
+            // 1. Приоритет: Если идет регистрация
+            if (regHandler.isRegistering(userId)) {
+                String result = regHandler.processStep(userId, text);
+                if ("SAVE_PARENT".equals(result)) {
+                    Map<String, String> data = regHandler.getData(userId);
+                    dbService.saveParent(userId, data.get("firstName"), data.get("lastName"),
+                            data.get("middleName"), data.get("email"));
+                    sendMessage(vk, actor, userId, "✅ Регистрация завершена! Теперь вы можете добавить ребенка или отредактировать профиль.", random);
+                    regHandler.clearData(userId);
                 } else {
-                    // Если ждем файл, а прислали текст (например, "Отмена")
-                    waitingForFileUsers.remove(userId);
-                    sendMessage(vk, actor, userId, "✅ Ожидание файла отменено.", random);
+                    sendMessage(vk, actor, userId, result, random);
                 }
                 return;
             }
 
-            // 2. Обработка команд (только если НЕ ждем файл)
-            if (text != null) {
-                if (text.equalsIgnoreCase("Начать") || text.equalsIgnoreCase("/start")) {
-                    sendMessage(vk, actor, userId, "👋 Добро пожаловать в систему управления бассейном!\n\nЧтобы загрузить медицинскую справку, напишите команду 'Справка'.", random);
-                } else if (text.equalsIgnoreCase("Справка")) {
-                    waitingForFileUsers.add(userId);
-                    sendMessage(vk, actor, userId, "📄 Пришлите файл справки (PDF, JPG, PNG).\n\nЕсли вы передумали, просто напишите любое текстовое сообщение.", random);
-                } else {
-                    // Игнорируем неизвестные команды, чтобы не спамить
-                    // sendMessage(vk, actor, userId, "Неизвестная команда. Используйте 'Начать' или 'Справка'.", random);
-                }
-            } else if (hasAttachments) {
-                // Если прислали файл без команды "Справка"
-                sendMessage(vk, actor, userId, "⚠️ Чтобы загрузить файл, сначала напишите команду 'Справка'.", random);
+            // 2. Приоритет: Если идет редактирование профиля
+            if (editHandler.isEditing(userId)) {
+                String result = editHandler.processStep(userId, text, dbService);
+                sendMessage(vk, actor, userId, result, random);
+                return;
             }
 
+            // 3. Обработка команд (только если не в процессах выше)
+            if (text != null) {
+                if (text.equalsIgnoreCase("Начать") || text.equalsIgnoreCase("/start")) {
+                    boolean isReg = dbService.isParentRegistered(userId);
+                    if (isReg) {
+                        sendMessage(vk, actor, userId, "👋 Вы уже зарегистрированы!", random);
+                    } else {
+                        sendMessage(vk, actor, userId, "👋 Добро пожаловать! Давайте зарегистрируемся.\nВведите вашу фамилию:", random);
+                        regHandler.startRegistration(userId);
+                    }
+                } else if (text.equalsIgnoreCase("Редактировать") || text.equalsIgnoreCase("Профиль")) {
+                    if (!dbService.isParentRegistered(userId)) {
+                        sendMessage(vk, actor, userId, "⚠️ Сначала зарегистрируйтесь командой 'Начать'.", random);
+                    } else {
+                        Map<String, String> currentData = dbService.getParentData(userId);
+                        if (currentData != null) {
+                            editHandler.startEditing(userId, currentData);
+                            sendMessage(vk, actor, userId, "✏️ Режим редактирования.\nТекущая фамилия: " + currentData.get("lastName") + "\n\nВведите новую фамилию:", random);
+                        }
+                    }
+                } else if (text.equalsIgnoreCase("Справка")) {
+                    sendMessage(vk, actor, userId, "📄 Пришлите файл справки.", random);
+                }
+            }
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "❌ Ошибка обработки: " + e.getMessage(), e);
             try {
-                sendMessage(vk, actor, userId, "❌ Произошла ошибка.", random);
-            } catch (Exception ex) {
-                // ignore
-            }
-        }
-    }
-
-    private static boolean downloadAndUpload(VkApiClient vk, GroupActor actor, Long userId, String fileUrl, String fileName, MinIOService minioService, Random random) {
-        File tempFile = null;
-        try {
-            LOGGER.info("⬇️ Скачивание: " + fileName);
-            tempFile = File.createTempFile("vk_", "_" + fileName);
-
-            try (InputStream in = new URL(fileUrl).openStream();
-                 FileOutputStream out = new FileOutputStream(tempFile)) {
-                byte[] buffer = new byte[4096];
-                int bytesRead;
-                while ((bytesRead = in.read(buffer)) != -1) {
-                    out.write(buffer, 0, bytesRead);
-                }
-            }
-
-            LOGGER.info("⬆️ Загрузка в MinIO...");
-            String objectName = UUID.randomUUID() + "_" + fileName;
-            String url = minioService.uploadFile(tempFile.getAbsolutePath(), objectName);
-
-            sendMessage(vk, actor, userId, "✅ Справка успешно загружена в систему!", random);
-            return true;
-
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "❌ Ошибка файла: " + e.getMessage(), e);
-            try {
-                sendMessage(vk, actor, userId, "❌ Ошибка загрузки: " + e.getMessage(), random);
-            } catch (Exception ex) {
-                // ignore
-            }
-            return false;
-        } finally {
-            if (tempFile != null && tempFile.exists()) {
-                tempFile.delete();
-            }
+                sendMessage(vk, actor, userId, "❌ Произошла внутренняя ошибка.", random);
+            } catch (Exception ex) { /* ignore */ }
         }
     }
 
