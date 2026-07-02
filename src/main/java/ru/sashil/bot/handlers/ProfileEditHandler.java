@@ -1,5 +1,6 @@
 package ru.sashil.bot.handlers;
 
+import ru.sashil.common.util.CommandUtils;
 import ru.sashil.common.util.PhoneUtils;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,7 +18,6 @@ public class ProfileEditHandler {
 
     public void startEditing(long userId, Map<String, String> currentData) {
         editSteps.put(userId, 1);
-        // Создаем новую карту и копируем данные, заменяя null на пустые строки для удобства
         Map<String, String> safeData = new ConcurrentHashMap<>();
         if (currentData != null) {
             for (Map.Entry<String, String> entry : currentData.entrySet()) {
@@ -31,17 +31,16 @@ public class ProfileEditHandler {
         int step = editSteps.getOrDefault(userId, 0);
 
         // Проверка на отмену на ЛЮБОМ этапе
-        if (text.equalsIgnoreCase("Отмена") || text.equalsIgnoreCase("Cancel")) {
+        String cmd = CommandUtils.normalize(text);
+        if (cmd.equals("отмена")) {
             cancelEditing(userId);
-            return "✅ Редактирование профиля отменено.";
+            return "Редактирование профиля отменено.";
         }
 
-        // Защита: если шага нет, но нас вызвали
         if (step == 0) {
-            return "❌ Сессия редактирования не найдена. Напишите 'Редактировать' снова.";
+            return "Сессия редактирования не найдена. Напишите 'Редактировать' снова.";
         }
 
-        // Получаем данные. Если их нет в памяти, создаем пустые
         Map<String, String> data = tempData.get(userId);
         if (data == null) {
             data = new ConcurrentHashMap<>();
@@ -49,45 +48,44 @@ public class ProfileEditHandler {
         }
 
         switch (step) {
-            case 1: // Фамилия (Обязательное поле)
-                if (!text.equalsIgnoreCase("пропустить")) {
+            case 1: // Фамилия
+                if (!cmd.equals("пропустить")) {
                     data.put("lastName", text);
                 }
                 editSteps.put(userId, 2);
-                return "Введите новое имя (или 'пропустить'): ";
+                return "Введите новое имя (или 'пропустить'):";
 
-            case 2: // Имя (Обязательное поле)
-                if (!text.equalsIgnoreCase("пропустить")) {
+            case 2: // Имя
+                if (!cmd.equals("пропустить")) {
                     data.put("firstName", text);
                 }
                 editSteps.put(userId, 3);
-                return "Введите новое отчество (или 'пропустить'): ";
+                return "Введите новое отчество (или 'пропустить'):";
 
             case 3: // Отчество
-                if (!text.equalsIgnoreCase("пропустить")) {
-                    data.put("middleName", text.equalsIgnoreCase("нет") ? null : text);
+                if (!cmd.equals("пропустить")) {
+                    data.put("middleName", cmd.equals("нет") ? null : text);
                 }
                 editSteps.put(userId, 4);
-                return "Введите новый email (или 'пропустить'): ";
+                return "Введите новый email (или 'пропустить'):";
 
             case 4: // Email
-                if (!text.equalsIgnoreCase("пропустить")) {
-                    if (!EMAIL_PATTERN.matcher(text).matches()) return "❌ Неверный формат email. Попробуйте снова.";
+                if (!cmd.equals("пропустить")) {
+                    if (!EMAIL_PATTERN.matcher(text).matches()) return "Неверный формат email. Попробуйте снова.";
                     data.put("email", text);
                 }
                 editSteps.put(userId, 5);
-                return "Введите новый телефон (формат +7..., или 'пропустить'): ";
+                return "Введите новый телефон (формат +7..., или 'пропустить'):";
 
             case 5: // Телефон
-                if (!text.equalsIgnoreCase("пропустить")) {
+                if (!cmd.equals("пропустить")) {
                     String normalized = PhoneUtils.normalize(text);
                     if (normalized == null) {
-                        return "❌ Неверный формат телефона. Используйте +7 или 8 (10 цифр). Пример: 89601234567";
+                        return "Неверный формат телефона. Используйте +7 или 8 (10 цифр). Пример: 89601234567";
                     }
                     data.put("phone", normalized);
                 }
 
-                // Сохраняем в БД
                 dbService.updateParent(userId,
                         isEmpty(data.get("firstName")) ? null : data.get("firstName"),
                         isEmpty(data.get("lastName")) ? null : data.get("lastName"),
@@ -98,7 +96,7 @@ public class ProfileEditHandler {
 
                 editSteps.remove(userId);
                 tempData.remove(userId);
-                return "✅ Профиль успешно обновлен!";
+                return "Профиль успешно обновлен!";
             default:
                 return "";
         }

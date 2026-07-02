@@ -1,5 +1,6 @@
 ru/sashil/bot/BotApplication.class
 ru/sashil/bot/handlers/DatabaseService.class
+ru/sashil/common/util/CommandUtils.class
 ru/sashil/common/service/MinIOService.class
 ru/sashil/common/util/PhoneUtils.class
 ru/sashil/bot/handlers/RegistrationHandler.class

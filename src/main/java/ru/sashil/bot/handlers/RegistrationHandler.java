@@ -1,5 +1,6 @@
 package ru.sashil.bot.handlers;
 
+import ru.sashil.common.util.CommandUtils;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,14 +20,16 @@ public class RegistrationHandler {
         int step = steps.getOrDefault(userId, 0);
         Map<String, String> data = tempData.computeIfAbsent(userId, k -> new HashMap<>());
 
-        // Проверка на системные команды во время регистрации
-        if (text.equalsIgnoreCase("Начать") || text.equalsIgnoreCase("/start") || text.equalsIgnoreCase("Справка")) {
-            return "⚠️ Сейчас идет регистрация. Пожалуйста, введите требуемые данные. Если хотите прервать, напишите 'Отмена'.";
+        // Нормализуем команду для проверки
+        String cmd = CommandUtils.normalize(text);
+
+        if (cmd.equals("начать") || cmd.equals("старт") || cmd.equals("справка")) {
+            return "Сейчас идет регистрация. Пожалуйста, введите требуемые данные. Для отмены напишите 'Отмена'.";
         }
 
-        if (text.equalsIgnoreCase("Отмена")) {
+        if (cmd.equals("отмена")) {
             clearData(userId);
-            return "✅ Регистрация отменена.";
+            return "Регистрация отменена.";
         }
 
         switch (step) {
@@ -39,14 +42,14 @@ public class RegistrationHandler {
                 steps.put(userId, 3);
                 return "Введите отчество (или напишите 'нет', если нет):";
             case 3: // Отчество
-                String middleName = text.equalsIgnoreCase("нет") ? null : text;
+                String middleName = cmd.equals("нет") ? null : text;
                 data.put("middleName", middleName);
                 steps.put(userId, 4);
                 return "Введите email (или напишите 'пропустить'):";
             case 4: // Email
-                if (!text.equalsIgnoreCase("пропустить")) {
+                if (!cmd.equals("пропустить")) {
                     if (!EMAIL_PATTERN.matcher(text).matches()) {
-                        return "❌ Неверный формат email. Попробуйте снова или напишите 'пропустить'.";
+                        return "Неверный формат email. Попробуйте снова или напишите 'пропустить'.";
                     }
                     data.put("email", text);
                 }

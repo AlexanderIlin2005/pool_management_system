@@ -5,5 +5,6 @@
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/common/config/MinIOConfig.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/common/service/DatabaseService.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/common/service/MinIOService.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/common/util/CommandUtils.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/common/util/ConfigLoader.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/common/util/PhoneUtils.java
