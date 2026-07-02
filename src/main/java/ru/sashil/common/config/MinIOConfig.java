@@ -5,6 +5,10 @@ import io.minio.BucketExistsArgs;
 
 import ru.sashil.common.util.ConfigLoader;
 
+import okhttp3.OkHttpClient;
+
+import java.net.InetAddress;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 public class MinIOConfig {
@@ -29,9 +33,23 @@ public class MinIOConfig {
             LOGGER.info("   ACCESS_KEY: " + accessKey);
             LOGGER.info("   BUCKET: " + bucketName);
 
+            // Принудительно используем IPv4 для localhost
+            InetAddress inetAddress = InetAddress.getByName("localhost");
+            String host = inetAddress.getHostAddress(); // 127.0.0.1
+            String fixedEndpoint = endpoint.replace("localhost", host);
+            LOGGER.info("   FIXED ENDPOINT: " + fixedEndpoint);
+
+            // OkHttpClient с большими таймаутами
+            OkHttpClient httpClient = new OkHttpClient.Builder()
+                .connectTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(120, TimeUnit.SECONDS)
+                .readTimeout(120, TimeUnit.SECONDS)
+                .build();
+
             instance = MinioClient.builder()
-                .endpoint(endpoint)
+                .endpoint(fixedEndpoint)
                 .credentials(accessKey, secretKey)
+                .httpClient(httpClient)
                 .build();
 
             boolean exists = instance.bucketExists(
