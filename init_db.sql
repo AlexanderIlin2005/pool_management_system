@@ -33,17 +33,26 @@ CREATE TABLE IF NOT EXISTS pool.children (
     last_name VARCHAR(100) NOT NULL,
     middle_name VARCHAR(100),
     birth_date DATE NOT NULL,
-    -- Возраст считаем динамически через представление или хранимую функцию,
-    -- так как GENERATED ALWAYS AS STORED требует триггеров или сложных настроек в старых PG,
-    -- но в PG 12+ это работает. Оставим как есть, если версия позволяет.
-    age INTEGER GENERATED ALWAYS AS (EXTRACT(YEAR FROM AGE(birth_date))::INTEGER) STORED,
+    age INTEGER,
     grade_number INTEGER CHECK (grade_number BETWEEN 1 AND 11),
     grade_name VARCHAR(50), -- Полное название класса
     skill pool.swimming_skill NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    phone VARCHAR(20);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Индексы для быстрого поиска
 CREATE INDEX IF NOT EXISTS idx_parents_vk_id ON pool.parents(vk_id);
 CREATE INDEX IF NOT EXISTS idx_children_parent_id ON pool.children(parent_id);
+
+CREATE OR REPLACE FUNCTION pool.calculate_age()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.age := EXTRACT(YEAR FROM AGE(NEW.birth_date))::INTEGER;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER set_age
+BEFORE INSERT OR UPDATE OF birth_date ON pool.children
+FOR EACH ROW
+EXECUTE FUNCTION pool.calculate_age();

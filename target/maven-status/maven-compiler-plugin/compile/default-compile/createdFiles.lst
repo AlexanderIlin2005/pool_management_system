@@ -1,8 +1,11 @@
 ru/sashil/bot/BotApplication.class
 ru/sashil/bot/handlers/DatabaseService.class
 ru/sashil/common/util/CommandUtils.class
+ru/sashil/common/util/DateUtils.class
 ru/sashil/common/service/MinIOService.class
+ru/sashil/bot/handlers/ChildEditHandler.class
 ru/sashil/common/util/PhoneUtils.class
+ru/sashil/bot/handlers/ChildRegistrationHandler.class
 ru/sashil/bot/handlers/RegistrationHandler.class
 ru/sashil/Main.class
 ru/sashil/common/config/MinIOConfig.class
