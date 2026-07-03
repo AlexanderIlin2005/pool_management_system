@@ -8,7 +8,7 @@ import com.vk.api.sdk.exceptions.ClientException;
 import com.vk.api.sdk.httpclient.HttpTransportClient;
 import com.vk.api.sdk.objects.messages.Message;
 import ru.sashil.bot.handlers.*;
-import ru.sashil.common.service.MinIOService;
+import ru.sashil.common.service.*;
 import ru.sashil.common.util.CommandUtils;
 import ru.sashil.common.util.ConfigLoader;
 

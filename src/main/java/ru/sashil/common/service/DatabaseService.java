@@ -1,4 +1,4 @@
-package ru.sashil.bot.handlers;
+package ru.sashil.common.service;
 
 import java.sql.*;
 import java.util.ArrayList;
