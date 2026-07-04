@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Панель управления</title>
+    <style>
+        body { font-family: sans-serif; padding: 2rem; }
+        .card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+        .role-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; background: #e2e8f0; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>Добро пожаловать!</h1>
+    <p>Вы вошли как: <strong th:text="${fullName}">Имя</strong></p>
+    <p>Ваша роль: <span class="role-badge" th:text="${role}">РОЛЬ</span></p>
+    <hr>
+    <p>Функционал панели находится в разработке.</p>
+</div>
+</body>
+</html>

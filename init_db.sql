@@ -40,6 +40,14 @@ CREATE TABLE IF NOT EXISTS pool.children (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS pool.admin_users (
+    id BIGSERIAL PRIMARY KEY,
+    login VARCHAR(50) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255),
+    role VARCHAR(20) NOT NULL CHECK (role IN ('ADMIN', 'ACCOUNTANT', 'COACH'))
+);
+
 -- Индексы для быстрого поиска
 CREATE INDEX IF NOT EXISTS idx_parents_vk_id ON pool.parents(vk_id);
 CREATE INDEX IF NOT EXISTS idx_children_parent_id ON pool.children(parent_id);
