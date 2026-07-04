@@ -44,4 +44,37 @@ public class AuthController {
         model.addAttribute("error", "Неверный логин или пароль");
         return "login";
     }
+
+    // --- Новая логика регистрации ---
+
+    @GetMapping("/register")
+    public String registerPage(Model model) {
+        model.addAttribute("roles", AdminUser.Role.values());
+        return "register";
+    }
+
+    @PostMapping("/register")
+    public String processRegister(@RequestParam("login") String login,
+                                  @RequestParam("password") String password,
+                                  @RequestParam("fullName") String fullName,
+                                  @RequestParam("role") AdminUser.Role role,
+                                  Model model) {
+
+        // Проверка, занят ли логин
+        if (userRepository.findByLogin(login).isPresent()) {
+            model.addAttribute("error", "Этот логин уже занят");
+            model.addAttribute("roles", AdminUser.Role.values());
+            return "register";
+        }
+
+        AdminUser newUser = new AdminUser();
+        newUser.setLogin(login);
+        newUser.setPasswordHash(passwordEncoder.encode(password));
+        newUser.setFullName(fullName);
+        newUser.setRole(role);
+
+        userRepository.save(newUser);
+
+        return "redirect:/login?registered";
+    }
 }
