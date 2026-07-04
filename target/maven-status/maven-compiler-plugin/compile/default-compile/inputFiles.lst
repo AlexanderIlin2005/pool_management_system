@@ -1,5 +1,13 @@
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/Main.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/AdminApplication.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/config/DataInitializer.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/config/SecurityConfig.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/controller/AuthController.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/model/AdminUser.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/repository/AdminUserRepository.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/bot/BotApplication.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/bot/handlers/ChildEditHandler.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/bot/handlers/ChildRegistrationHandler.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/bot/handlers/ProfileEditHandler.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/bot/handlers/RegistrationHandler.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/common/config/MinIOConfig.java
@@ -7,4 +15,5 @@
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/common/service/MinIOService.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/common/util/CommandUtils.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/common/util/ConfigLoader.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/common/util/DateUtils.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/common/util/PhoneUtils.java
