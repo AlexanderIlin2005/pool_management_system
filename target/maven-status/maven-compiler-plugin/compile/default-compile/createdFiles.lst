@@ -4,10 +4,12 @@ ru/sashil/bot/handlers/ChildEditHandler.class
 ru/sashil/admin/repository/AdminUserRepository.class
 ru/sashil/bot/handlers/ChildRegistrationHandler.class
 ru/sashil/admin/config/DataInitializer.class
+ru/sashil/admin/model/ParentWithChildren.class
 ru/sashil/Main.class
 ru/sashil/common/service/DatabaseService.class
 ru/sashil/common/config/MinIOConfig.class
 ru/sashil/admin/AdminApplication.class
+ru/sashil/admin/service/AdminDashboardService.class
 ru/sashil/bot/handlers/ProfileEditHandler.class
 ru/sashil/admin/controller/AuthController.class
 ru/sashil/common/util/CommandUtils.class
