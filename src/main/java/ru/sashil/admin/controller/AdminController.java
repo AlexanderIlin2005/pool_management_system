@@ -39,18 +39,18 @@ public class AdminController {
         return user != null && user.getRole() == ru.sashil.admin.model.AdminUser.Role.ADMIN;
     }
 
-    @GetMapping("/dashboard")
-    public String dashboard(HttpSession session, Model model,
-                            @RequestParam(required = false) String search,
-                            @RequestParam(required = false) String sortField,
-                            @RequestParam(required = false) String sortOrder) {
+    @GetMapping("/parents")
+    public String parentsPage(HttpSession session, Model model,
+                              @RequestParam(required = false) String search,
+                              @RequestParam(required = false) String sortField,
+                              @RequestParam(required = false) String sortOrder) {
 
         AdminUser currentUser = (AdminUser) session.getAttribute("currentUser");
         if (currentUser == null) return "redirect:/login";
 
         model.addAttribute("fullName", currentUser.getFullName());
         model.addAttribute("role", currentUser.getRole());
-        model.addAttribute("activePage", "dashboard");
+        model.addAttribute("activePage", "parents");
 
         // Если не админ - показываем заглушку
         if (!isAdmin(session)) {
@@ -98,7 +98,7 @@ public class AdminController {
         model.addAttribute("currentSortField", sortField);
         model.addAttribute("currentSortOrder", sortOrder);
 
-        return "dashboard";
+        return "parents";
     }
 
     @GetMapping("/groups")
@@ -158,7 +158,7 @@ public class AdminController {
 
     @GetMapping("/groups/new")
     public String newGroupPage(Model model, HttpSession session) {
-        if (!isAdmin(session)) return "redirect:/dashboard"; // Неадмины не могут создавать группы
+        if (!isAdmin(session)) return "redirect:/parents";
 
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
@@ -173,7 +173,7 @@ public class AdminController {
 
     @GetMapping("/groups/edit/{id}")
     public String editGroupPage(@PathVariable Long id, Model model, HttpSession session) {
-        if (!isAdmin(session)) return "redirect:/dashboard";
+        if (!isAdmin(session)) return "redirect:/parents";
 
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
@@ -192,7 +192,7 @@ public class AdminController {
 
     @PostMapping("/groups/save")
     public String saveGroup(@ModelAttribute Group group, Model model, HttpSession session) {
-        if (!isAdmin(session)) return "redirect:/dashboard";
+        if (!isAdmin(session)) return "redirect:/parents";
 
         try {
             groupService.saveGroup(group);
@@ -210,7 +210,7 @@ public class AdminController {
 
     @PostMapping("/groups/delete/{id}")
     public String deleteGroup(@PathVariable Long id, HttpSession session) {
-        if (!isAdmin(session)) return "redirect:/dashboard";
+        if (!isAdmin(session)) return "redirect:/parents";
 
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";

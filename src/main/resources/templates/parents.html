@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Дэшборд', ~{::content})}">
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Родители', ~{::content})}">
 <body>
 <div th:fragment="content">
     <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1400px; margin: 0 auto;">
@@ -8,27 +8,27 @@
         </div>
 
         <!-- Форма поиска -->
-        <form method="get" action="/dashboard" class="controls" style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
+        <form method="get" action="/parents" class="controls" style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
             <input type="text" name="search" class="search-box" placeholder="Поиск по ФИО, детям, email..." th:value="${currentSearch}" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
             <button type="submit" class="btn">Найти</button>
-            <a href="/dashboard" class="btn" style="background-color: #6c757d;">Сброс</a>
+            <a href="/parents" class="btn" style="background-color: #6c757d;">Сброс</a>
         </form>
 
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
             <thead>
             <tr style="background: #007bff; color: white; text-align: left;">
                 <th style="padding: 12px; border: 1px solid #ddd;">
-                    <a th:href="@{/dashboard(search=${currentSearch}, sortField='id', sortOrder=${currentSortField == 'id' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}" style="color: white; text-decoration: none;">
+                    <a th:href="@{/parents(search=${currentSearch}, sortField='id', sortOrder=${currentSortField == 'id' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}" style="color: white; text-decoration: none;">
                         № п/п <span th:if="${currentSortField == 'id'}" class="sort-icon" th:text="${currentSortOrder == 'asc' ? '▲' : '▼'}"></span>
                     </a>
                 </th>
                 <th style="padding: 12px; border: 1px solid #ddd;">
-                    <a th:href="@{/dashboard(search=${currentSearch}, sortField='lastName', sortOrder=${currentSortField == 'lastName' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}" style="color: white; text-decoration: none;">
+                    <a th:href="@{/parents(search=${currentSearch}, sortField='lastName', sortOrder=${currentSortField == 'lastName' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}" style="color: white; text-decoration: none;">
                         Фамилия <span th:if="${currentSortField == 'lastName'}" class="sort-icon" th:text="${currentSortOrder == 'asc' ? '▲' : '▼'}"></span>
                     </a>
                 </th>
                 <th style="padding: 12px; border: 1px solid #ddd;">
-                    <a th:href="@{/dashboard(search=${currentSearch}, sortField='firstName', sortOrder=${currentSortField == 'firstName' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}" style="color: white; text-decoration: none;">
+                    <a th:href="@{/parents(search=${currentSearch}, sortField='firstName', sortOrder=${currentSortField == 'firstName' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}" style="color: white; text-decoration: none;">
                         Имя <span th:if="${currentSortField == 'firstName'}" class="sort-icon" th:text="${currentSortOrder == 'asc' ? '▲' : '▼'}"></span>
                     </a>
                 </th>

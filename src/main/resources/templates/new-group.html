@@ -4,71 +4,179 @@
 <div th:fragment="content">
   <h1 th:text="${isEdit} ? 'Редактирование группы' : 'Создание новой группы'"></h1>
 
-  <!-- action зависит от того, редактируем мы или создаем -->
-  <form th:action="${isEdit} ? @{/groups/save} : @{/groups/save}"
-        th:object="${group}" method="post" style="max-width: 600px; background: white; padding: 20px; border-radius: 8px;">
-
-    <!-- Скрытое поле ID для редактирования -->
+  <form th:action="@{/groups/save}" th:object="${group}" method="post" style="max-width: 800px; background: white; padding: 20px; border-radius: 8px;">
     <input type="hidden" th:field="*{id}" th:if="${isEdit}">
 
-    <div style="margin-bottom: 15px;">
-      <label>Номер группы:</label>
-      <input type="number" th:field="*{number}" required style="width: 100%; padding: 8px;">
+    <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+      <div style="flex: 1;">
+        <label>Номер группы:</label>
+        <input type="number" th:field="*{number}" required style="width: 100%; padding: 8px;">
+      </div>
+      <div style="flex: 2;">
+        <label>Название:</label>
+        <input type="text" th:field="*{name}" required style="width: 100%; padding: 8px;">
+      </div>
     </div>
 
-    <div style="margin-bottom: 15px;">
-      <label>Название:</label>
-      <input type="text" th:field="*{name}" required style="width: 100%; padding: 8px;">
+    <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+      <div style="flex: 1;">
+        <label>Бассейн:</label>
+        <select th:field="*{pool.id}" required style="width: 100%; padding: 8px;">
+          <option value="">Выберите...</option>
+          <option th:each="p : ${pools}" th:value="${p.id}" th:text="${p.name}" th:selected="${group.pool != null and group.pool.id == p.id}"></option>
+        </select>
+      </div>
+      <div style="flex: 1;">
+        <label>Вместимость:</label>
+        <input type="number" th:field="*{capacity}" max="50" min="1" required style="width: 100%; padding: 8px;">
+      </div>
     </div>
 
-    <div style="margin-bottom: 15px;">
-      <label>Бассейн:</label>
-      <select th:field="*{pool.id}" required style="width: 100%; padding: 8px;">
-        <option value="">Выберите бассейн...</option>
-        <option th:each="p : ${pools}" th:value="${p.id}" th:text="${p.name}" th:selected="${group.pool != null and group.pool.id == p.id}"></option>
-      </select>
+    <h3>Расписание занятий</h3>
+    <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">Нажмите на дни, когда проходят занятия:</p>
+
+    <!-- Горизонтальная строка переключателей -->
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+      <button type="button" class="day-toggle" data-day="1" style="padding: 10px 15px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; border-radius: 4px; font-weight: bold;">Пн</button>
+      <button type="button" class="day-toggle" data-day="2" style="padding: 10px 15px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; border-radius: 4px; font-weight: bold;">Вт</button>
+      <button type="button" class="day-toggle" data-day="3" style="padding: 10px 15px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; border-radius: 4px; font-weight: bold;">Ср</button>
+      <button type="button" class="day-toggle" data-day="4" style="padding: 10px 15px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; border-radius: 4px; font-weight: bold;">Чт</button>
+      <button type="button" class="day-toggle" data-day="5" style="padding: 10px 15px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; border-radius: 4px; font-weight: bold;">Пт</button>
+      <button type="button" class="day-toggle" data-day="6" style="padding: 10px 15px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; border-radius: 4px; font-weight: bold;">Сб</button>
+      <button type="button" class="day-toggle" data-day="7" style="padding: 10px 15px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; border-radius: 4px; font-weight: bold;">Вс</button>
     </div>
 
-    <div style="margin-bottom: 15px;">
-      <label>Вместимость (до 50):</label>
-      <input type="number" th:field="*{capacity}" max="50" min="1" required style="width: 100%; padding: 8px;">
+    <!-- Скрытые блоки для каждого дня -->
+    <!-- Понедельник -->
+    <div id="time-block-1" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
+      <strong>Понедельник:</strong>
+      <div style="margin-top: 10px;">
+        <label>Начало:</label>
+        <input type="time" th:field="*{day1Start}" style="margin-left: 10px; padding: 5px;">
+        <label style="margin-left: 15px;">Конец:</label>
+        <input type="time" th:field="*{day1End}" style="margin-left: 10px; padding: 5px;">
+      </div>
     </div>
 
-    <h3>Расписание 1</h3>
-    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-      <select th:field="*{dayOfWeek1}" required style="flex: 1; padding: 8px;">
-        <option value="1" th:selected="${group.dayOfWeek1 == 1}">Понедельник</option>
-        <option value="2" th:selected="${group.dayOfWeek1 == 2}">Вторник</option>
-        <option value="3" th:selected="${group.dayOfWeek1 == 3}">Среда</option>
-        <option value="4" th:selected="${group.dayOfWeek1 == 4}">Четверг</option>
-        <option value="5" th:selected="${group.dayOfWeek1 == 5}">Пятница</option>
-        <option value="6" th:selected="${group.dayOfWeek1 == 6}">Суббота</option>
-        <option value="7" th:selected="${group.dayOfWeek1 == 7}">Воскресенье</option>
-      </select>
-      <input type="time" th:field="*{startTime1}" required style="flex: 1; padding: 8px;">
-      <input type="time" th:field="*{endTime1}" required style="flex: 1; padding: 8px;">
+    <!-- Вторник -->
+    <div id="time-block-2" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
+      <strong>Вторник:</strong>
+      <div style="margin-top: 10px;">
+        <label>Начало:</label>
+        <input type="time" th:field="*{day2Start}" style="margin-left: 10px; padding: 5px;">
+        <label style="margin-left: 15px;">Конец:</label>
+        <input type="time" th:field="*{day2End}" style="margin-left: 10px; padding: 5px;">
+      </div>
     </div>
 
-    <h3>Расписание 2 (Опционально)</h3>
-    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-      <select th:field="*{dayOfWeek2}" style="flex: 1; padding: 8px;">
-        <option value="">Не задано</option>
-        <option value="1" th:selected="${group.dayOfWeek2 == 1}">Понедельник</option>
-        <option value="2" th:selected="${group.dayOfWeek2 == 2}">Вторник</option>
-        <option value="3" th:selected="${group.dayOfWeek2 == 3}">Среда</option>
-        <option value="4" th:selected="${group.dayOfWeek2 == 4}">Четверг</option>
-        <option value="5" th:selected="${group.dayOfWeek2 == 5}">Пятница</option>
-        <option value="6" th:selected="${group.dayOfWeek2 == 6}">Суббота</option>
-        <option value="7" th:selected="${group.dayOfWeek2 == 7}">Воскресенье</option>
-      </select>
-      <input type="time" th:field="*{startTime2}" style="flex: 1; padding: 8px;">
-      <input type="time" th:field="*{endTime2}" style="flex: 1; padding: 8px;">
+    <!-- Среда -->
+    <div id="time-block-3" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
+      <strong>Среда:</strong>
+      <div style="margin-top: 10px;">
+        <label>Начало:</label>
+        <input type="time" th:field="*{day3Start}" style="margin-left: 10px; padding: 5px;">
+        <label style="margin-left: 15px;">Конец:</label>
+        <input type="time" th:field="*{day3End}" style="margin-left: 10px; padding: 5px;">
+      </div>
+    </div>
+
+    <!-- Четверг -->
+    <div id="time-block-4" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
+      <strong>Четверг:</strong>
+      <div style="margin-top: 10px;">
+        <label>Начало:</label>
+        <input type="time" th:field="*{day4Start}" style="margin-left: 10px; padding: 5px;">
+        <label style="margin-left: 15px;">Конец:</label>
+        <input type="time" th:field="*{day4End}" style="margin-left: 10px; padding: 5px;">
+      </div>
+    </div>
+
+    <!-- Пятница -->
+    <div id="time-block-5" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
+      <strong>Пятница:</strong>
+      <div style="margin-top: 10px;">
+        <label>Начало:</label>
+        <input type="time" th:field="*{day5Start}" style="margin-left: 10px; padding: 5px;">
+        <label style="margin-left: 15px;">Конец:</label>
+        <input type="time" th:field="*{day5End}" style="margin-left: 10px; padding: 5px;">
+      </div>
+    </div>
+
+    <!-- Суббота -->
+    <div id="time-block-6" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
+      <strong>Суббота:</strong>
+      <div style="margin-top: 10px;">
+        <label>Начало:</label>
+        <input type="time" th:field="*{day6Start}" style="margin-left: 10px; padding: 5px;">
+        <label style="margin-left: 15px;">Конец:</label>
+        <input type="time" th:field="*{day6End}" style="margin-left: 10px; padding: 5px;">
+      </div>
+    </div>
+
+    <!-- Воскресенье -->
+    <div id="time-block-7" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
+      <strong>Воскресенье:</strong>
+      <div style="margin-top: 10px;">
+        <label>Начало:</label>
+        <input type="time" th:field="*{day7Start}" style="margin-left: 10px; padding: 5px;">
+        <label style="margin-left: 15px;">Конец:</label>
+        <input type="time" th:field="*{day7End}" style="margin-left: 10px; padding: 5px;">
+      </div>
     </div>
 
     <p th:if="${error}" style="color: red;" th:text="${error}"></p>
-    <button type="submit" class="btn">Сохранить</button>
-    <a href="/groups" class="btn" style="background-color: #6c757d; margin-left: 10px;">Отмена</a>
+
+    <div style="margin-top: 20px;">
+      <button type="submit" class="btn">Сохранить</button>
+      <a href="/groups" class="btn" style="background-color: #6c757d; margin-left: 10px;">Отмена</a>
+    </div>
   </form>
+
+  <script>
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        const days = [1, 2, 3, 4, 5, 6, 7];
+
+        days.forEach(day => {
+            const startInput = document.querySelector(`input[name="day${day}Start"]`);
+            const endInput = document.querySelector(`input[name="day${day}End"]`);
+            const block = document.getElementById(`time-block-${day}`);
+            const btn = document.querySelector(`.day-toggle[data-day="${day}"]`);
+
+            // Если при редактировании есть данные, показываем блок и активируем кнопку
+            if ((startInput && startInput.value) || (endInput && endInput.value)) {
+                block.style.display = 'block';
+                btn.classList.add('active');
+                btn.style.backgroundColor = '#007bff';
+                btn.style.color = 'white';
+                btn.style.borderColor = '#007bff';
+            }
+
+            // Обработчик клика
+            btn.addEventListener('click', function() {
+                const isActive = this.classList.contains('active');
+
+                if (isActive) {
+                    // Скрываем и очищаем
+                    block.style.display = 'none';
+                    if (startInput) startInput.value = '';
+                    if (endInput) endInput.value = '';
+                    this.classList.remove('active');
+                    this.style.backgroundColor = '#f8f9fa';
+                    this.style.color = 'black';
+                    this.style.borderColor = '#ccc';
+                } else {
+                    // Показываем
+                    block.style.display = 'block';
+                    this.classList.add('active');
+                    this.style.backgroundColor = '#007bff';
+                    this.style.color = 'white';
+                    this.style.borderColor = '#007bff';
+                }
+            });
+        });
+    });
+  </script>
 </div>
 </body>
 </html>

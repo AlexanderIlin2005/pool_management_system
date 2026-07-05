@@ -40,7 +40,7 @@ public class AuthController {
             AdminUser user = userOpt.get();
             if (passwordEncoder.matches(password, user.getPasswordHash())) {
                 session.setAttribute(SESSION_USER_KEY, user);
-                return "redirect:/dashboard";
+                return "redirect:/parents";
             }
         }
 

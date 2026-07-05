@@ -56,19 +56,23 @@ CREATE TABLE IF NOT EXISTS pool.pools (
 );
 
 -- Таблица групп
-CREATE TABLE IF NOT EXISTS pool.groups (
+CREATE TABLE pool.groups (
     id BIGSERIAL PRIMARY KEY,
     number INTEGER UNIQUE NOT NULL,
-    trainer_id BIGINT, -- Пока может быть null, позже свяжем с таблицей тренеров
+    trainer_id BIGINT,
     name VARCHAR(100) NOT NULL,
-    day_of_week_1 INTEGER CHECK (day_of_week_1 BETWEEN 1 AND 7), -- 1=Пн, 7=Вс
-    start_time_1 TIME NOT NULL,
-    end_time_1 TIME NOT NULL,
-    day_of_week_2 INTEGER CHECK (day_of_week_2 BETWEEN 1 AND 7),
-    start_time_2 TIME,
-    end_time_2 TIME,
     capacity INTEGER CHECK (capacity BETWEEN 1 AND 50),
     pool_id BIGINT REFERENCES pool.pools(id),
+
+    -- Поля для 7 дней недели (1=Пн ... 7=Вс)
+    day_1_start TIME, day_1_end TIME,
+    day_2_start TIME, day_2_end TIME,
+    day_3_start TIME, day_3_end TIME,
+    day_4_start TIME, day_4_end TIME,
+    day_5_start TIME, day_5_end TIME,
+    day_6_start TIME, day_6_end TIME,
+    day_7_start TIME, day_7_end TIME,
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

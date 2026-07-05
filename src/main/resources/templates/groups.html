@@ -35,15 +35,17 @@
                 </td>
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.pool != null ? g.pool.name : '-'}"></td>
                 <td style="padding: 12px; border: 1px solid #ddd;">
-                        <span th:with="days=${T(java.util.Map).of(1,'Пн',2,'Вт',3,'Ср',4,'Чт',5,'Пт',6,'Сб',7,'Вс')}">
-                            <span th:text="${days.get(g.dayOfWeek1)} + ' ' + ${g.startTime1} + '-' + ${g.endTime1}"></span>
-                            <br th:if="${g.dayOfWeek2 != null}">
-                            <span th:if="${g.dayOfWeek2 != null}" th:text="${days.get(g.dayOfWeek2)} + ' ' + ${g.startTime2} + '-' + ${g.endTime2}"></span>
-                        </span>
+                    <span th:if="${g.day1Start != null}" th:text="'Пн ' + ${g.day1Start} + '-' + ${g.day1End}"></span><br>
+                    <span th:if="${g.day2Start != null}" th:text="'Вт ' + ${g.day2Start} + '-' + ${g.day2End}"></span><br>
+                    <span th:if="${g.day3Start != null}" th:text="'Ср ' + ${g.day3Start} + '-' + ${g.day3End}"></span><br>
+                    <span th:if="${g.day4Start != null}" th:text="'Чт ' + ${g.day4Start} + '-' + ${g.day4End}"></span><br>
+                    <span th:if="${g.day5Start != null}" th:text="'Пт ' + ${g.day5Start} + '-' + ${g.day5End}"></span><br>
+                    <span th:if="${g.day6Start != null}" th:text="'Сб ' + ${g.day6Start} + '-' + ${g.day6End}"></span><br>
+                    <span th:if="${g.day7Start != null}" th:text="'Вс ' + ${g.day7Start} + '-' + ${g.day7End}"></span>
                 </td>
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.capacity}"></td>
                 <td style="padding: 12px; border: 1px solid #ddd;">
-                    <form th:action="@{/groups/delete/{id}(id=${g.id})}" method="post" onsubmit="return confirm('Вы точно хотите удалить группу \'' + [[${g.name}]] + '\'? Это действие нельзя отменить.');">
+                    <form th:action="@{/groups/delete/{id}(id=${g.id})}" method="post" onsubmit="return confirm('Вы уверены, что хотите удалить группу \'' + [[${g.name}]] + '\'? Это действие нельзя отменить.');">
                         <button type="submit" class="btn btn-danger" style="padding: 5px 10px; font-size: 0.8em;">Удалить</button>
                     </form>
                 </td>
