@@ -2,6 +2,7 @@ ru/sashil/bot/BotApplication.class
 ru/sashil/admin/model/AdminUser.class
 ru/sashil/bot/handlers/ChildEditHandler.class
 ru/sashil/admin/repository/AdminUserRepository.class
+ru/sashil/admin/controller/AdminController.class
 ru/sashil/bot/handlers/ChildRegistrationHandler.class
 ru/sashil/admin/config/DataInitializer.class
 ru/sashil/admin/model/ParentWithChildren.class
@@ -17,6 +18,7 @@ ru/sashil/common/util/DateUtils.class
 ru/sashil/common/service/MinIOService.class
 ru/sashil/common/util/PhoneUtils.class
 ru/sashil/bot/handlers/RegistrationHandler.class
+ru/sashil/admin/service/StringSimilarityService.class
 ru/sashil/admin/config/SecurityConfig.class
 ru/sashil/admin/model/AdminUser$Role.class
 ru/sashil/common/util/ConfigLoader.class

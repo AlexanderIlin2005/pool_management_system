@@ -1,13 +1,11 @@
 package ru.sashil.admin.service;
 
-import org.apache.commons.text.similarity.LevenshteinDistance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import ru.sashil.admin.model.ParentWithChildren;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class AdminDashboardService {
@@ -25,7 +23,7 @@ public class AdminDashboardService {
             ParentWithChildren pwc = new ParentWithChildren();
             pwc.setId((Long) row.get("id"));
 
-            // Сохраняем части ФИО отдельно для поиска
+            // Сохраняем части ФИО отдельно для поиска и сортировки
             pwc.setLastName((String) row.get("last_name"));
             pwc.setFirstName((String) row.get("first_name"));
             pwc.setMiddleName((String) row.get("middle_name"));
@@ -63,21 +61,5 @@ public class AdminDashboardService {
             result.add(pwc);
         }
         return result;
-    }
-
-    // Метод для проверки похожести строк (Levenshtein Distance)
-    public boolean isSimilar(String s1, String s2, double threshold) {
-        if (s1 == null || s2 == null) return false;
-        s1 = s1.toLowerCase().trim();
-        s2 = s2.toLowerCase().trim();
-        if (s1.equals(s2)) return true;
-
-        LevenshteinDistance levenshtein = new LevenshteinDistance();
-        int distance = levenshtein.apply(s1, s2);
-        int maxLen = Math.max(s1.length(), s2.length());
-        if (maxLen == 0) return true;
-
-        double similarity = 1.0 - ((double) distance / maxLen);
-        return similarity >= threshold;
     }
 }
