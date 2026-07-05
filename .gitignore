@@ -43,5 +43,5 @@ bin/
 .DS_Store
 /target/
 
-fix.sh
-/target/
+
+/target/**
