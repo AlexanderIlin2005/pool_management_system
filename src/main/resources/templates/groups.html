@@ -45,7 +45,9 @@
                 </td>
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.capacity}"></td>
                 <td style="padding: 12px; border: 1px solid #ddd;">
-                    <form th:action="@{/groups/delete/{id}(id=${g.id})}" method="post" onsubmit="return confirm('Вы уверены, что хотите удалить группу \'' + [[${g.name}]] + '\'? Это действие нельзя отменить.');">
+                    <!-- Убрали onsubmit, добавили класс delete-btn -->
+                    <form th:action="@{/groups/delete/{id}(id=${g.id})}" method="post" class="delete-form">
+                        <input type="hidden" name="groupName" th:value="${g.name}">
                         <button type="submit" class="btn btn-danger" style="padding: 5px 10px; font-size: 0.8em;">Удалить</button>
                     </form>
                 </td>
@@ -56,6 +58,25 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Скрипт для подтверждения удаления -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('.delete-form');
+
+            forms.forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    // Находим скрытое поле с именем группы внутри этой формы
+                    const groupNameInput = this.querySelector('input[name="groupName"]');
+                    const groupName = groupNameInput ? groupNameInput.value : 'эту группу';
+
+                    if (!confirm('Вы точно хотите удалить группу \'' + groupName + '\'? Это действие нельзя отменить.')) {
+                        e.preventDefault(); // Отменяем отправку формы, если пользователь нажал "Отмена"
+                    }
+                });
+            });
+        });
+    </script>
 </div>
 </body>
 </html>
