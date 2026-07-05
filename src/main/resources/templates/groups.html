@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Группы', ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1400px; margin: 0 auto;">
+        <div class="header">
+            <h1>Управление группами</h1>
+            <a href="/groups/new" class="btn">+ Создать группу</a>
+        </div>
+
+        <!-- Форма поиска -->
+        <form method="get" action="/groups" class="controls" style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
+            <input type="text" name="search" class="search-box" placeholder="Поиск по названию, номеру, бассейну..." th:value="${currentSearch}" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            <button type="submit" class="btn">Найти</button>
+            <a href="/groups" class="btn" style="background-color: #6c757d;">Сброс</a>
+        </form>
+
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <thead>
+            <tr style="background: #007bff; color: white; text-align: left;">
+                <th style="padding: 12px; border: 1px solid #ddd;">№</th>
+                <th style="padding: 12px; border: 1px solid #ddd;">Название</th>
+                <th style="padding: 12px; border: 1px solid #ddd;">Бассейн</th>
+                <th style="padding: 12px; border: 1px solid #ddd;">Расписание</th>
+                <th style="padding: 12px; border: 1px solid #ddd;">Вместимость</th>
+                <th style="padding: 12px; border: 1px solid #ddd;">Действия</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="g : ${groups}" style="border-bottom: 1px solid #eee;">
+                <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.number}"></td>
+                <!-- Клик по названию ведет на редактирование -->
+                <td style="padding: 12px; border: 1px solid #ddd;">
+                    <a th:href="@{/groups/edit/{id}(id=${g.id})}" style="color: #007bff; text-decoration: none; font-weight: bold;" th:text="${g.name}"></a>
+                </td>
+                <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.pool != null ? g.pool.name : '-'}"></td>
+                <td style="padding: 12px; border: 1px solid #ddd;">
+                        <span th:with="days=${T(java.util.Map).of(1,'Пн',2,'Вт',3,'Ср',4,'Чт',5,'Пт',6,'Сб',7,'Вс')}">
+                            <span th:text="${days.get(g.dayOfWeek1)} + ' ' + ${g.startTime1} + '-' + ${g.endTime1}"></span>
+                            <br th:if="${g.dayOfWeek2 != null}">
+                            <span th:if="${g.dayOfWeek2 != null}" th:text="${days.get(g.dayOfWeek2)} + ' ' + ${g.startTime2} + '-' + ${g.endTime2}"></span>
+                        </span>
+                </td>
+                <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.capacity}"></td>
+                <td style="padding: 12px; border: 1px solid #ddd;">
+                    <form th:action="@{/groups/delete/{id}(id=${g.id})}" method="post" onsubmit="return confirm('Вы точно хотите удалить группу \'' + [[${g.name}]] + '\'? Это действие нельзя отменить.');">
+                        <button type="submit" class="btn btn-danger" style="padding: 5px 10px; font-size: 0.8em;">Удалить</button>
+                    </form>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(groups)}">
+                <td colspan="6" style="text-align: center; padding: 12px; border: 1px solid #ddd;">Групп не найдено</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

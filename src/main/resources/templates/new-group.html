@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(${isEdit} ? 'Редактирование группы' : 'Новая группа', ~{::content})}">
+<body>
+<div th:fragment="content">
+  <h1 th:text="${isEdit} ? 'Редактирование группы' : 'Создание новой группы'"></h1>
+
+  <!-- action зависит от того, редактируем мы или создаем -->
+  <form th:action="${isEdit} ? @{/groups/save} : @{/groups/save}"
+        th:object="${group}" method="post" style="max-width: 600px; background: white; padding: 20px; border-radius: 8px;">
+
+    <!-- Скрытое поле ID для редактирования -->
+    <input type="hidden" th:field="*{id}" th:if="${isEdit}">
+
+    <div style="margin-bottom: 15px;">
+      <label>Номер группы:</label>
+      <input type="number" th:field="*{number}" required style="width: 100%; padding: 8px;">
+    </div>
+
+    <div style="margin-bottom: 15px;">
+      <label>Название:</label>
+      <input type="text" th:field="*{name}" required style="width: 100%; padding: 8px;">
+    </div>
+
+    <div style="margin-bottom: 15px;">
+      <label>Бассейн:</label>
+      <select th:field="*{pool.id}" required style="width: 100%; padding: 8px;">
+        <option value="">Выберите бассейн...</option>
+        <option th:each="p : ${pools}" th:value="${p.id}" th:text="${p.name}" th:selected="${group.pool != null and group.pool.id == p.id}"></option>
+      </select>
+    </div>
+
+    <div style="margin-bottom: 15px;">
+      <label>Вместимость (до 50):</label>
+      <input type="number" th:field="*{capacity}" max="50" min="1" required style="width: 100%; padding: 8px;">
+    </div>
+
+    <h3>Расписание 1</h3>
+    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+      <select th:field="*{dayOfWeek1}" required style="flex: 1; padding: 8px;">
+        <option value="1" th:selected="${group.dayOfWeek1 == 1}">Понедельник</option>
+        <option value="2" th:selected="${group.dayOfWeek1 == 2}">Вторник</option>
+        <option value="3" th:selected="${group.dayOfWeek1 == 3}">Среда</option>
+        <option value="4" th:selected="${group.dayOfWeek1 == 4}">Четверг</option>
+        <option value="5" th:selected="${group.dayOfWeek1 == 5}">Пятница</option>
+        <option value="6" th:selected="${group.dayOfWeek1 == 6}">Суббота</option>
+        <option value="7" th:selected="${group.dayOfWeek1 == 7}">Воскресенье</option>
+      </select>
+      <input type="time" th:field="*{startTime1}" required style="flex: 1; padding: 8px;">
+      <input type="time" th:field="*{endTime1}" required style="flex: 1; padding: 8px;">
+    </div>
+
+    <h3>Расписание 2 (Опционально)</h3>
+    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+      <select th:field="*{dayOfWeek2}" style="flex: 1; padding: 8px;">
+        <option value="">Не задано</option>
+        <option value="1" th:selected="${group.dayOfWeek2 == 1}">Понедельник</option>
+        <option value="2" th:selected="${group.dayOfWeek2 == 2}">Вторник</option>
+        <option value="3" th:selected="${group.dayOfWeek2 == 3}">Среда</option>
+        <option value="4" th:selected="${group.dayOfWeek2 == 4}">Четверг</option>
+        <option value="5" th:selected="${group.dayOfWeek2 == 5}">Пятница</option>
+        <option value="6" th:selected="${group.dayOfWeek2 == 6}">Суббота</option>
+        <option value="7" th:selected="${group.dayOfWeek2 == 7}">Воскресенье</option>
+      </select>
+      <input type="time" th:field="*{startTime2}" style="flex: 1; padding: 8px;">
+      <input type="time" th:field="*{endTime2}" style="flex: 1; padding: 8px;">
+    </div>
+
+    <p th:if="${error}" style="color: red;" th:text="${error}"></p>
+    <button type="submit" class="btn">Сохранить</button>
+    <a href="/groups" class="btn" style="background-color: #6c757d; margin-left: 10px;">Отмена</a>
+  </form>
+</div>
+</body>
+</html>

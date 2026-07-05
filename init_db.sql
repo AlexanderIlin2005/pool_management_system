@@ -48,6 +48,30 @@ CREATE TABLE IF NOT EXISTS pool.admin_users (
     role VARCHAR(20) NOT NULL CHECK (role IN ('ADMIN', 'ACCOUNTANT', 'COACH'))
 );
 
+-- Таблица бассейнов
+CREATE TABLE IF NOT EXISTS pool.pools (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    address VARCHAR(255) NOT NULL
+);
+
+-- Таблица групп
+CREATE TABLE IF NOT EXISTS pool.groups (
+    id BIGSERIAL PRIMARY KEY,
+    number INTEGER UNIQUE NOT NULL,
+    trainer_id BIGINT, -- Пока может быть null, позже свяжем с таблицей тренеров
+    name VARCHAR(100) NOT NULL,
+    day_of_week_1 INTEGER CHECK (day_of_week_1 BETWEEN 1 AND 7), -- 1=Пн, 7=Вс
+    start_time_1 TIME NOT NULL,
+    end_time_1 TIME NOT NULL,
+    day_of_week_2 INTEGER CHECK (day_of_week_2 BETWEEN 1 AND 7),
+    start_time_2 TIME,
+    end_time_2 TIME,
+    capacity INTEGER CHECK (capacity BETWEEN 1 AND 50),
+    pool_id BIGINT REFERENCES pool.pools(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Индексы для быстрого поиска
 CREATE INDEX IF NOT EXISTS idx_parents_vk_id ON pool.parents(vk_id);
 CREATE INDEX IF NOT EXISTS idx_children_parent_id ON pool.children(parent_id);
