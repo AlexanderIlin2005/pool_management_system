@@ -5,7 +5,6 @@
   <style>
     body { font-family: sans-serif; margin: 0; display: flex; height: 100vh; background-color: #f8f9fa; }
 
-    /* Светлое боковое меню */
     .sidebar {
         width: 250px;
         background-color: #ffffff;
@@ -35,20 +34,19 @@
 
     .btn { padding: 8px 16px; background: #0366d6; color: white; text-decoration: none; border-radius: 4px; border: none; cursor: pointer; font-size: 0.9em; transition: 0.2s; }
     .btn:hover { background: #0255b3; }
-
-    /* Исправленная красная кнопка */
-    .btn-danger {
-        background: #dc3545;
-        color: white !important; /* Белый цвет всегда */
-    }
+    .btn-danger { background: #dc3545; color: white !important; }
     .btn-danger:hover { background: #bb2d3b; }
   </style>
 </head>
 <body>
 <div class="sidebar">
   <h3>Pool Admin</h3>
-  <a href="/dashboard" th:classappend="${activePage == 'dashboard'} ? 'active'">Дэшборд</a>
-  <a href="/groups" th:classappend="${activePage == 'groups'} ? 'active'">Группы</a>
+
+  <!-- Ссылки видны ТОЛЬКО администратору -->
+  <div th:if="${role != null and role.name() == 'ADMIN'}">
+    <a href="/dashboard" th:classappend="${activePage == 'dashboard'} ? 'active'">Дэшборд</a>
+    <a href="/groups" th:classappend="${activePage == 'groups'} ? 'active'">Группы</a>
+  </div>
 
   <div style="margin-top: auto;">
     <p style="font-size: 0.85em; color: #959da5; margin-bottom: 10px;" th:text="${fullName}"></p>

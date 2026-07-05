@@ -5,9 +5,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.PathVariable;
 import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.model.Group;
 import ru.sashil.admin.model.ParentWithChildren;
@@ -33,9 +33,14 @@ public class AdminController {
     @Autowired
     private GroupService groupService;
 
+    // Проверка роли (вспомогательный метод)
+    private boolean isAdmin(HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        return user != null && user.getRole() == ru.sashil.admin.model.AdminUser.Role.ADMIN;
+    }
+
     @GetMapping("/dashboard")
-    public String dashboard(HttpSession session,
-                            Model model,
+    public String dashboard(HttpSession session, Model model,
                             @RequestParam(required = false) String search,
                             @RequestParam(required = false) String sortField,
                             @RequestParam(required = false) String sortOrder) {
@@ -47,47 +52,48 @@ public class AdminController {
         model.addAttribute("role", currentUser.getRole());
         model.addAttribute("activePage", "dashboard");
 
-        if (currentUser.getRole() == ru.sashil.admin.model.AdminUser.Role.ADMIN) {
-            List<ParentWithChildren> allParents = dashboardService.getAllParents();
-            List<ParentWithChildren> filteredParents = new ArrayList<>();
-
-            if (search != null && !search.isEmpty()) {
-                for (ParentWithChildren p : allParents) {
-                    boolean match = false;
-                    if (similarityService.isSimilar(p.getLastName(), search, 0.7)) match = true;
-                    if (similarityService.isSimilar(p.getFirstName(), search, 0.7)) match = true;
-                    if (p.getMiddleName() != null && similarityService.isSimilar(p.getMiddleName(), search, 0.7)) match = true;
-
-                    String lowerSearch = search.toLowerCase();
-                    if (p.getFullName().toLowerCase().contains(lowerSearch)) match = true;
-                    if (p.getChild1().toLowerCase().contains(lowerSearch)) match = true;
-                    if (p.getChild2().toLowerCase().contains(lowerSearch)) match = true;
-                    if (p.getChild3().toLowerCase().contains(lowerSearch)) match = true;
-                    if (p.getEmail() != null && p.getEmail().toLowerCase().contains(lowerSearch)) match = true;
-                    if (p.getPhone() != null && p.getPhone().contains(search)) match = true;
-
-                    if (match) filteredParents.add(p);
-                }
-            } else {
-                filteredParents = allParents;
-            }
-
-            if (sortField != null) {
-                Comparator<ParentWithChildren> comparator = null;
-                switch (sortField) {
-                    case "lastName": comparator = Comparator.comparing(ParentWithChildren::getLastName, Comparator.nullsLast(String::compareToIgnoreCase)); break;
-                    case "firstName": comparator = Comparator.comparing(ParentWithChildren::getFirstName, Comparator.nullsLast(String::compareToIgnoreCase)); break;
-                    case "fullName": comparator = Comparator.comparing(ParentWithChildren::getFullName, Comparator.nullsLast(String::compareToIgnoreCase)); break;
-                    default: comparator = Comparator.comparing(ParentWithChildren::getId);
-                }
-                if ("desc".equals(sortOrder)) comparator = comparator.reversed();
-                filteredParents.sort(comparator);
-            }
-            model.addAttribute("parents", filteredParents);
-        } else {
-            model.addAttribute("parents", new ArrayList<>());
+        // Если не админ - показываем заглушку
+        if (!isAdmin(session)) {
+            return "restricted";
         }
 
+        // Логика для админа (таблица родителей)
+        List<ParentWithChildren> allParents = dashboardService.getAllParents();
+        List<ParentWithChildren> filteredParents = new ArrayList<>();
+
+        if (search != null && !search.isEmpty()) {
+            for (ParentWithChildren p : allParents) {
+                boolean match = false;
+                if (similarityService.isSimilar(p.getLastName(), search, 0.7)) match = true;
+                if (similarityService.isSimilar(p.getFirstName(), search, 0.7)) match = true;
+                if (p.getMiddleName() != null && similarityService.isSimilar(p.getMiddleName(), search, 0.7)) match = true;
+
+                String lowerSearch = search.toLowerCase();
+                if (p.getFullName().toLowerCase().contains(lowerSearch)) match = true;
+                if (p.getChild1().toLowerCase().contains(lowerSearch)) match = true;
+                if (p.getChild2().toLowerCase().contains(lowerSearch)) match = true;
+                if (p.getChild3().toLowerCase().contains(lowerSearch)) match = true;
+                if (p.getEmail() != null && p.getEmail().toLowerCase().contains(lowerSearch)) match = true;
+                if (p.getPhone() != null && p.getPhone().contains(search)) match = true;
+
+                if (match) filteredParents.add(p);
+            }
+        } else {
+            filteredParents = allParents;
+        }
+
+        if (sortField != null) {
+            Comparator<ParentWithChildren> comparator = null;
+            switch (sortField) {
+                case "lastName": comparator = Comparator.comparing(ParentWithChildren::getLastName, Comparator.nullsLast(String::compareToIgnoreCase)); break;
+                case "firstName": comparator = Comparator.comparing(ParentWithChildren::getFirstName, Comparator.nullsLast(String::compareToIgnoreCase)); break;
+                case "fullName": comparator = Comparator.comparing(ParentWithChildren::getFullName, Comparator.nullsLast(String::compareToIgnoreCase)); break;
+                default: comparator = Comparator.comparing(ParentWithChildren::getId);
+            }
+            if ("desc".equals(sortOrder)) comparator = comparator.reversed();
+            filteredParents.sort(comparator);
+        }
+        model.addAttribute("parents", filteredParents);
         model.addAttribute("currentSearch", search);
         model.addAttribute("currentSortField", sortField);
         model.addAttribute("currentSortOrder", sortOrder);
@@ -108,31 +114,28 @@ public class AdminController {
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "groups");
 
+        // Если не админ - показываем заглушку
+        if (!isAdmin(session)) {
+            return "restricted";
+        }
+
+        // Логика для админа (таблица групп)
         List<Group> allGroups = groupService.getAllGroups();
         List<Group> filteredGroups = new ArrayList<>();
 
-        // Поиск по группам
         if (search != null && !search.isEmpty()) {
             for (Group g : allGroups) {
                 boolean match = false;
                 String lowerSearch = search.toLowerCase();
-
-                // Нечеткий поиск по названию группы
                 if (similarityService.isSimilar(g.getName(), search, 0.7)) match = true;
-
-                // Поиск по номеру (точное совпадение или содержит)
                 if (g.getNumber().toString().contains(search)) match = true;
-
-                // Поиск по бассейну
                 if (g.getPool() != null && g.getPool().getName().toLowerCase().contains(lowerSearch)) match = true;
-
                 if (match) filteredGroups.add(g);
             }
         } else {
             filteredGroups = allGroups;
         }
 
-        // Сортировка групп
         if (sortField != null) {
             Comparator<Group> comparator = null;
             switch (sortField) {
@@ -141,10 +144,7 @@ public class AdminController {
                 case "pool": comparator = Comparator.comparing(g -> g.getPool() != null ? g.getPool().getName() : "", Comparator.nullsLast(String::compareToIgnoreCase)); break;
                 default: comparator = Comparator.comparing(Group::getId);
             }
-
-            if ("desc".equals(sortOrder)) {
-                comparator = comparator.reversed();
-            }
+            if ("desc".equals(sortOrder)) comparator = comparator.reversed();
             filteredGroups.sort(comparator);
         }
 
@@ -158,6 +158,8 @@ public class AdminController {
 
     @GetMapping("/groups/new")
     public String newGroupPage(Model model, HttpSession session) {
+        if (!isAdmin(session)) return "redirect:/dashboard"; // Неадмины не могут создавать группы
+
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
@@ -169,24 +171,10 @@ public class AdminController {
         return "new-group";
     }
 
-    @PostMapping("/groups/save")
-    public String saveGroup(@ModelAttribute Group group, Model model, HttpSession session) {
-        try {
-            groupService.saveGroup(group);
-            return "redirect:/groups?success";
-        } catch (IllegalArgumentException e) {
-            model.addAttribute("error", e.getMessage());
-            model.addAttribute("pools", groupService.getAllPools());
-            model.addAttribute("fullName", ((AdminUser) session.getAttribute("currentUser")).getFullName());
-            model.addAttribute("role", ((AdminUser) session.getAttribute("currentUser")).getRole());
-            model.addAttribute("activePage", "groups");
-            return "new-group";
-        }
-    }
-
-
     @GetMapping("/groups/edit/{id}")
     public String editGroupPage(@PathVariable Long id, Model model, HttpSession session) {
+        if (!isAdmin(session)) return "redirect:/dashboard";
+
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
@@ -197,19 +185,37 @@ public class AdminController {
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "groups");
         model.addAttribute("pools", groupService.getAllPools());
-        model.addAttribute("group", groupOpt.get()); // Загружаем существующие данные
-        model.addAttribute("isEdit", true); // Флаг, чтобы понимать, что мы редактируем
-        return "new-group"; // Используем тот же шаблон формы
+        model.addAttribute("group", groupOpt.get());
+        model.addAttribute("isEdit", true);
+        return "new-group";
+    }
+
+    @PostMapping("/groups/save")
+    public String saveGroup(@ModelAttribute Group group, Model model, HttpSession session) {
+        if (!isAdmin(session)) return "redirect:/dashboard";
+
+        try {
+            groupService.saveGroup(group);
+            return "redirect:/groups?success";
+        } catch (IllegalArgumentException e) {
+            model.addAttribute("error", e.getMessage());
+            model.addAttribute("pools", groupService.getAllPools());
+            model.addAttribute("fullName", ((AdminUser) session.getAttribute("currentUser")).getFullName());
+            model.addAttribute("role", ((AdminUser) session.getAttribute("currentUser")).getRole());
+            model.addAttribute("activePage", "groups");
+            model.addAttribute("isEdit", group.getId() != null);
+            return "new-group";
+        }
     }
 
     @PostMapping("/groups/delete/{id}")
     public String deleteGroup(@PathVariable Long id, HttpSession session) {
+        if (!isAdmin(session)) return "redirect:/dashboard";
+
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
         groupService.deleteGroup(id);
         return "redirect:/groups";
     }
-
-
 }
