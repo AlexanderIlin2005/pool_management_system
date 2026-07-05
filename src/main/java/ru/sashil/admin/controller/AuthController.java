@@ -12,6 +12,7 @@ import ru.sashil.admin.model.ParentWithChildren;
 import ru.sashil.admin.repository.AdminUserRepository;
 import ru.sashil.admin.service.AdminDashboardService;
 
+import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -19,6 +20,8 @@ import java.util.Optional;
 
 @Controller
 public class AuthController {
+
+    private static final String SESSION_USER_KEY = "currentUser";
 
     @Autowired
     private AdminUserRepository userRepository;
@@ -37,22 +40,18 @@ public class AuthController {
     @PostMapping("/login")
     public String processLogin(@RequestParam("login") String login,
                                @RequestParam("password") String password,
+                               HttpSession session,
                                Model model) {
         Optional<AdminUser> userOpt = userRepository.findByLogin(login);
 
         if (userOpt.isPresent()) {
             AdminUser user = userOpt.get();
             if (passwordEncoder.matches(password, user.getPasswordHash())) {
-                // Сохраняем пользователя в сессии или просто передаем во view
-                model.addAttribute("fullName", user.getFullName());
-                model.addAttribute("role", user.getRole());
+                // Сохраняем пользователя в сессии
+                session.setAttribute(SESSION_USER_KEY, user);
 
-                // Если это админ, загружаем данные для таблицы
-                if (user.getRole() == AdminUser.Role.ADMIN) {
-                    model.addAttribute("parents", dashboardService.getAllParents());
-                }
-
-                return "dashboard";
+                // Перенаправляем на дашборд, а не просто рендерим view
+                return "redirect:/dashboard";
             }
         }
 
@@ -91,70 +90,79 @@ public class AuthController {
     }
 
     @GetMapping("/dashboard")
-    public String dashboard(Model model,
+    public String dashboard(HttpSession session,
+                            Model model,
                             @RequestParam(required = false) String search,
                             @RequestParam(required = false) String sortField,
                             @RequestParam(required = false) String sortOrder) {
 
-        List<ParentWithChildren> allParents = dashboardService.getAllParents();
-        List<ParentWithChildren> filteredParents = new ArrayList<>();
+        // 1. Проверка авторизации
+        AdminUser currentUser = (AdminUser) session.getAttribute(SESSION_USER_KEY);
+        if (currentUser == null) {
+            return "redirect:/login";
+        }
 
-        // 1. Фильтрация (Поиск)
-        if (search != null && !search.isEmpty()) {
-            String lowerSearch = search.toLowerCase();
-            for (ParentWithChildren p : allParents) {
-                boolean match = false;
+        // Добавляем данные пользователя в модель для отображения в шапке
+        model.addAttribute("fullName", currentUser.getFullName());
+        model.addAttribute("role", currentUser.getRole());
 
-                // Поиск по частям ФИО родителя
-                if (dashboardService.isSimilar(p.getLastName(), search, 0.7)) match = true;
-                if (dashboardService.isSimilar(p.getFirstName(), search, 0.7)) match = true;
-                if (p.getMiddleName() != null && dashboardService.isSimilar(p.getMiddleName(), search, 0.7)) match = true;
+        // 2. Логика таблицы только для АДМИНА
+        if (currentUser.getRole() == AdminUser.Role.ADMIN) {
+            List<ParentWithChildren> allParents = dashboardService.getAllParents();
+            List<ParentWithChildren> filteredParents = new ArrayList<>();
 
-                // Поиск по полному ФИО
-                if (p.getFullName().toLowerCase().contains(lowerSearch)) match = true;
+            // Фильтрация (Поиск)
+            if (search != null && !search.isEmpty()) {
+                String lowerSearch = search.toLowerCase();
+                for (ParentWithChildren p : allParents) {
+                    boolean match = false;
+                    if (dashboardService.isSimilar(p.getLastName(), search, 0.7)) match = true;
+                    if (dashboardService.isSimilar(p.getFirstName(), search, 0.7)) match = true;
+                    if (p.getMiddleName() != null && dashboardService.isSimilar(p.getMiddleName(), search, 0.7)) match = true;
+                    if (p.getFullName().toLowerCase().contains(lowerSearch)) match = true;
+                    if (p.getChild1().toLowerCase().contains(lowerSearch)) match = true;
+                    if (p.getChild2().toLowerCase().contains(lowerSearch)) match = true;
+                    if (p.getChild3().toLowerCase().contains(lowerSearch)) match = true;
+                    if (p.getEmail() != null && p.getEmail().toLowerCase().contains(lowerSearch)) match = true;
+                    if (p.getPhone() != null && p.getPhone().contains(search)) match = true;
 
-                // Поиск по детям (Фамилия Имя)
-                if (p.getChild1().toLowerCase().contains(lowerSearch)) match = true;
-                if (p.getChild2().toLowerCase().contains(lowerSearch)) match = true;
-                if (p.getChild3().toLowerCase().contains(lowerSearch)) match = true;
-
-                // Поиск по email и телефону
-                if (p.getEmail() != null && p.getEmail().toLowerCase().contains(lowerSearch)) match = true;
-                if (p.getPhone() != null && p.getPhone().contains(search)) match = true; // Телефон ищем точным вхождением цифр
-
-                if (match) filteredParents.add(p);
+                    if (match) filteredParents.add(p);
+                }
+            } else {
+                filteredParents = allParents;
             }
+
+            // Сортировка
+            if (sortField != null) {
+                Comparator<ParentWithChildren> comparator = null;
+                switch (sortField) {
+                    case "lastName": comparator = Comparator.comparing(ParentWithChildren::getLastName, Comparator.nullsLast(String::compareToIgnoreCase)); break;
+                    case "firstName": comparator = Comparator.comparing(ParentWithChildren::getFirstName, Comparator.nullsLast(String::compareToIgnoreCase)); break;
+                    case "fullName": comparator = Comparator.comparing(ParentWithChildren::getFullName, Comparator.nullsLast(String::compareToIgnoreCase)); break;
+                    default: comparator = Comparator.comparing(ParentWithChildren::getId);
+                }
+                if ("desc".equals(sortOrder)) {
+                    comparator = comparator.reversed();
+                }
+                filteredParents.sort(comparator);
+            }
+
+            model.addAttribute("parents", filteredParents);
         } else {
-            filteredParents = allParents;
+            // Для не-админов список пустой (или можно добавить сообщение "Доступ ограничен")
+            model.addAttribute("parents", new ArrayList<>());
         }
 
-        // 2. Сортировка
-        if (sortField != null) {
-            Comparator<ParentWithChildren> comparator = null;
-            switch (sortField) {
-                case "lastName": comparator = Comparator.comparing(ParentWithChildren::getLastName, Comparator.nullsLast(String::compareToIgnoreCase)); break;
-                case "firstName": comparator = Comparator.comparing(ParentWithChildren::getFirstName, Comparator.nullsLast(String::compareToIgnoreCase)); break;
-                case "fullName": comparator = Comparator.comparing(ParentWithChildren::getFullName, Comparator.nullsLast(String::compareToIgnoreCase)); break;
-                default: comparator = Comparator.comparing(ParentWithChildren::getId);
-            }
-
-            if ("desc".equals(sortOrder)) {
-                comparator = comparator.reversed();
-            }
-
-            filteredParents.sort(comparator);
-        }
-
-        model.addAttribute("parents", filteredParents);
-        // Сохраняем текущие параметры поиска и сортировки для форм
         model.addAttribute("currentSearch", search);
         model.addAttribute("currentSortField", sortField);
         model.addAttribute("currentSortOrder", sortOrder);
 
-        // Роль нужна для проверки доступа к таблице
-        // В реальном приложении роль берется из SecurityContext, но пока передадим заглушку или из сессии
-        // Для простоты предположим, что мы уже проверили роль при логине и просто показываем страницу
-
         return "dashboard";
+    }
+
+    @GetMapping("/logout")
+    public String logout(HttpSession session) {
+        session.invalidate(); // Уничтожаем сессию
+        return "redirect:/login";
     }
 }

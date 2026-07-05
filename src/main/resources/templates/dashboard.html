@@ -5,12 +5,15 @@
     <style>
         body { font-family: sans-serif; padding: 2rem; background-color: #f8f9fa; }
         .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1400px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 
         /* Панель управления */
         .controls { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
         .search-box { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
         .btn { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; }
         .btn:hover { background-color: #0056b3; }
+        .btn-logout { background-color: #dc3545; }
+        .btn-logout:hover { background-color: #bb2d3b; }
 
         /* Таблица */
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
@@ -18,63 +21,79 @@
         th { background-color: #007bff; color: white; cursor: pointer; }
         th:hover { background-color: #0056b3; }
         tr:nth-child(even) { background-color: #f2f2f2; }
-
         .sort-icon { font-size: 0.8em; margin-left: 5px; }
+        .role-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; background: #e2e8f0; font-weight: bold; font-size: 0.9em; }
     </style>
 </head>
 <body>
 <div class="card">
-    <h1>Панель администратора</h1>
+    <div class="header">
+        <div>
+            <h1 style="margin: 0;">Панель управления</h1>
+            <p style="margin: 5px 0 0 0;">
+                Вы вошли как: <strong th:text="${fullName}">Имя</strong>
+                <span class="role-badge" th:text="${role}">РОЛЬ</span>
+            </p>
+        </div>
+        <a href="/logout" class="btn btn-logout">Выйти</a>
+    </div>
 
-    <!-- Форма поиска -->
-    <form method="get" action="/dashboard" class="controls">
-        <input type="text" name="search" class="search-box" placeholder="Поиск по ФИО, детям, email..." th:value="${currentSearch}">
-        <button type="submit" class="btn">Найти</button>
-        <a href="/dashboard" class="btn" style="background-color: #6c757d;">Сброс</a>
-    </form>
+    <!-- Таблица видна ТОЛЬКО если роль ADMIN -->
+    <div th:if="${role.name() == 'ADMIN'}">
+        <!-- Форма поиска -->
+        <form method="get" action="/dashboard" class="controls">
+            <input type="text" name="search" class="search-box" placeholder="Поиск по ФИО, детям, email..." th:value="${currentSearch}">
+            <button type="submit" class="btn">Найти</button>
+            <a href="/dashboard" class="btn" style="background-color: #6c757d;">Сброс</a>
+        </form>
 
-    <table>
-        <thead>
-        <tr>
-            <!-- Ссылки для сортировки -->
-            <th>
-                <a th:href="@{/dashboard(search=${currentSearch}, sortField='id', sortOrder=${currentSortField == 'id' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}">
-                    № п/п <span th:if="${currentSortField == 'id'}" class="sort-icon" th:text="${currentSortOrder == 'asc' ? '▲' : '▼'}"></span>
-                </a>
-            </th>
-            <th>
-                <a th:href="@{/dashboard(search=${currentSearch}, sortField='lastName', sortOrder=${currentSortField == 'lastName' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}">
-                    Фамилия <span th:if="${currentSortField == 'lastName'}" class="sort-icon" th:text="${currentSortOrder == 'asc' ? '▲' : '▼'}"></span>
-                </a>
-            </th>
-            <th>
-                <a th:href="@{/dashboard(search=${currentSearch}, sortField='firstName', sortOrder=${currentSortField == 'firstName' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}">
-                    Имя <span th:if="${currentSortField == 'firstName'}" class="sort-icon" th:text="${currentSortOrder == 'asc' ? '▲' : '▼'}"></span>
-                </a>
-            </th>
-            <th>Email</th>
-            <th>Телефон</th>
-            <th>Ребенок 1</th>
-            <th>Ребенок 2</th>
-            <th>Ребенок 3</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr th:each="parent : ${parents}">
-            <td th:text="${parent.id}">1</td>
-            <td th:text="${parent.lastName}">Иванов</td>
-            <td th:text="${parent.firstName}">Иван</td>
-            <td th:text="${parent.email != null ? parent.email : '-'}">email@example.com</td>
-            <td th:text="${parent.phone != null ? parent.phone : '-'}">+7...</td>
-            <td th:text="${parent.child1 != null and !parent.child1.isEmpty() ? parent.child1 : '-'}">-</td>
-            <td th:text="${parent.child2 != null and !parent.child2.isEmpty() ? parent.child2 : '-'}">-</td>
-            <td th:text="${parent.child3 != null and !parent.child3.isEmpty() ? parent.child3 : '-'}">-</td>
-        </tr>
-        <tr th:if="${#lists.isEmpty(parents)}">
-            <td colspan="8" style="text-align: center;">Ничего не найдено</td>
-        </tr>
-        </tbody>
-    </table>
+        <table>
+            <thead>
+            <tr>
+                <th>
+                    <a th:href="@{/dashboard(search=${currentSearch}, sortField='id', sortOrder=${currentSortField == 'id' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}">
+                        № п/п <span th:if="${currentSortField == 'id'}" class="sort-icon" th:text="${currentSortOrder == 'asc' ? '▲' : '▼'}"></span>
+                    </a>
+                </th>
+                <th>
+                    <a th:href="@{/dashboard(search=${currentSearch}, sortField='lastName', sortOrder=${currentSortField == 'lastName' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}">
+                        Фамилия <span th:if="${currentSortField == 'lastName'}" class="sort-icon" th:text="${currentSortOrder == 'asc' ? '▲' : '▼'}"></span>
+                    </a>
+                </th>
+                <th>
+                    <a th:href="@{/dashboard(search=${currentSearch}, sortField='firstName', sortOrder=${currentSortField == 'firstName' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}">
+                        Имя <span th:if="${currentSortField == 'firstName'}" class="sort-icon" th:text="${currentSortOrder == 'asc' ? '▲' : '▼'}"></span>
+                    </a>
+                </th>
+                <th>Email</th>
+                <th>Телефон</th>
+                <th>Ребенок 1</th>
+                <th>Ребенок 2</th>
+                <th>Ребенок 3</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="parent : ${parents}">
+                <td th:text="${parent.id}">1</td>
+                <td th:text="${parent.lastName}">Иванов</td>
+                <td th:text="${parent.firstName}">Иван</td>
+                <td th:text="${parent.email != null ? parent.email : '-'}">email@example.com</td>
+                <td th:text="${parent.phone != null ? parent.phone : '-'}">+7...</td>
+                <td th:text="${parent.child1 != null and !parent.child1.isEmpty() ? parent.child1 : '-'}">-</td>
+                <td th:text="${parent.child2 != null and !parent.child2.isEmpty() ? parent.child2 : '-'}">-</td>
+                <td th:text="${parent.child3 != null and !parent.child3.isEmpty() ? parent.child3 : '-'}">-</td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(parents)}">
+                <td colspan="8" style="text-align: center;">Ничего не найдено</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Сообщение для не-админов -->
+    <div th:if="${role.name() != 'ADMIN'}">
+        <p>У вас нет прав доступа к таблице родителей.</p>
+    </div>
 </div>
 </body>
 </html>
