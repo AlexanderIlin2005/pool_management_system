@@ -49,13 +49,29 @@
     .main-content { flex-grow: 1; padding: 40px; overflow-y: auto; }
     .header { display: flex; justify-content: space-between; margin-bottom: 30px; align-items: center; }
 
-    /* Стили для кнопки выхода, интегрированные в ссылки меню */
+    /* Общий стиль для всех кнопок действий (Найти, Создать, Сброс) */
+    .btn {
+        padding: 8px 16px;
+        background: #0366d6;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: 0.2s;
+        display: inline-block;
+    }
+    .btn:hover { background: #0255b3; }
+
+    /* Специальный стиль для кнопки выхода в меню */
     .logout-link {
         margin-top: 10px;
         background-color: #dc3545 !important; /* Красный фон */
         color: white !important; /* Белый текст */
         text-align: center;
         font-weight: 600;
+        display: block; /* Занимает всю ширину контейнера */
     }
     .logout-link:hover {
         background-color: #bb2d3b !important; /* Темнее при наведении */
@@ -75,7 +91,7 @@
 
   <div style="margin-top: auto;">
     <p style="font-size: 0.85em; color: #959da5; margin-bottom: 10px; text-align: center;" th:text="${fullName}"></p>
-    <!-- Используем обычный класс ссылки, но с модификатором logout-link -->
+    <!-- Используем специальный класс logout-link -->
     <a href="/logout" class="logout-link">Выйти</a>
   </div>
 </div>

@@ -1,0 +1,1 @@
+ psql -h localhost -U pool_admin -d pool_db

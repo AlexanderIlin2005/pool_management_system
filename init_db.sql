@@ -59,12 +59,14 @@ CREATE TABLE IF NOT EXISTS pool.pools (
 CREATE TABLE pool.groups (
     id BIGSERIAL PRIMARY KEY,
     number INTEGER UNIQUE NOT NULL,
-    trainer_id BIGINT,
     name VARCHAR(100) NOT NULL,
     capacity INTEGER CHECK (capacity BETWEEN 1 AND 50),
     pool_id BIGINT REFERENCES pool.pools(id),
 
-    -- Поля для 7 дней недели (1=Пн ... 7=Вс)
+    -- Внешний ключ на администратора с ролью COACH
+    trainer_id BIGINT REFERENCES pool.admin_users(id),
+
+    -- Поля для 7 дней недели
     day_1_start TIME, day_1_end TIME,
     day_2_start TIME, day_2_end TIME,
     day_3_start TIME, day_3_end TIME,

@@ -26,6 +26,16 @@
           <option th:each="p : ${pools}" th:value="${p.id}" th:text="${p.name}" th:selected="${group.pool != null and group.pool.id == p.id}"></option>
         </select>
       </div>
+
+      <!-- Блок выбора тренера -->
+      <div style="flex: 1; position: relative;">
+        <label>Тренер (опционально):</label>
+        <input type="text" id="coach-search" placeholder="Начните вводить имя..."
+               style="width: 100%; padding: 8px;" autocomplete="off">
+        <input type="hidden" th:field="*{trainer.id}" id="coach-id-input">
+        <div id="coach-results" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; z-index: 1000; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
+      </div>
+
       <div style="flex: 1;">
         <label>Численность:</label>
         <input type="number" th:field="*{capacity}" max="50" min="1" required style="width: 100%; padding: 8px;">
@@ -46,7 +56,6 @@
       <button type="button" class="day-toggle" data-day="7" style="padding: 10px 15px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; border-radius: 4px; font-weight: bold;">Вс</button>
     </div>
 
-    <!-- Скрытые блоки для каждого дня -->
     <!-- Понедельник -->
     <div id="time-block-1" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Понедельник:</strong>
@@ -132,51 +141,16 @@
     </div>
   </form>
 
-  <script>
-    // Инициализация при загрузке страницы
-    document.addEventListener('DOMContentLoaded', function() {
-        const days = [1, 2, 3, 4, 5, 6, 7];
-
-        days.forEach(day => {
-            const startInput = document.querySelector(`input[name="day${day}Start"]`);
-            const endInput = document.querySelector(`input[name="day${day}End"]`);
-            const block = document.getElementById(`time-block-${day}`);
-            const btn = document.querySelector(`.day-toggle[data-day="${day}"]`);
-
-            // Если при редактировании есть данные, показываем блок и активируем кнопку
-            if ((startInput && startInput.value) || (endInput && endInput.value)) {
-                block.style.display = 'block';
-                btn.classList.add('active');
-                btn.style.backgroundColor = '#007bff';
-                btn.style.color = 'white';
-                btn.style.borderColor = '#007bff';
-            }
-
-            // Обработчик клика
-            btn.addEventListener('click', function() {
-                const isActive = this.classList.contains('active');
-
-                if (isActive) {
-                    // Скрываем и очищаем
-                    block.style.display = 'none';
-                    if (startInput) startInput.value = '';
-                    if (endInput) endInput.value = '';
-                    this.classList.remove('active');
-                    this.style.backgroundColor = '#f8f9fa';
-                    this.style.color = 'black';
-                    this.style.borderColor = '#ccc';
-                } else {
-                    // Показываем
-                    block.style.display = 'block';
-                    this.classList.add('active');
-                    this.style.backgroundColor = '#007bff';
-                    this.style.color = 'white';
-                    this.style.borderColor = '#007bff';
-                }
-            });
-        });
-    });
+  <!-- Передаем список тренеров в JS -->
+  <script th:inline="javascript">
+    /*<![CDATA[*/
+    window.coachesList = /*[[${coaches}]]*/ [];
+    /*]]>*/
   </script>
+
+  <!-- Подключаем внешние скрипты -->
+  <script src="/js/coach-search.js"></script>
+  <script src="/js/schedule-toggle.js"></script>
 </div>
 </body>
 </html>

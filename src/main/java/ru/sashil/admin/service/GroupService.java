@@ -2,8 +2,10 @@ package ru.sashil.admin.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.model.Group;
 import ru.sashil.admin.model.Pool;
+import ru.sashil.admin.repository.AdminUserRepository;
 import ru.sashil.admin.repository.GroupRepository;
 import ru.sashil.admin.repository.PoolRepository;
 
@@ -19,6 +21,9 @@ public class GroupService {
 
     @Autowired
     private PoolRepository poolRepository;
+
+    @Autowired
+    private AdminUserRepository adminUserRepository;
 
     public List<Group> getAllGroups() {
         return groupRepository.findAll();
@@ -76,5 +81,9 @@ public class GroupService {
 
     public void deleteGroup(Long id) {
         groupRepository.deleteById(id);
+    }
+
+    public List<AdminUser> getAllCoaches() {
+        return adminUserRepository.findByRole(AdminUser.Role.COACH);
     }
 }

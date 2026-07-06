@@ -21,6 +21,7 @@
                 <th style="padding: 12px; border: 1px solid #ddd;">№</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Название</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Бассейн</th>
+                <th style="padding: 12px; border: 1px solid #ddd;">Тренер</th> <!-- Новый столбец -->
                 <th style="padding: 12px; border: 1px solid #ddd;">Расписание</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Численность</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Действия</th>
@@ -34,6 +35,10 @@
                     <a th:href="@{/groups/edit/{id}(id=${g.id})}" style="color: #007bff; text-decoration: none; font-weight: bold;" th:text="${g.name}"></a>
                 </td>
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.pool != null ? g.pool.name : '-'}"></td>
+
+                <!-- Столбец Тренер -->
+                <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.trainer != null ? g.trainer.fullName : '-'}"></td>
+
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <span th:if="${g.day1Start != null}" th:text="'Пн ' + ${g.day1Start} + '-' + ${g.day1End}"></span><br>
                     <span th:if="${g.day2Start != null}" th:text="'Вт ' + ${g.day2Start} + '-' + ${g.day2End}"></span><br>

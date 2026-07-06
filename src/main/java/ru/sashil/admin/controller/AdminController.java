@@ -167,6 +167,7 @@ public class AdminController {
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "groups");
         model.addAttribute("pools", groupService.getAllPools());
+        model.addAttribute("coaches", groupService.getAllCoaches()); // <-- Добавляем тренеров
         model.addAttribute("group", new Group());
         return "new-group";
     }
@@ -185,6 +186,7 @@ public class AdminController {
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "groups");
         model.addAttribute("pools", groupService.getAllPools());
+        model.addAttribute("coaches", groupService.getAllCoaches()); // <-- Добавляем тренеров
         model.addAttribute("group", groupOpt.get());
         model.addAttribute("isEdit", true);
         return "new-group";
