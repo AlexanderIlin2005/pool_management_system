@@ -3,6 +3,11 @@
 <head>
   <title th:text="${title}">Admin</title>
   <style>
+    /* Важно: чтобы padding не увеличивал общую ширину элементов */
+    * {
+        box-sizing: border-box;
+    }
+
     body { font-family: sans-serif; margin: 0; display: flex; height: 100vh; background-color: #f8f9fa; }
 
     .sidebar {
@@ -14,7 +19,19 @@
         flex-direction: column;
         box-shadow: 2px 0 5px rgba(0,0,0,0.03);
     }
-    .sidebar h3 { color: #2c3e50; margin-bottom: 30px; font-size: 1.2em; text-transform: uppercase; letter-spacing: 1px; }
+
+    .sidebar h3 {
+        color: #2c3e50;
+        margin-bottom: 5px;
+        font-size: 1.4em;
+        font-weight: bold;
+    }
+    .sidebar .subtitle {
+        color: #959da5;
+        font-size: 0.9em;
+        margin-bottom: 30px;
+        display: block;
+    }
 
     .sidebar a {
         color: #586069;
@@ -32,10 +49,18 @@
     .main-content { flex-grow: 1; padding: 40px; overflow-y: auto; }
     .header { display: flex; justify-content: space-between; margin-bottom: 30px; align-items: center; }
 
-    .btn { padding: 8px 16px; background: #0366d6; color: white; text-decoration: none; border-radius: 4px; border: none; cursor: pointer; font-size: 0.9em; transition: 0.2s; }
-    .btn:hover { background: #0255b3; }
-    .btn-danger { background: #dc3545; color: white !important; }
-    .btn-danger:hover { background: #bb2d3b; }
+    /* Стили для кнопки выхода, интегрированные в ссылки меню */
+    .logout-link {
+        margin-top: 10px;
+        background-color: #dc3545 !important; /* Красный фон */
+        color: white !important; /* Белый текст */
+        text-align: center;
+        font-weight: 600;
+    }
+    .logout-link:hover {
+        background-color: #bb2d3b !important; /* Темнее при наведении */
+        color: white !important;
+    }
   </style>
 </head>
 <body>
@@ -49,8 +74,9 @@
   </div>
 
   <div style="margin-top: auto;">
-    <p style="font-size: 0.85em; color: #959da5; margin-bottom: 10px;" th:text="${fullName}"></p>
-    <a href="/logout" class="btn btn-danger" style="display: inline-block; width: 100%; text-align: center;">Выйти</a>
+    <p style="font-size: 0.85em; color: #959da5; margin-bottom: 10px; text-align: center;" th:text="${fullName}"></p>
+    <!-- Используем обычный класс ссылки, но с модификатором logout-link -->
+    <a href="/logout" class="logout-link">Выйти</a>
   </div>
 </div>
 <div class="main-content">
