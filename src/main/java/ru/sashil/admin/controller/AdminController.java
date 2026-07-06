@@ -12,14 +12,14 @@ import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.model.Group;
 import ru.sashil.admin.model.ParentWithChildren;
 import ru.sashil.admin.service.AdminDashboardService;
+import ru.sashil.admin.service.GroupMemberService;
 import ru.sashil.admin.service.GroupService;
 import ru.sashil.admin.service.StringSimilarityService;
 
 import jakarta.servlet.http.HttpSession;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Controller
 public class AdminController {
@@ -32,6 +32,9 @@ public class AdminController {
 
     @Autowired
     private GroupService groupService;
+
+    @Autowired
+    private GroupMemberService memberService;
 
     // Проверка роли (вспомогательный метод)
     private boolean isAdmin(HttpSession session) {
@@ -220,4 +223,42 @@ public class AdminController {
         groupService.deleteGroup(id);
         return "redirect:/groups";
     }
+
+
+    @GetMapping("/groups/{id}/members")
+    public String groupMembersPage(@PathVariable Long id, Model model, HttpSession session,
+                                   @RequestParam(required = false) String search) {
+        if (!isAdmin(session)) return "redirect:/parents";
+
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        model.addAttribute("fullName", user.getFullName());
+        model.addAttribute("role", user.getRole());
+        model.addAttribute("activePage", "groups");
+
+        Optional<ru.sashil.admin.model.Group> groupOpt = groupService.getGroupById(id);
+        if (groupOpt.isEmpty()) return "redirect:/groups";
+        model.addAttribute("group", groupOpt.get());
+
+        // Список текущих участников
+        model.addAttribute("members", memberService.getGroupMembers(id));
+
+        // Список доступных детей (теперь фильтруется внутри сервиса)
+        model.addAttribute("availableChildren", memberService.getAvailableChildren(id, search));
+        model.addAttribute("currentSearch", search);
+
+        return "group-members";
+    }
+
+    @PostMapping("/groups/{id}/members/add")
+    public String addMember(@PathVariable Long id, @RequestParam Long childId) {
+        memberService.addChildToGroup(id, childId);
+        return "redirect:/groups/{id}/members";
+    }
+
+    @PostMapping("/groups/{id}/members/remove")
+    public String removeMember(@PathVariable Long id, @RequestParam Long childId) {
+        memberService.removeChildFromGroup(id, childId);
+        return "redirect:/groups/{id}/members";
+    }
+
 }

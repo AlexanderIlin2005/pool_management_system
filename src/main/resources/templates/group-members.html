@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Участники группы', ~{::content})}">
+<body>
+<div th:fragment="content">
+  <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1400px; margin: 0 auto;">
+    <div class="header">
+      <h1>Группа: <span th:text="${group.name}"></span> (№ <span th:text="${group.number}"></span>)</h1>
+      <a href="/groups" class="btn" style="background-color: #6c757d;">Назад к группам</a>
+    </div>
+
+    <!-- Блок 1: Текущие участники -->
+    <h3>Участники группы</h3>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+      <thead>
+      <tr style="background: #f1f3f5; text-align: left;">
+        <th style="padding: 12px; border: 1px solid #ddd;">ФИО</th>
+        <th style="padding: 12px; border: 1px solid #ddd;">Возраст</th>
+        <th style="padding: 12px; border: 1px solid #ddd;">Класс</th>
+        <th style="padding: 12px; border: 1px solid #ddd; width: 150px;">Действие</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="member : ${members}">
+        <td style="padding: 12px; border: 1px solid #ddd;" th:text="${member.last_name} + ' ' + ${member.first_name}"></td>
+        <td style="padding: 12px; border: 1px solid #ddd;" th:text="${member.age}"></td>
+        <td style="padding: 12px; border: 1px solid #ddd;" th:text="${member.grade_number}"></td>
+        <td style="padding: 12px; border: 1px solid #ddd;">
+          <form th:action="@{/groups/{id}/members/remove(id=${group.id})}" method="post" class="remove-member-form">
+            <input type="hidden" name="childId" th:value="${member.id}">
+            <input type="hidden" name="childName" th:value="${member.first_name} + ' ' + ${member.last_name}">
+            <button type="submit" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.8em;">Исключить</button>
+          </form>
+        </td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(members)}">
+        <td colspan="4" style="text-align: center; padding: 12px; color: #666;">В группе пока нет участников</td>
+      </tr>
+      </tbody>
+    </table>
+
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
+
+    <!-- Блок 2: Добавление новых участников -->
+    <h3>Добавить участника</h3>
+
+    <!-- Форма поиска -->
+    <form method="get" th:action="@{/groups/{id}/members(id=${group.id})}" style="display: flex; gap: 10px; margin-bottom: 20px;">
+      <input type="text" name="search" class="search-box" placeholder="Введите ФИО, возраст или класс для поиска..." th:value="${currentSearch}" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+      <button type="submit" class="btn">Найти</button>
+      <a th:href="@{/groups/{id}/members(id=${group.id})}" class="btn" style="background-color: #6c757d;">Сброс</a>
+    </form>
+
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+      <tr style="background: #eef2f5; text-align: left;">
+        <th style="padding: 10px; border: 1px solid #ddd;">ФИО</th>
+        <th style="padding: 10px; border: 1px solid #ddd;">Возраст</th>
+        <th style="padding: 10px; border: 1px solid #ddd;">Класс</th>
+        <th style="padding: 10px; border: 1px solid #ddd; width: 150px;">Действие</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="child : ${availableChildren}">
+        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${child.last_name} + ' ' + ${child.first_name}"></td>
+        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${child.age}"></td>
+        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${child.grade_number}"></td>
+        <td style="padding: 10px; border: 1px solid #ddd;">
+          <form th:action="@{/groups/{id}/members/add(id=${group.id})}" method="post">
+            <input type="hidden" name="childId" th:value="${child.id}">
+            <button type="submit" class="btn" style="padding: 4px 8px; font-size: 0.8em; background-color: #28a745;">Добавить</button>
+          </form>
+        </td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(availableChildren)}">
+        <td colspan="4" style="text-align: center; padding: 10px; color: #666;">
+          <span th:if="${currentSearch != null and !currentSearch.isEmpty()}">Ничего не найдено</span>
+          <span th:if="${currentSearch == null or currentSearch.isEmpty()}">Введите запрос в поле выше, чтобы найти ребенка для добавления</span>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Подключаем скрипт подтверждения ИСКЛЮЧЕНИЯ -->
+  <script src="/js/confirm-delete-from-group.js"></script>
+</div>
+</body>
+</html>

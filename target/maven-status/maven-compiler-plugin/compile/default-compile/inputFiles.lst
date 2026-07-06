@@ -6,12 +6,16 @@
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/controller/AuthController.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/model/AdminUser.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/model/Group.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/model/GroupChild.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/model/GroupChildId.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/model/ParentWithChildren.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/model/Pool.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/repository/AdminUserRepository.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/repository/GroupChildRepository.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/repository/GroupRepository.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/repository/PoolRepository.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/service/AdminDashboardService.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/service/GroupMemberService.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/service/GroupService.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/service/StringSimilarityService.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/bot/BotApplication.java

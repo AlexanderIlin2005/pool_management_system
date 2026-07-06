@@ -21,7 +21,7 @@
                 <th style="padding: 12px; border: 1px solid #ddd;">№</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Название</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Бассейн</th>
-                <th style="padding: 12px; border: 1px solid #ddd;">Тренер</th> <!-- Новый столбец -->
+                <th style="padding: 12px; border: 1px solid #ddd;">Тренер</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Расписание</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Численность</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Действия</th>
@@ -30,15 +30,11 @@
             <tbody>
             <tr th:each="g : ${groups}" style="border-bottom: 1px solid #eee;">
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.number}"></td>
-                <!-- Клик по названию ведет на редактирование -->
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <a th:href="@{/groups/edit/{id}(id=${g.id})}" style="color: #007bff; text-decoration: none; font-weight: bold;" th:text="${g.name}"></a>
                 </td>
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.pool != null ? g.pool.name : '-'}"></td>
-
-                <!-- Столбец Тренер -->
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.trainer != null ? g.trainer.fullName : '-'}"></td>
-
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <span th:if="${g.day1Start != null}" th:text="'Пн ' + ${g.day1Start} + '-' + ${g.day1End}"></span><br>
                     <span th:if="${g.day2Start != null}" th:text="'Вт ' + ${g.day2Start} + '-' + ${g.day2End}"></span><br>
@@ -49,39 +45,25 @@
                     <span th:if="${g.day7Start != null}" th:text="'Вс ' + ${g.day7Start} + '-' + ${g.day7End}"></span>
                 </td>
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.capacity}"></td>
-                <td style="padding: 12px; border: 1px solid #ddd;">
-                    <!-- Убрали onsubmit, добавили класс delete-btn -->
-                    <form th:action="@{/groups/delete/{id}(id=${g.id})}" method="post" class="delete-form">
+                <td style="padding: 12px; border: 1px solid #ddd; display: flex; gap: 5px;">
+                    <!-- Кнопка Участники -->
+                    <a th:href="@{/groups/{id}/members(id=${g.id})}" class="btn" style="padding: 5px 10px; font-size: 0.8em; background-color: #28a745;">Участники</a>
+
+                    <!-- Кнопка Удалить -->
+                    <form th:action="@{/groups/delete/{id}(id=${g.id})}" method="post" class="delete-group-form">
                         <input type="hidden" name="groupName" th:value="${g.name}">
                         <button type="submit" class="btn btn-danger" style="padding: 5px 10px; font-size: 0.8em;">Удалить</button>
                     </form>
                 </td>
             </tr>
             <tr th:if="${#lists.isEmpty(groups)}">
-                <td colspan="6" style="text-align: center; padding: 12px; border: 1px solid #ddd;">Групп не найдено</td>
+                <td colspan="7" style="text-align: center; padding: 12px; border: 1px solid #ddd;">Групп не найдено</td>
             </tr>
             </tbody>
         </table>
     </div>
 
-    <!-- Скрипт для подтверждения удаления -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const forms = document.querySelectorAll('.delete-form');
-
-            forms.forEach(form => {
-                form.addEventListener('submit', function(e) {
-                    // Находим скрытое поле с именем группы внутри этой формы
-                    const groupNameInput = this.querySelector('input[name="groupName"]');
-                    const groupName = groupNameInput ? groupNameInput.value : 'эту группу';
-
-                    if (!confirm('Вы точно хотите удалить группу \'' + groupName + '\'? Это действие нельзя отменить.')) {
-                        e.preventDefault(); // Отменяем отправку формы, если пользователь нажал "Отмена"
-                    }
-                });
-            });
-        });
-    </script>
+    <!-- Подключаем скрипт подтверждения удаления ГРУППЫ -->
+    <script src="/js/confirm-delete-group.js"></script>
 </div>
 </body>
-</html>

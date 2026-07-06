@@ -78,6 +78,12 @@ CREATE TABLE pool.groups (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS pool.group_children (
+    group_id BIGINT REFERENCES pool.groups(id) ON DELETE CASCADE,
+    child_id BIGINT REFERENCES pool.children(id) ON DELETE CASCADE,
+    PRIMARY KEY (group_id, child_id)
+);
+
 -- Индексы для быстрого поиска
 CREATE INDEX IF NOT EXISTS idx_parents_vk_id ON pool.parents(vk_id);
 CREATE INDEX IF NOT EXISTS idx_children_parent_id ON pool.children(parent_id);
