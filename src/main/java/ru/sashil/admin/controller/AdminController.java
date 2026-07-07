@@ -13,22 +13,17 @@ import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.model.Group;
 import ru.sashil.admin.model.ParentWithChildren;
 import ru.sashil.admin.service.*;
+import ru.sashil.admin.util.FileUtils;
 
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.*;
-
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.URLEncoder;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Controller
@@ -186,7 +181,7 @@ public class AdminController {
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "groups");
         model.addAttribute("pools", groupService.getAllPools());
-        model.addAttribute("coaches", groupService.getAllCoaches()); // <-- Добавляем тренеров
+        model.addAttribute("coaches", groupService.getAllCoaches());
         model.addAttribute("group", new Group());
         return "new-group";
     }
@@ -205,7 +200,7 @@ public class AdminController {
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "groups");
         model.addAttribute("pools", groupService.getAllPools());
-        model.addAttribute("coaches", groupService.getAllCoaches()); // <-- Добавляем тренеров
+        model.addAttribute("coaches", groupService.getAllCoaches());
         model.addAttribute("group", groupOpt.get());
         model.addAttribute("isEdit", true);
         return "new-group";
@@ -277,7 +272,7 @@ public class AdminController {
         return "redirect:/groups/{id}/members";
     }
 
-
+    // --- Управление пользователями ---
 
     @GetMapping("/users")
     public String usersPage(Model model, HttpSession session) {
@@ -290,6 +285,42 @@ public class AdminController {
         model.addAttribute("activePage", "users");
         model.addAttribute("users", adminUserService.getAllUsers());
         return "users";
+    }
+
+    @GetMapping("/users/register")
+    public String registerUserPage(Model model, HttpSession session) {
+        AdminUser currentUser = (AdminUser) session.getAttribute("currentUser");
+        if (currentUser == null) return "redirect:/login";
+        if (currentUser.getRole() != ru.sashil.admin.model.AdminUser.Role.ADMIN) return "restricted";
+
+        model.addAttribute("fullName", currentUser.getFullName());
+        model.addAttribute("role", currentUser.getRole());
+        model.addAttribute("activePage", "users");
+        model.addAttribute("roles", AdminUser.Role.values());
+        model.addAttribute("newUser", new AdminUser());
+        return "register-user";
+    }
+
+    @PostMapping("/users/register")
+    public String processRegister(@ModelAttribute AdminUser newUser,
+                                  @RequestParam String password,
+                                  HttpSession session) {
+        AdminUser currentUser = (AdminUser) session.getAttribute("currentUser");
+        if (currentUser == null || currentUser.getRole() != ru.sashil.admin.model.AdminUser.Role.ADMIN) {
+            return "redirect:/login";
+        }
+
+        // Устанавливаем хеш пароля перед сохранением
+        newUser.setPasswordHash(passwordEncoder.encode(password));
+
+        try {
+            adminUserService.saveUser(newUser);
+        } catch (IllegalArgumentException e) {
+            // Обработка ошибки уникальности логина
+            return "redirect:/users/register?error";
+        }
+
+        return "redirect:/users";
     }
 
     @GetMapping("/users/edit/{id}")
@@ -334,11 +365,12 @@ public class AdminController {
 
         // Обновляем пароль только если он был введен в форму
         if (newPassword != null && !newPassword.trim().isEmpty()) {
-            user.setPasswordHash(passwordEncoder.encode(newPassword));
+            user.setPasswordHash(newPassword); // Передаем сырой пароль, saveUser его зашифрует
             passwordChanged = true;
         }
 
-        adminUserService.updateUser(user);
+        // ИСПРАВЛЕНИЕ: используем saveUser вместо несуществующего updateUser
+        adminUserService.saveUser(user);
 
         // 3. Скачиваем файл только если пароль был изменен
         if (passwordChanged && "true".equals(downloadFile)) {
@@ -347,24 +379,14 @@ public class AdminController {
                     "Пароль: " + newPassword + "\n" +
                     "ФИО: " + newFullName;
 
-            // ИСПРАВЛЕНИЕ: Используем логин вместо ФИО для имени файла.
-            String fileName = user.getLogin() +
-                    "_new_password_" +
-                    LocalDate.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy")) +
-                    ".txt";
+            // Имя файла на основе логина (латиница)
+            String fileNamePrefix = user.getLogin() + "_password_" +
+                    LocalDate.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy"));
 
-            // Кодируем имя файла. Так как оно теперь на латинице, проблем не будет,
-            // но оставляем RFC 5987 для совместимости.
-            String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replaceAll("\\+", "%20");
-
-            // Настраиваем ответ
-            response.setContentType("application/octet-stream");
-            response.setHeader("Content-Disposition", "attachment; filename=\"" + fileName + "\"; filename*=UTF-8''" + encodedFileName);
-
-            // Записываем данные
-            try (OutputStream out = response.getOutputStream()) {
-                out.write(content.getBytes(StandardCharsets.UTF_8));
-                out.flush();
+            try {
+                ru.sashil.admin.util.FileUtils.sendTxtFile(response, fileNamePrefix, content);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         } else {
             // Если файл не скачиваем, просто перенаправляем обратно
@@ -372,5 +394,26 @@ public class AdminController {
         }
     }
 
+    @PostMapping("/users/delete/{id}")
+    public String deleteUser(@PathVariable Long id,
+                             @RequestParam String adminPassword,
+                             HttpSession session) {
+        AdminUser currentUser = (AdminUser) session.getAttribute("currentUser");
+        if (currentUser == null || currentUser.getRole() != ru.sashil.admin.model.AdminUser.Role.ADMIN) {
+            return "redirect:/login";
+        }
 
+        // Нельзя удалить самого себя
+        if (currentUser.getId().equals(id)) {
+            return "redirect:/users?error=self";
+        }
+
+        // Проверяем пароль текущего администратора
+        if (!passwordEncoder.matches(adminPassword, currentUser.getPasswordHash())) {
+            return "redirect:/users?error=wrong_pass";
+        }
+
+        adminUserService.deleteUser(id);
+        return "redirect:/users";
+    }
 }

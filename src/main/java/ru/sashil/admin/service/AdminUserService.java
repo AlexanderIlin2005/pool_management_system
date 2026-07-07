@@ -26,18 +26,26 @@ public class AdminUserService {
         return adminUserRepository.findById(id);
     }
 
-    public void updateUser(AdminUser user) {
+    public void saveUser(AdminUser user) {
+        // Если пароль не пустой, шифруем его перед сохранением
+        if (user.getPasswordHash() != null && !user.getPasswordHash().isEmpty()) {
+            // Проверяем, не зашифрован ли он уже (простая проверка на длину bcrypt хеша)
+            if (!user.getPasswordHash().startsWith("$2a$") && !user.getPasswordHash().startsWith("$2b$")) {
+                user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash()));
+            }
+        }
         adminUserRepository.save(user);
     }
 
-    // Метод специально для сброса пароля
-    public void updatePassword(Long id, String newPassword) {
-        Optional<AdminUser> userOpt = adminUserRepository.findById(id);
+    public void deleteUser(Long id) {
+        adminUserRepository.deleteById(id);
+    }
+
+    public boolean checkPassword(Long userId, String rawPassword) {
+        Optional<AdminUser> userOpt = adminUserRepository.findById(userId);
         if (userOpt.isPresent()) {
-            AdminUser user = userOpt.get();
-            // Шифруем новый пароль перед сохранением
-            user.setPasswordHash(passwordEncoder.encode(newPassword));
-            adminUserRepository.save(user);
+            return passwordEncoder.matches(rawPassword, userOpt.get().getPasswordHash());
         }
+        return false;
     }
 }

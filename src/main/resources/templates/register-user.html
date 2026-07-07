@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Регистрация пользователя', ~{::content})}">
+<body>
+<div th:fragment="content">
+  <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto;">
+    <h2>Новый пользователь</h2>
+
+    <form th:action="@{/users/register}" method="post" id="registerForm" autocomplete="off">
+      <div style="margin-bottom: 15px;">
+        <label>ФИО:</label>
+        <input type="text" name="fullName" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+      </div>
+
+      <div style="margin-bottom: 15px;">
+        <label>Логин:</label>
+        <input type="text" name="login" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+      </div>
+
+      <div style="margin-bottom: 15px;">
+        <label>Пароль:</label>
+        <input type="password" name="password" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+      </div>
+
+      <div style="margin-bottom: 15px;">
+        <label>Роль:</label>
+        <select name="role" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          <option th:each="r : ${roles}" th:value="${r}" th:text="${r}"></option>
+        </select>
+      </div>
+
+      <div style="margin-top: 20px; display: flex; gap: 10px;">
+        <button type="submit" class="btn" onclick="document.getElementById('downloadFlag').value='false'">Сохранить</button>
+        <button type="submit" class="btn" style="background-color: #28a745;" onclick="document.getElementById('downloadFlag').value='true'">Сохранить и Скачать .txt</button>
+      </div>
+      <input type="hidden" name="downloadFile" id="downloadFlag" value="false">
+    </form>
+  </div>
+</div>
+</body>
+</html>

@@ -64,7 +64,9 @@ CREATE TABLE pool.groups (
     pool_id BIGINT REFERENCES pool.pools(id),
 
     -- Внешний ключ на администратора с ролью COACH
-    trainer_id BIGINT REFERENCES pool.admin_users(id),
+    -- ON DELETE SET NULL означает: если тренера удалят из admin_users,
+    -- то в группе поле trainer_id просто станет пустым (NULL), но группа не удалится.
+    trainer_id BIGINT REFERENCES pool.admin_users(id) ON DELETE SET NULL,
 
     -- Поля для 7 дней недели
     day_1_start TIME, day_1_end TIME,
@@ -78,7 +80,7 @@ CREATE TABLE pool.groups (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS pool.group_children (
+CREATE TABLE pool.group_children (
     group_id BIGINT REFERENCES pool.groups(id) ON DELETE CASCADE,
     child_id BIGINT REFERENCES pool.children(id) ON DELETE CASCADE,
     PRIMARY KEY (group_id, child_id)
