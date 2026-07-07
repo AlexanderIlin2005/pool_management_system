@@ -45,3 +45,6 @@ bin/
 
 
 /target/**
+/target/**/**
+/target/maven-status/
+/target/maven-status/maven-compiler-plugin/compile/default-compile/
