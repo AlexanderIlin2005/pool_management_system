@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Редактирование пользователя', ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto;">
+        <h2>Редактирование пользователя</h2>
+
+        <!-- Добавлен autocomplete="off" для всей формы -->
+        <form th:action="@{/users/update-password}" method="post" id="resetForm" autocomplete="off">
+            <input type="hidden" name="userId" th:value="${targetUser.id}">
+
+            <!-- Поле ФИО -->
+            <div style="margin-bottom: 15px;">
+                <label>ФИО:</label>
+                <div style="display: flex; gap: 5px;">
+                    <input type="text" id="fullNameField" th:value="${targetUser.fullName}" readonly
+                           style="flex-grow: 1; padding: 8px; background: #eee; border: 1px solid #ccc; border-radius: 4px;">
+                    <button type="button" onclick="copyToClipboard('fullNameField')" class="btn" style="background: #6c757d;">Копировать</button>
+                </div>
+            </div>
+
+            <!-- Поле Логина -->
+            <div style="margin-bottom: 15px;">
+                <label>Логин:</label>
+                <div style="display: flex; gap: 5px;">
+                    <!-- ВАЖНО: autocomplete="new-password" здесь помогает браузеру забыть предыдущий контекст -->
+                    <input type="text" name="newLogin" id="loginField" th:value="${targetUser.login}" required autocomplete="new-password"
+                           style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    <button type="button" onclick="copyToClipboard('loginField')" class="btn" style="background: #6c757d;">Копировать</button>
+                </div>
+            </div>
+
+            <!-- Кнопка раскрытия пароля -->
+            <div style="margin-bottom: 15px;">
+                <button type="button" id="togglePasswordBtn" class="btn" style="background: #ffc107; color: black; width: 100%;">Изменить пароль</button>
+            </div>
+
+            <!-- Скрытый контейнер пароля -->
+            <div id="passwordContainer" style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; border: 1px dashed #ccc;">
+                <label>Новый пароль:</label>
+                <div style="display: flex; gap: 5px;">
+                    <!-- autocomplete="new-password" запрещает автозаполнение старым паролем -->
+                    <input type="password" name="newPassword" id="passwordField" autocomplete="new-password"
+                           style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    <button type="button" onclick="copyToClipboard('passwordField')" class="btn" style="background: #6c757d;">Копировать</button>
+                </div>
+                <small style="color: #666; display: block; margin-top: 5px;">При скрытии этого поля пароль не будет изменен.</small>
+            </div>
+
+            <!-- Кнопки действия -->
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button type="submit" id="saveBtn" class="btn">Сохранить изменения</button>
+                <button type="submit" id="downloadBtn" class="btn" style="background: #28a745;">Сохранить и Скачать .txt</button>
+            </div>
+
+            <!-- Скрытый флаг для контроллера -->
+            <input type="hidden" name="downloadFile" id="downloadFlag" value="false">
+        </form>
+    </div>
+
+    <!-- Подключение внешнего JS -->
+    <script src="/js/user-edit.js"></script>
+</div>
+</body>
+</html>

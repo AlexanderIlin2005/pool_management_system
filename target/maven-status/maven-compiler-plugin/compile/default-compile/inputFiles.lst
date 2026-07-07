@@ -15,6 +15,7 @@
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/repository/GroupRepository.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/repository/PoolRepository.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/service/AdminDashboardService.java
+/Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/service/AdminUserService.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/service/GroupMemberService.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/service/GroupService.java
 /Users/sasailin/Desktop/ВКР/pool_management_system/src/main/java/ru/sashil/admin/service/StringSimilarityService.java

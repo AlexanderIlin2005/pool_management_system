@@ -8,15 +8,25 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.model.Group;
 import ru.sashil.admin.model.ParentWithChildren;
-import ru.sashil.admin.service.AdminDashboardService;
-import ru.sashil.admin.service.GroupMemberService;
-import ru.sashil.admin.service.GroupService;
-import ru.sashil.admin.service.StringSimilarityService;
+import ru.sashil.admin.service.*;
 
 import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.*;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URLEncoder;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -35,6 +45,12 @@ public class AdminController {
 
     @Autowired
     private GroupMemberService memberService;
+
+    @Autowired
+    private AdminUserService adminUserService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     // Проверка роли (вспомогательный метод)
     private boolean isAdmin(HttpSession session) {
@@ -260,5 +276,102 @@ public class AdminController {
         memberService.removeChildFromGroup(id, childId);
         return "redirect:/groups/{id}/members";
     }
+
+
+
+    @GetMapping("/users")
+    public String usersPage(Model model, HttpSession session) {
+        AdminUser currentUser = (AdminUser) session.getAttribute("currentUser");
+        if (currentUser == null) return "redirect:/login";
+        if (currentUser.getRole() != ru.sashil.admin.model.AdminUser.Role.ADMIN) return "restricted";
+
+        model.addAttribute("fullName", currentUser.getFullName());
+        model.addAttribute("role", currentUser.getRole());
+        model.addAttribute("activePage", "users");
+        model.addAttribute("users", adminUserService.getAllUsers());
+        return "users";
+    }
+
+    @GetMapping("/users/edit/{id}")
+    public String editUserPage(@PathVariable Long id, Model model, HttpSession session) {
+        AdminUser currentUser = (AdminUser) session.getAttribute("currentUser");
+        if (currentUser == null) return "redirect:/login";
+        if (currentUser.getRole() != ru.sashil.admin.model.AdminUser.Role.ADMIN) return "restricted";
+
+        Optional<AdminUser> userOpt = adminUserService.getUserById(id);
+        if (userOpt.isEmpty()) return "redirect:/users";
+
+        model.addAttribute("fullName", currentUser.getFullName());
+        model.addAttribute("role", currentUser.getRole());
+        model.addAttribute("activePage", "users");
+        model.addAttribute("targetUser", userOpt.get());
+        return "edit-user";
+    }
+
+    @PostMapping("/users/update-password")
+    public void updatePasswordAndDownload(@RequestParam Long userId,
+                                          @RequestParam(required = false) String newPassword,
+                                          @RequestParam String newLogin,
+                                          @RequestParam(required = false) String downloadFile,
+                                          HttpServletResponse response) throws IOException {
+
+        // 1. Получаем данные пользователя
+        Optional<AdminUser> userOpt = adminUserService.getUserById(userId);
+
+        if (userOpt.isEmpty()) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+
+        AdminUser user = userOpt.get();
+
+        boolean passwordChanged = false;
+
+        // 2. Обновляем данные в базе
+        // Обновляем логин всегда, если он пришел
+        user.setLogin(newLogin);
+
+        // Обновляем пароль только если он был введен в форму
+        if (newPassword != null && !newPassword.trim().isEmpty()) {
+            user.setPasswordHash(passwordEncoder.encode(newPassword));
+            passwordChanged = true;
+        }
+
+        adminUserService.updateUser(user);
+
+        // 3. Скачиваем файл только если пароль был изменен
+        if (passwordChanged && "true".equals(downloadFile)) {
+            // Формируем содержимое файла
+            String content = "Логин: " + newLogin + "\n" +
+                    "Пароль: " + newPassword + "\n" +
+                    "ФИО: " + user.getFullName();
+
+            // ИСПРАВЛЕНИЕ: Используем логин вместо ФИО для имени файла.
+            // Логин гарантированно содержит только ASCII-символы (латиницу),
+            // что предотвращает ошибки кодировки в заголовке Content-Disposition.
+            String fileName = user.getLogin() +
+                    "_new_password_" +
+                    LocalDate.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy")) +
+                    ".txt";
+
+            // Кодируем имя файла. Так как оно теперь на латинице, проблем не будет,
+            // но оставляем RFC 5987 для совместимости.
+            String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+
+            // Настраиваем ответ
+            response.setContentType("application/octet-stream");
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + fileName + "\"; filename*=UTF-8''" + encodedFileName);
+
+            // Записываем данные
+            try (OutputStream out = response.getOutputStream()) {
+                out.write(content.getBytes(StandardCharsets.UTF_8));
+                out.flush();
+            }
+        } else {
+            // Если файл не скачиваем, просто перенаправляем обратно
+            response.sendRedirect("/users");
+        }
+    }
+
 
 }
