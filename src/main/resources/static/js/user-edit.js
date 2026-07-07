@@ -6,17 +6,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveBtn = document.getElementById('saveBtn');
     const downloadFlag = document.getElementById('downloadFlag');
 
-    // 1. Логика скрытия/раскрытия пароля
+    // 1. Логика скрытия/раскрытия пароля с подтверждением
     if (toggleBtn) {
         toggleBtn.addEventListener('click', function() {
             const isHidden = passwordContainer.style.display === 'none';
 
             if (isHidden) {
-                // Раскрываем
-                passwordContainer.style.display = 'block';
-                downloadBtn.style.display = 'inline-block'; // Показываем кнопку скачивания
-                passwordField.focus();
-                this.textContent = 'Скрыть поле пароля';
+                // Запрашиваем подтверждение перед открытием
+                if (confirm("Вы действительно хотите изменить пароль? Это действие потребует ввода нового пароля.")) {
+                    passwordContainer.style.display = 'block';
+                    downloadBtn.style.display = 'inline-block'; // Показываем кнопку скачивания
+                    passwordField.focus();
+                    this.textContent = 'Скрыть поле пароля';
+                }
             } else {
                 // Скрываем и очищаем
                 passwordContainer.style.display = 'none';

@@ -312,6 +312,7 @@ public class AdminController {
     public void updatePasswordAndDownload(@RequestParam Long userId,
                                           @RequestParam(required = false) String newPassword,
                                           @RequestParam String newLogin,
+                                          @RequestParam String newFullName, // <-- Добавляем параметр
                                           @RequestParam(required = false) String downloadFile,
                                           HttpServletResponse response) throws IOException {
 
@@ -328,8 +329,8 @@ public class AdminController {
         boolean passwordChanged = false;
 
         // 2. Обновляем данные в базе
-        // Обновляем логин всегда, если он пришел
         user.setLogin(newLogin);
+        user.setFullName(newFullName); // <-- Обновляем ФИО
 
         // Обновляем пароль только если он был введен в форму
         if (newPassword != null && !newPassword.trim().isEmpty()) {
@@ -344,11 +345,9 @@ public class AdminController {
             // Формируем содержимое файла
             String content = "Логин: " + newLogin + "\n" +
                     "Пароль: " + newPassword + "\n" +
-                    "ФИО: " + user.getFullName();
+                    "ФИО: " + newFullName;
 
             // ИСПРАВЛЕНИЕ: Используем логин вместо ФИО для имени файла.
-            // Логин гарантированно содержит только ASCII-символы (латиницу),
-            // что предотвращает ошибки кодировки в заголовке Content-Disposition.
             String fileName = user.getLogin() +
                     "_new_password_" +
                     LocalDate.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy")) +
