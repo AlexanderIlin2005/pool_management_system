@@ -2,6 +2,49 @@
 <html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Участники группы', ~{::content})}">
 <body>
 <div th:fragment="content">
+
+  <!-- Стили для кастомизации noUiSlider под наш дизайн -->
+  <style>
+    /* Трек слайдера */
+    .noUi-target {
+        background: #eee;
+        border-radius: 4px;
+        border: none;
+        box-shadow: none;
+        height: 6px !important; /* Делаем трек тоньше */
+    }
+
+    /* Полоса соединения (между ползунками) */
+    .noUi-connect {
+        background: #007bff; /* Наш синий цвет */
+    }
+
+    /* Сам ползунок (кружок) */
+    .noUi-handle {
+        width: 16px !important;
+        height: 16px !important;
+        right: -8px !important; /* Центрируем относительно трека */
+        top: -5px !important;
+        border-radius: 50%;
+        background: #007bff; /* Синий фон */
+        border: 2px solid #fff; /* Белая обводка для контраста */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        cursor: pointer;
+    }
+
+    /* Убираем лишние линии внутри ползунка */
+    .noUi-handle:before, .noUi-handle:after {
+        display: none;
+    }
+
+    /* Стиль при наведении/активности */
+    .noUi-handle:hover, .noUi-active {
+        background: #0056b3; /* Темнее при наведении */
+        transform: scale(1.1);
+        transition: transform 0.1s;
+    }
+  </style>
+
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1400px; margin: 0 auto;">
     <div class="header">
       <h1>Группа: <span th:text="${group.name}"></span> (№ <span th:text="${group.number}"></span>)</h1>
@@ -78,9 +121,9 @@
               <label style="font-weight: bold;">Возраст:</label>
               <div style="display: flex; gap: 10px; align-items: center;">
                 <span>От</span>
-                <input type="number" id="ageFromInput" name="ageFrom" th:value="${currentAgeFrom}" style="width: 60px; padding: 2px;">
+                <input type="number" id="ageFromInput" name="ageFrom" th:value="${currentAgeFrom}" style="width: 60px; padding: 2px; border: 1px solid #ccc; border-radius: 4px;">
                 <span>До</span>
-                <input type="number" id="ageToInput" name="ageTo" th:value="${currentAgeTo}" style="width: 60px; padding: 2px;">
+                <input type="number" id="ageToInput" name="ageTo" th:value="${currentAgeTo}" style="width: 60px; padding: 2px; border: 1px solid #ccc; border-radius: 4px;">
               </div>
             </div>
             <!-- Контейнер для noUiSlider -->
@@ -93,9 +136,9 @@
               <label style="font-weight: bold;">Класс:</label>
               <div style="display: flex; gap: 10px; align-items: center;">
                 <span>От</span>
-                <input type="number" id="gradeFromInput" name="gradeFrom" th:value="${currentGradeFrom}" style="width: 60px; padding: 2px;">
+                <input type="number" id="gradeFromInput" name="gradeFrom" th:value="${currentGradeFrom}" style="width: 60px; padding: 2px; border: 1px solid #ccc; border-radius: 4px;">
                 <span>До</span>
-                <input type="number" id="gradeToInput" name="gradeTo" th:value="${currentGradeTo}" style="width: 60px; padding: 2px;">
+                <input type="number" id="gradeToInput" name="gradeTo" th:value="${currentGradeTo}" style="width: 60px; padding: 2px; border: 1px solid #ccc; border-radius: 4px;">
               </div>
             </div>
             <!-- Контейнер для noUiSlider -->
