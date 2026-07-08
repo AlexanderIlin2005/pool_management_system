@@ -238,7 +238,13 @@ public class AdminController {
 
     @GetMapping("/groups/{id}/members")
     public String groupMembersPage(@PathVariable Long id, Model model, HttpSession session,
-                                   @RequestParam(required = false) String search) {
+                                   @RequestParam(required = false) String search,
+                                   @RequestParam(required = false) List<String> skills,
+                                   @RequestParam(required = false) Integer ageFrom,
+                                   @RequestParam(required = false) Integer ageTo,
+                                   @RequestParam(required = false) Integer gradeFrom,
+                                   @RequestParam(required = false) Integer gradeTo) {
+
         if (!isAdmin(session)) return "redirect:/parents";
 
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
@@ -250,15 +256,23 @@ public class AdminController {
         if (groupOpt.isEmpty()) return "redirect:/groups";
         model.addAttribute("group", groupOpt.get());
 
-        // Список текущих участников
+        // ВАЖНО: Загружаем список текущих участников группы
         model.addAttribute("members", memberService.getGroupMembers(id));
 
-        // Список доступных детей (теперь фильтруется внутри сервиса)
-        model.addAttribute("availableChildren", memberService.getAvailableChildren(id, search));
+        // Передаем все параметры фильтрации в сервис
+        model.addAttribute("availableChildren", memberService.getAvailableChildren(id, search, skills, ageFrom, ageTo, gradeFrom, gradeTo));
+
+        // Сохраняем состояние фильтров для UI
         model.addAttribute("currentSearch", search);
+        model.addAttribute("currentSkills", skills);
+        model.addAttribute("currentAgeFrom", ageFrom != null ? ageFrom : 6);
+        model.addAttribute("currentAgeTo", ageTo != null ? ageTo : 18);
+        model.addAttribute("currentGradeFrom", gradeFrom != null ? gradeFrom : 1);
+        model.addAttribute("currentGradeTo", gradeTo != null ? gradeTo : 11);
 
         return "group-members";
     }
+
 
     @PostMapping("/groups/{id}/members/add")
     public String addMember(@PathVariable Long id, @RequestParam Long childId) {

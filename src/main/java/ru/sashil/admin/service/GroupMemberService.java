@@ -20,24 +20,66 @@ public class GroupMemberService {
     private GroupChildRepository groupChildRepository;
 
     public List<Map<String, Object>> getGroupMembers(Long groupId) {
-        String sql = "SELECT c.id, c.first_name, c.last_name, c.age, c.grade_number FROM pool.children c " +
+        String sql = "SELECT c.id, c.first_name, c.last_name, c.age, c.grade_number, c.grade_name, c.skill FROM pool.children c " +
                 "JOIN pool.group_children gc ON c.id = gc.child_id WHERE gc.group_id = ? ORDER BY c.last_name";
         return jdbcTemplate.queryForList(sql, groupId);
     }
 
-    // Возвращаем пустой список, если search пустой или null
-    public List<Map<String, Object>> getAvailableChildren(Long groupId, String search) {
-        if (search == null || search.trim().isEmpty()) {
-            return new ArrayList<>();
+    public List<Map<String, Object>> getAvailableChildren(Long groupId, String search,
+                                                          List<String> skills, Integer ageFrom, Integer ageTo,
+                                                          Integer gradeFrom, Integer gradeTo) {
+
+        StringBuilder sql = new StringBuilder(
+                "SELECT c.id, c.first_name, c.last_name, c.age, c.grade_number, c.grade_name, c.skill FROM pool.children c " +
+                        "WHERE c.id NOT IN (SELECT child_id FROM pool.group_children WHERE group_id = ?)"
+        );
+
+        List<Object> params = new ArrayList<>();
+        params.add(groupId);
+
+        // Фильтр по возрасту
+        if (ageFrom != null) {
+            sql.append(" AND c.age >= ?");
+            params.add(ageFrom);
+        }
+        if (ageTo != null) {
+            sql.append(" AND c.age <= ?");
+            params.add(ageTo);
         }
 
-        String sql = "SELECT id, first_name, last_name, age, grade_number FROM pool.children " +
-                "WHERE id NOT IN (SELECT child_id FROM pool.group_children WHERE group_id = ?) " +
-                "AND (first_name ILIKE ? OR last_name ILIKE ? OR CAST(age AS TEXT) = ? OR CAST(grade_number AS TEXT) = ?) " +
-                "ORDER BY last_name";
+        // Фильтр по классу
+        if (gradeFrom != null) {
+            sql.append(" AND c.grade_number >= ?");
+            params.add(gradeFrom);
+        }
+        if (gradeTo != null) {
+            sql.append(" AND c.grade_number <= ?");
+            params.add(gradeTo);
+        }
 
-        String likeSearch = "%" + search + "%";
-        return jdbcTemplate.queryForList(sql, groupId, likeSearch, likeSearch, search, search);
+        // Фильтр по навыкам (исправляем ошибку приведения типов)
+        if (skills != null && !skills.isEmpty()) {
+            sql.append(" AND c.skill IN (");
+            for (int i = 0; i < skills.size(); i++) {
+                // ВАЖНО: ::pool.swimming_skill приводит строку к типу ENUM
+                sql.append("?::pool.swimming_skill");
+                if (i < skills.size() - 1) sql.append(",");
+                params.add(skills.get(i));
+            }
+            sql.append(")");
+        }
+
+        // Поиск по ФИО
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (c.first_name ILIKE ? OR c.last_name ILIKE ?)");
+            String likeSearch = "%" + search + "%";
+            params.add(likeSearch);
+            params.add(likeSearch);
+        }
+
+        sql.append(" ORDER BY c.last_name, c.first_name");
+
+        return jdbcTemplate.queryForList(sql.toString(), params.toArray());
     }
 
     public void addChildToGroup(Long groupId, Long childId) {
@@ -49,7 +91,7 @@ public class GroupMemberService {
         }
     }
 
-    @Transactional // Важно для операции удаления
+    @Transactional
     public void removeChildFromGroup(Long groupId, Long childId) {
         groupChildRepository.deleteByGroupIdAndChildId(groupId, childId);
     }
