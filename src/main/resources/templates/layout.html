@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, content)">
+<!-- noUiSlider CSS -->
 <head>
   <title th:text="${title}">Admin</title>
   <style>
@@ -78,6 +79,11 @@
         color: white !important;
     }
   </style>
+
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.css" rel="stylesheet">
+  <!-- noUiSlider JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
+
 </head>
 <body>
 <div class="sidebar">

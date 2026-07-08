@@ -42,19 +42,15 @@
 
     <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
 
-    <!-- Блок 2: Добавление новых участников с фильтрами -->
+    <!-- Блок 2: Добавление новых участников -->
     <h3>Добавить участника</h3>
 
     <form method="get" th:action="@{/groups/{id}/members(id=${group.id})}" id="filterForm">
-      <!-- Скрытые поля для хранения значений слайдеров при отправке формы -->
-      <input type="hidden" name="ageFrom" id="hiddenAgeFrom" th:value="${currentAgeFrom}">
-      <input type="hidden" name="ageTo" id="hiddenAgeTo" th:value="${currentAgeTo}">
-      <input type="hidden" name="gradeFrom" id="hiddenGradeFrom" th:value="${currentGradeFrom}">
-      <input type="hidden" name="gradeTo" id="hiddenGradeTo" th:value="${currentGradeTo}">
 
+      <!-- Левое меню управления фильтрами -->
       <div style="display: flex; gap: 20px;">
-        <!-- Левое меню управления фильтрами -->
-        <div style="width: 200px; background: #f8f9fa; padding: 15px; border-radius: 8px; height: fit-content;">
+
+        <div style="width: 250px; background: #f8f9fa; padding: 15px; border-radius: 8px; height: fit-content;">
           <label style="font-weight: bold; display: block; margin-bottom: 10px;">Фильтры:</label>
 
           <div style="margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
@@ -78,41 +74,32 @@
 
           <!-- Фильтр Возраста -->
           <div id="ageBlock" style="margin-bottom: 20px; padding: 15px; background: #fff; border: 1px solid #eee; border-radius: 4px;">
-            <label style="font-weight: bold;">Возраст: <span id="ageLabel">6 - 18</span></label>
-            <div style="position: relative; height: 40px; margin-top: 10px;">
-              <div style="position: absolute; top: 50%; left: 0; right: 0; height: 4px; background: #ccc; transform: translateY(-50%); border-radius: 2px;"></div>
-
-              <!-- Input Type Range (невидимый, но кликабельный) -->
-              <input type="range" id="ageFromRange" min="6" max="18" th:value="${currentAgeFrom}" style="position: absolute; top: 0; left: 0; width: 100%; pointer-events: none; opacity: 0; z-index: 3;">
-              <input type="range" id="ageToRange" min="6" max="18" th:value="${currentAgeTo}" style="position: absolute; top: 0; left: 0; width: 100%; pointer-events: none; opacity: 0; z-index: 3;">
-
-              <!-- Визуальные ползунки -->
-              <div id="ageThumbFrom" class="slider-thumb" style="position: absolute; top: 50%; width: 16px; height: 16px; background: #007bff; border-radius: 50%; transform: translate(-50%, -50%); cursor: pointer; z-index: 2;"></div>
-              <div id="ageThumbTo" class="slider-thumb" style="position: absolute; top: 50%; width: 16px; height: 16px; background: #007bff; border-radius: 50%; transform: translate(-50%, -50%); cursor: pointer; z-index: 2;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <label style="font-weight: bold;">Возраст:</label>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <span>От</span>
+                <input type="number" id="ageFromInput" name="ageFrom" th:value="${currentAgeFrom}" style="width: 60px; padding: 2px;">
+                <span>До</span>
+                <input type="number" id="ageToInput" name="ageTo" th:value="${currentAgeTo}" style="width: 60px; padding: 2px;">
+              </div>
             </div>
-            <!-- Поля ввода для точной настройки -->
-            <div style="display: flex; justify-content: space-between; margin-top: 5px;">
-              <input type="number" id="ageFromInput" min="6" max="18" th:value="${currentAgeFrom}" style="width: 60px; padding: 2px;">
-              <input type="number" id="ageToInput" min="6" max="18" th:value="${currentAgeTo}" style="width: 60px; padding: 2px;">
-            </div>
+            <!-- Контейнер для noUiSlider -->
+            <div id="age-slider" style="height: 10px; margin: 10px 0;"></div>
           </div>
 
           <!-- Фильтр Класса -->
           <div id="gradeBlock" style="margin-bottom: 20px; padding: 15px; background: #fff; border: 1px solid #eee; border-radius: 4px;">
-            <label style="font-weight: bold;">Класс: <span id="gradeLabel">1 - 11</span></label>
-            <div style="position: relative; height: 40px; margin-top: 10px;">
-              <div style="position: absolute; top: 50%; left: 0; right: 0; height: 4px; background: #ccc; transform: translateY(-50%); border-radius: 2px;"></div>
-
-              <input type="range" id="gradeFromRange" min="1" max="11" th:value="${currentGradeFrom}" style="position: absolute; top: 0; left: 0; width: 100%; pointer-events: none; opacity: 0; z-index: 3;">
-              <input type="range" id="gradeToRange" min="1" max="11" th:value="${currentGradeTo}" style="position: absolute; top: 0; left: 0; width: 100%; pointer-events: none; opacity: 0; z-index: 3;">
-
-              <div id="gradeThumbFrom" class="slider-thumb" style="position: absolute; top: 50%; width: 16px; height: 16px; background: #28a745; border-radius: 50%; transform: translate(-50%, -50%); cursor: pointer; z-index: 2;"></div>
-              <div id="gradeThumbTo" class="slider-thumb" style="position: absolute; top: 50%; width: 16px; height: 16px; background: #28a745; border-radius: 50%; transform: translate(-50%, -50%); cursor: pointer; z-index: 2;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <label style="font-weight: bold;">Класс:</label>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <span>От</span>
+                <input type="number" id="gradeFromInput" name="gradeFrom" th:value="${currentGradeFrom}" style="width: 60px; padding: 2px;">
+                <span>До</span>
+                <input type="number" id="gradeToInput" name="gradeTo" th:value="${currentGradeTo}" style="width: 60px; padding: 2px;">
+              </div>
             </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 5px;">
-              <input type="number" id="gradeFromInput" min="1" max="11" th:value="${currentGradeFrom}" style="width: 60px; padding: 2px;">
-              <input type="number" id="gradeToInput" min="1" max="11" th:value="${currentGradeTo}" style="width: 60px; padding: 2px;">
-            </div>
+            <!-- Контейнер для noUiSlider -->
+            <div id="grade-slider" style="height: 10px; margin: 10px 0;"></div>
           </div>
 
           <!-- Фильтр Навыка -->
@@ -125,13 +112,14 @@
             </div>
           </div>
 
-          <!-- Поиск и Кнопки -->
-          <div style="display: flex; gap: 10px; align-items: center; margin-top: 20px;">
-            <input type="text" name="search" placeholder="Поиск по ФИО..." th:value="${currentSearch}" style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-            <button type="submit" class="btn">Применить фильтры</button>
-            <a th:href="@{/groups/{id}/members(id=${group.id})}" class="btn" style="background-color: #6c757d;">Сброс</a>
-          </div>
         </div>
+      </div>
+
+      <!-- Поиск и Кнопки -->
+      <div style="display: flex; gap: 10px; align-items: center; margin-top: 20px;">
+        <input type="text" name="search" placeholder="Поиск по ФИО..." th:value="${currentSearch}" style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        <button type="submit" class="btn">Применить</button>
+        <a th:href="@{/groups/{id}/members(id=${group.id})}" class="btn" style="background-color: #6c757d;">Сброс</a>
       </div>
     </form>
 
@@ -176,115 +164,112 @@
         const checkAllBox = document.getElementById('checkAllFilters');
         const uncheckAllBox = document.getElementById('uncheckAllFilters');
 
-        // Функция обновления состояния главных чекбоксов
         function updateMainCheckboxes() {
             const allChecked = Array.from(toggles).every(t => t.checked);
             const noneChecked = Array.from(toggles).every(t => !t.checked);
 
-            checkAllBox.checked = allChecked;
-            uncheckAllBox.checked = noneChecked;
+            if (checkAllBox) checkAllBox.checked = allChecked;
+            if (uncheckAllBox) uncheckAllBox.checked = noneChecked;
         }
 
         toggles.forEach(toggle => {
             toggle.addEventListener('change', function() {
                 const targetId = this.getAttribute('data-target');
-                document.getElementById(targetId).style.display = this.checked ? 'block' : 'none';
+                const targetBlock = document.getElementById(targetId);
+                if (targetBlock) {
+                    targetBlock.style.display = this.checked ? 'block' : 'none';
+                }
                 updateMainCheckboxes();
             });
         });
 
-        checkAllBox.addEventListener('change', function() {
-            if (this.checked) {
-                toggles.forEach(t => {
-                    t.checked = true;
-                    document.getElementById(t.getAttribute('data-target')).style.display = 'block';
-                });
-                uncheckAllBox.checked = false;
-            }
-        });
-
-        uncheckAllBox.addEventListener('change', function() {
-            if (this.checked) {
-                toggles.forEach(t => {
-                    t.checked = false;
-                    document.getElementById(t.getAttribute('data-target')).style.display = 'none';
-                });
-                checkAllBox.checked = false;
-            }
-        });
-
-        // --- Логика Слайдеров (Универсальная функция) ---
-        function initSlider(fromRangeId, toRangeId, fromInputId, toInputId, thumbFromId, thumbToId, labelId, hiddenFromId, hiddenToId, min, max) {
-            const fromRange = document.getElementById(fromRangeId);
-            const toRange = document.getElementById(toRangeId);
-            const fromInput = document.getElementById(fromInputId);
-            const toInput = document.getElementById(toInputId);
-            const thumbFrom = document.getElementById(thumbFromId);
-            const thumbTo = document.getElementById(thumbToId);
-            const label = document.getElementById(labelId);
-            const hiddenFrom = document.getElementById(hiddenFromId);
-            const hiddenTo = document.getElementById(hiddenToId);
-
-            function updateUI(source) {
-                let val1 = parseInt(fromInput.value) || min;
-                let val2 = parseInt(toInput.value) || max;
-
-                // Защита от пересечения
-                if (val1 > val2) {
-                    if (source === 'from') {
-                        val1 = val2;
-                    } else {
-                        val2 = val1;
-                    }
+        if (checkAllBox) {
+            checkAllBox.addEventListener('change', function() {
+                if (this.checked) {
+                    toggles.forEach(t => {
+                        t.checked = true;
+                        const targetBlock = document.getElementById(t.getAttribute('data-target'));
+                        if (targetBlock) targetBlock.style.display = 'block';
+                    });
+                    if (uncheckAllBox) uncheckAllBox.checked = false;
                 }
-
-                // Обновляем все источники значений
-                fromInput.value = val1;
-                toInput.value = val2;
-                fromRange.value = val1;
-                toRange.value = val2;
-                hiddenFrom.value = val1;
-                hiddenTo.value = val2;
-
-                // Обновляем лейбл
-                label.textContent = val1 + " - " + val2;
-
-                // Двигаем ползунки
-                const percent1 = ((val1 - min) / (max - min)) * 100;
-                const percent2 = ((val2 - min) / (max - min)) * 100;
-                thumbFrom.style.left = percent1 + "%";
-                thumbTo.style.left = percent2 + "%";
-            }
-
-            // Слушатели событий для ПОЛЕЙ ВВОДА
-            fromInput.addEventListener('input', () => updateUI('from'));
-            toInput.addEventListener('input', () => updateUI('to'));
-
-            // Слушатели событий для ПОЛЗУНКОВ (Range)
-            // Когда двигаем ползунок, меняем значение в поле ввода, которое триггерит updateUI
-            fromRange.addEventListener('input', function() {
-                fromInput.value = this.value;
-                updateUI('from');
             });
-
-            toRange.addEventListener('input', function() {
-                toInput.value = this.value;
-                updateUI('to');
-            });
-
-            // Инициализация при загрузке
-            updateUI('init');
         }
 
-        // Инициализация слайдера возраста
-        initSlider('ageFromRange', 'ageToRange', 'ageFromInput', 'ageToInput',
-                   'ageThumbFrom', 'ageThumbTo', 'ageLabel',
-                   'hiddenAgeFrom', 'hiddenAgeTo', 6, 18);
+        if (uncheckAllBox) {
+            uncheckAllBox.addEventListener('change', function() {
+                if (this.checked) {
+                    toggles.forEach(t => {
+                        t.checked = false;
+                        const targetBlock = document.getElementById(t.getAttribute('data-target'));
+                        if (targetBlock) targetBlock.style.display = 'none';
+                    });
+                    if (checkAllBox) checkAllBox.checked = false;
+                }
+            });
+        }
 
-        // Инициализация слайдера класса
-        initSlider('gradeFromRange', 'gradeToRange', 'gradeFromInput', 'gradeToInput',
-                   'gradeThumbFrom', 'gradeThumbTo', 'gradeLabel',
-                   'hiddenGradeFrom', 'hiddenGradeTo', 1, 11);
+        // --- Инициализация noUiSlider ---
+
+        // Функция создания слайдера
+        function createSlider(sliderId, fromInputId, toInputId, min, max, startFrom, startTo) {
+            const slider = document.getElementById(sliderId);
+            if (!slider) return;
+
+            noUiSlider.create(slider, {
+                start: [startFrom, startTo],
+                connect: true,
+                range: {
+                    'min': min,
+                    'max': max
+                },
+                step: 1
+            });
+
+            const fromInput = document.getElementById(fromInputId);
+            const toInput = document.getElementById(toInputId);
+
+            // Когда двигаем слайдер -> обновляем инпуты
+            slider.noUiSlider.on('update', function(values, handle) {
+                const val = Math.round(values[handle]);
+                if (handle === 0) {
+                    fromInput.value = val;
+                } else {
+                    toInput.value = val;
+                }
+            });
+
+            // Когда меняем инпуты -> двигаем слайдер
+            fromInput.addEventListener('change', function() {
+                let val = parseInt(this.value);
+                if (isNaN(val)) val = min;
+                if (val < min) val = min;
+                if (val > max) val = max;
+
+                // Получаем текущее значение правого ползунка
+                const currentTo = parseInt(toInput.value) || max;
+                if (val > currentTo) val = currentTo; // Не даем левому уйти правее правого
+
+                slider.noUiSlider.set([val, null]);
+            });
+
+            toInput.addEventListener('change', function() {
+                let val = parseInt(this.value);
+                if (isNaN(val)) val = max;
+                if (val < min) val = min;
+                if (val > max) val = max;
+
+                // Получаем текущее значение левого ползунка
+                const currentFrom = parseInt(fromInput.value) || min;
+                if (val < currentFrom) val = currentFrom; // Не даем правому уйти левее левого
+
+                slider.noUiSlider.set([null, val]);
+            });
+        }
+
+        // Создаем слайдеры с начальными значениями из Thymeleaf
+        createSlider('age-slider', 'ageFromInput', 'ageToInput', 6, 18, [[${currentAgeFrom}]], [[${currentAgeTo}]]);
+        createSlider('grade-slider', 'gradeFromInput', 'gradeToInput', 1, 11, [[${currentGradeFrom}]], [[${currentGradeTo}]]);
     });
   </script>
 </div>
