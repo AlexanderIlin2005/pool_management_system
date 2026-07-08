@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.multipart.MultipartFile;
 import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.model.Group;
 import ru.sashil.admin.model.ParentWithChildren;
@@ -46,6 +47,9 @@ public class AdminController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private DocumentService documentService;
 
     // Проверка роли (вспомогательный метод)
     private boolean isAdmin(HttpSession session) {
@@ -430,4 +434,47 @@ public class AdminController {
         adminUserService.deleteUser(id);
         return "redirect:/users";
     }
+
+
+    @GetMapping("/documents")
+    public String documentsPage(Model model, HttpSession session) {
+        AdminUser currentUser = (AdminUser) session.getAttribute("currentUser");
+        if (currentUser == null || currentUser.getRole() != ru.sashil.admin.model.AdminUser.Role.ADMIN)
+            return "redirect:/login";
+
+        model.addAttribute("fullName", currentUser.getFullName());
+        model.addAttribute("role", currentUser.getRole());
+        model.addAttribute("activePage", "documents");
+
+        // Загружаем историю для всех типов
+        model.addAttribute("contracts", documentService.getHistory("CONTRACT"));
+        model.addAttribute("consents", documentService.getHistory("CONSENT"));
+        model.addAttribute("rules", documentService.getHistory("RULES"));
+        model.addAttribute("receipts", documentService.getHistory("RECEIPT"));
+
+        return "documents";
+    }
+
+    @PostMapping("/documents/upload")
+    public String uploadDocument(@RequestParam("file") MultipartFile file,
+                                 @RequestParam("docType") String docType,
+                                 HttpSession session) {
+        AdminUser currentUser = (AdminUser) session.getAttribute("currentUser");
+        if (currentUser == null) return "redirect:/login";
+
+        try {
+            documentService.uploadDocument(file, docType, currentUser);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "redirect:/documents?error";
+        }
+        return "redirect:/documents";
+    }
+
+    @PostMapping("/documents/activate/{id}")
+    public String activateDocument(@PathVariable Long id) {
+        documentService.activateDocument(id);
+        return "redirect:/documents";
+    }
+
 }

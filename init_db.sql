@@ -86,9 +86,22 @@ CREATE TABLE pool.group_children (
     PRIMARY KEY (group_id, child_id)
 );
 
+CREATE TABLE IF NOT EXISTS pool.document_versions (
+    id BIGSERIAL PRIMARY KEY,
+    doc_type VARCHAR(50) NOT NULL CHECK (doc_type IN ('CONTRACT', 'CONSENT', 'RULES', 'RECEIPT')),
+    file_name VARCHAR(255) NOT NULL, -- Имя файла в MinIO (UUID.pdf)
+    original_name VARCHAR(255),      -- Оригинальное имя файла при загрузке
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT FALSE,
+    admin_id BIGINT REFERENCES pool.admin_users(id)
+);
+
 -- Индексы для быстрого поиска
 CREATE INDEX IF NOT EXISTS idx_parents_vk_id ON pool.parents(vk_id);
 CREATE INDEX IF NOT EXISTS idx_children_parent_id ON pool.children(parent_id);
+
+-- Индекс для быстрого поиска активного документа каждого типа
+CREATE UNIQUE INDEX idx_active_doc_type ON pool.document_versions(doc_type) WHERE is_active = TRUE;
 
 CREATE OR REPLACE FUNCTION pool.calculate_age()
 RETURNS TRIGGER AS $$

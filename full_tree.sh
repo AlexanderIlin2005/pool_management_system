@@ -31,6 +31,7 @@ find . -type f \
   -not -path "*/build/*" \
   -not -path "*/.git/*" \
   -not -path "*/gradle/*" \
+  -not -path "*/target/*" \
   -print0 | while IFS= read -r -d '' file
 do
     # Дополнительная проверка на скрипт и файл вывода

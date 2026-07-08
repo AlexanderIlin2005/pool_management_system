@@ -164,7 +164,19 @@ public class DatabaseService {
         }
     }
 
-
+    public Map<String, Object> getActiveDocument(String docType) throws SQLException {
+        String sql = "SELECT file_name FROM pool.document_versions WHERE doc_type = ? AND is_active = TRUE LIMIT 1";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, docType);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                Map<String, Object> doc = new HashMap<>();
+                doc.put("fileName", rs.getString("file_name"));
+                return doc;
+            }
+        }
+        return null;
+    }
 
 
 

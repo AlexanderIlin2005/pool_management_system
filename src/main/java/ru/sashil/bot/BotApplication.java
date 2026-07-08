@@ -8,6 +8,7 @@ import com.vk.api.sdk.exceptions.ClientException;
 import com.vk.api.sdk.httpclient.HttpTransportClient;
 import com.vk.api.sdk.objects.messages.Message;
 import ru.sashil.bot.handlers.*;
+import ru.sashil.common.config.MinIOConfig;
 import ru.sashil.common.service.*;
 import ru.sashil.common.util.CommandUtils;
 import ru.sashil.common.util.ConfigLoader;
@@ -18,7 +19,6 @@ import java.util.logging.Logger;
 
 public class BotApplication {
     private static final Logger LOGGER = Logger.getLogger(BotApplication.class.getName());
-
     private static final Set<Integer> processedMessageIds = Collections.synchronizedSet(new HashSet<>());
 
     private static DatabaseService dbService;
@@ -31,15 +31,12 @@ public class BotApplication {
     public static void main(String[] args) {
         try {
             ConfigLoader.load();
-
             String dbUrl = "jdbc:postgresql://" + ConfigLoader.get("DB_HOST") + ":" + ConfigLoader.get("DB_PORT") + "/" + ConfigLoader.get("DB_NAME");
             dbService = new DatabaseService(dbUrl, ConfigLoader.get("DB_USER"), ConfigLoader.get("DB_PASSWORD"));
-
             regHandler = new RegistrationHandler();
             editHandler = new ProfileEditHandler();
             childHandler = new ChildRegistrationHandler();
             childEditHandler = new ChildEditHandler();
-
             minioService = new MinIOService();
 
             String vkToken = ConfigLoader.get("VK_BOT_TOKEN");
@@ -51,14 +48,12 @@ public class BotApplication {
             Random random = new Random();
 
             LOGGER.info("Бот запущен!");
-
             Integer ts = vk.messages().getLongPollServer(actor).execute().getTs();
 
             while (true) {
                 try {
                     var response = vk.messages().getLongPollHistory(actor).ts(ts).execute();
                     List<Message> messages = response.getMessages().getItems();
-
                     if (messages != null && !messages.isEmpty()) {
                         for (Message message : messages) {
                             processMessage(vk, actor, message, random);
@@ -85,7 +80,6 @@ public class BotApplication {
         processedMessageIds.add(messageId);
 
         try {
-            // 1. Если идет регистрация родителя
             if (regHandler.isRegistering(userId)) {
                 String result = regHandler.processStep(userId, text);
                 if ("SAVE_PARENT".equals(result)) {
@@ -100,14 +94,12 @@ public class BotApplication {
                 return;
             }
 
-            // 2. Если идет редактирование профиля родителя
             if (editHandler.isEditing(userId)) {
                 String result = editHandler.processStep(userId, text, dbService);
                 sendMessage(vk, actor, userId, result, random);
                 return;
             }
 
-            // 3. Если идет добавление нового ребенка
             if (childHandler.isAddingChild(userId)) {
                 try {
                     String result = childHandler.processStep(userId, text, dbService);
@@ -119,7 +111,6 @@ public class BotApplication {
                 return;
             }
 
-            // 4. Если идет редактирование существующего ребенка
             if (childEditHandler.isEditingChild(userId)) {
                 try {
                     String result = childEditHandler.processStep(userId, text, dbService);
@@ -131,7 +122,6 @@ public class BotApplication {
                 return;
             }
 
-            // 5. Обработка команд (нормализуем ввод)
             if (text != null) {
                 String cmd = CommandUtils.normalize(text);
 
@@ -185,7 +175,15 @@ public class BotApplication {
                         }
                     }
                 }
-                // Обработка выбора ребенка по номеру для редактирования (если пришел просто цифровой ввод)
+                else if (cmd.equals("договор")) {
+                    sendDocument(vk, actor, userId, "CONTRACT", "Договор оферты");
+                } else if (cmd.equals("согласие")) {
+                    sendDocument(vk, actor, userId, "CONSENT", "Согласие на обработку персональных данных");
+                } else if (cmd.equals("правила")) {
+                    sendDocument(vk, actor, userId, "RULES", "Правила посещения бассейна");
+                } else if (cmd.equals("квитанция")) {
+                    sendDocument(vk, actor, userId, "RECEIPT", "Образец квитанции");
+                }
                 else if (text.matches("\\d+")) {
                     int num = Integer.parseInt(text);
                     List<Map<String, Object>> children = dbService.getChildrenByParentVkId(userId);
@@ -211,5 +209,20 @@ public class BotApplication {
                 .message(text)
                 .randomId(random.nextInt(100000))
                 .execute();
+    }
+
+    private static void sendDocument(VkApiClient vk, GroupActor actor, Long userId, String docType, String title) {
+        try {
+            Map<String, Object> doc = dbService.getActiveDocument(docType);
+            if (doc != null) {
+                String fileName = (String) doc.get("fileName");
+                String url = MinIOConfig.getEndpoint() + "/" + MinIOConfig.getDocsBucket() + "/" + fileName;
+                sendMessage(vk, actor, userId, title + ": " + url, new Random());
+            } else {
+                sendMessage(vk, actor, userId, "Документ временно недоступен.", new Random());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Управление документами', ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1400px; margin: 0 auto;">
+        <h1>Управление документами</h1>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <!-- Договор -->
+            <div style="border: 1px solid #eee; padding: 15px; border-radius: 8px;">
+                <h3>Договор</h3>
+                <form th:action="@{/documents/upload}" method="post" enctype="multipart/form-data" style="margin-bottom: 10px;">
+                    <input type="hidden" name="docType" value="CONTRACT">
+                    <input type="file" name="file" accept=".pdf" required style="width: 100%; margin-bottom: 5px;">
+                    <button type="submit" class="btn">Загрузить новую версию</button>
+                </form>
+                <h4>История:</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li th:each="doc : ${contracts}" style="margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>
+                            <span th:text="${#temporals.format(doc.uploadedAt, 'dd.MM.yyyy HH:mm')}"></span>
+                            <span th:if="${doc.isActive}" style="color: green; font-weight: bold;"> (Актуально)</span>
+                        </span>
+                        <div>
+                            <a th:href="${@documentService.getDownloadUrl(doc.fileName)}" target="_blank" class="btn" style="padding: 2px 5px; font-size: 0.8em;">Скачать</a>
+                            <form th:if="${!doc.isActive}" th:action="@{/documents/activate/{id}(id=${doc.id})}" method="post" style="display: inline;">
+                                <button type="submit" class="btn" style="padding: 2px 5px; font-size: 0.8em; background-color: #ffc107; color: black;">Сделать актуальным</button>
+                            </form>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Согласие -->
+            <div style="border: 1px solid #eee; padding: 15px; border-radius: 8px;">
+                <h3>Согласие на ПД</h3>
+                <form th:action="@{/documents/upload}" method="post" enctype="multipart/form-data" style="margin-bottom: 10px;">
+                    <input type="hidden" name="docType" value="CONSENT">
+                    <input type="file" name="file" accept=".pdf" required style="width: 100%; margin-bottom: 5px;">
+                    <button type="submit" class="btn">Загрузить новую версию</button>
+                </form>
+                <h4>История:</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li th:each="doc : ${consents}" style="margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>
+                            <span th:text="${#temporals.format(doc.uploadedAt, 'dd.MM.yyyy HH:mm')}"></span>
+                            <span th:if="${doc.isActive}" style="color: green; font-weight: bold;"> (Актуально)</span>
+                        </span>
+                        <div>
+                            <a th:href="${@documentService.getDownloadUrl(doc.fileName)}" target="_blank" class="btn" style="padding: 2px 5px; font-size: 0.8em;">Скачать</a>
+                            <form th:if="${!doc.isActive}" th:action="@{/documents/activate/{id}(id=${doc.id})}" method="post" style="display: inline;">
+                                <button type="submit" class="btn" style="padding: 2px 5px; font-size: 0.8em; background-color: #ffc107; color: black;">Сделать актуальным</button>
+                            </form>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Правила -->
+            <div style="border: 1px solid #eee; padding: 15px; border-radius: 8px;">
+                <h3>Правила</h3>
+                <form th:action="@{/documents/upload}" method="post" enctype="multipart/form-data" style="margin-bottom: 10px;">
+                    <input type="hidden" name="docType" value="RULES">
+                    <input type="file" name="file" accept=".pdf" required style="width: 100%; margin-bottom: 5px;">
+                    <button type="submit" class="btn">Загрузить новую версию</button>
+                </form>
+                <h4>История:</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li th:each="doc : ${rules}" style="margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>
+                            <span th:text="${#temporals.format(doc.uploadedAt, 'dd.MM.yyyy HH:mm')}"></span>
+                            <span th:if="${doc.isActive}" style="color: green; font-weight: bold;"> (Актуально)</span>
+                        </span>
+                        <div>
+                            <a th:href="${@documentService.getDownloadUrl(doc.fileName)}" target="_blank" class="btn" style="padding: 2px 5px; font-size: 0.8em;">Скачать</a>
+                            <form th:if="${!doc.isActive}" th:action="@{/documents/activate/{id}(id=${doc.id})}" method="post" style="display: inline;">
+                                <button type="submit" class="btn" style="padding: 2px 5px; font-size: 0.8em; background-color: #ffc107; color: black;">Сделать актуальным</button>
+                            </form>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Квитанция -->
+            <div style="border: 1px solid #eee; padding: 15px; border-radius: 8px;">
+                <h3>Квитанция</h3>
+                <form th:action="@{/documents/upload}" method="post" enctype="multipart/form-data" style="margin-bottom: 10px;">
+                    <input type="hidden" name="docType" value="RECEIPT">
+                    <input type="file" name="file" accept=".pdf" required style="width: 100%; margin-bottom: 5px;">
+                    <button type="submit" class="btn">Загрузить новую версию</button>
+                </form>
+                <h4>История:</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li th:each="doc : ${receipts}" style="margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>
+                            <span th:text="${#temporals.format(doc.uploadedAt, 'dd.MM.yyyy HH:mm')}"></span>
+                            <span th:if="${doc.isActive}" style="color: green; font-weight: bold;"> (Актуально)</span>
+                        </span>
+                        <div>
+                            <a th:href="${@documentService.getDownloadUrl(doc.fileName)}" target="_blank" class="btn" style="padding: 2px 5px; font-size: 0.8em;">Скачать</a>
+                            <form th:if="${!doc.isActive}" th:action="@{/documents/activate/{id}(id=${doc.id})}" method="post" style="display: inline;">
+                                <button type="submit" class="btn" style="padding: 2px 5px; font-size: 0.8em; background-color: #ffc107; color: black;">Сделать актуальным</button>
+                            </form>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

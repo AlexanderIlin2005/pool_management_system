@@ -2,6 +2,7 @@ package ru.sashil.common.service;
 
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import org.springframework.stereotype.Service;
 import ru.sashil.common.config.MinIOConfig;
 
 import java.io.File;
@@ -10,21 +11,9 @@ import java.nio.file.Files;
 import java.util.UUID;
 import java.util.logging.Logger;
 
+@Service // <-- ВАЖНО: Делаем этот класс видимым для Spring
 public class MinIOService {
     private static final Logger LOGGER = Logger.getLogger(MinIOService.class.getName());
-    private final MinioClient client;
-    private final String bucket;
-
-    public MinIOService() {
-        LOGGER.info("🔧 Инициализация MinIOService...");
-        this.client = MinIOConfig.getClient();
-        this.bucket = MinIOConfig.getBucketName();
-        LOGGER.info("MinIOService инициализирован. Client: " + (client != null ? "OK" : "NULL"));
-    }
-
-    public boolean isClientNull() {
-        return client == null;
-    }
 
     // Вспомогательный метод для определения типа
     private String getContentType(String fileName) {
@@ -39,9 +28,8 @@ public class MinIOService {
     }
 
     public String uploadFile(String filePath, String originalName) throws Exception {
-        if (client == null) {
-            throw new IllegalStateException("MinIO клиент не инициализирован");
-        }
+        MinioClient client = MinIOConfig.getClient();
+        String bucket = MinIOConfig.getBucketName();
 
         File file = new File(filePath);
         if (!file.exists()) {
@@ -55,8 +43,6 @@ public class MinIOService {
         }
 
         String objectName = "certificates/" + UUID.randomUUID().toString() + extension;
-
-        // Используем жесткое определение типа вместо Files.probeContentType
         String contentType = getContentType(originalName);
 
         client.putObject(
@@ -68,16 +54,12 @@ public class MinIOService {
                         .build()
         );
 
-        String endpoint = MinIOConfig.getEndpoint();
-        String url = endpoint + "/" + bucket + "/" + objectName;
-        LOGGER.info("Файл загружен в MinIO: " + url);
-        return url;
+        return MinIOConfig.getEndpoint() + "/" + bucket + "/" + objectName;
     }
 
     public String uploadFile(InputStream stream, String originalName, long size) throws Exception {
-        if (client == null) {
-            throw new IllegalStateException("MinIO клиент не инициализирован");
-        }
+        MinioClient client = MinIOConfig.getClient();
+        String bucket = MinIOConfig.getBucketName();
 
         String extension = "";
         int dotIndex = originalName.lastIndexOf('.');
@@ -86,8 +68,6 @@ public class MinIOService {
         }
 
         String objectName = "certificates/" + UUID.randomUUID().toString() + extension;
-
-        // Используем жесткое определение типа
         String contentType = getContentType(originalName);
 
         client.putObject(
@@ -99,9 +79,22 @@ public class MinIOService {
                         .build()
         );
 
-        String endpoint = MinIOConfig.getEndpoint();
-        String url = endpoint + "/" + bucket + "/" + objectName;
-        LOGGER.info("✅ Файл загружен в MinIO: " + url);
-        return url;
+        return MinIOConfig.getEndpoint() + "/" + bucket + "/" + objectName;
+    }
+
+    public String uploadFileToDocsBucket(InputStream stream, String objectName, long size) throws Exception {
+        MinioClient client = MinIOConfig.getClient();
+        String bucket = MinIOConfig.getDocsBucket();
+        String contentType = "application/pdf";
+
+        client.putObject(PutObjectArgs.builder()
+                .bucket(bucket)
+                .object(objectName)
+                .stream(stream, size, -1)
+                .contentType(contentType)
+                .build());
+
+        LOGGER.info("✅ Файл загружен в бакет документов: " + objectName);
+        return MinIOConfig.getEndpoint() + "/" + bucket + "/" + objectName;
     }
 }
