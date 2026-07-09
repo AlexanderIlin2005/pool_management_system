@@ -1,228 +1,202 @@
-package ru.sashil.bot;
+package ru.sashil.bot
 
-import com.vk.api.sdk.client.TransportClient;
-import com.vk.api.sdk.client.VkApiClient;
-import com.vk.api.sdk.client.actors.GroupActor;
-import com.vk.api.sdk.exceptions.ApiException;
-import com.vk.api.sdk.exceptions.ClientException;
-import com.vk.api.sdk.httpclient.HttpTransportClient;
-import com.vk.api.sdk.objects.messages.Message;
-import ru.sashil.bot.handlers.*;
-import ru.sashil.common.config.MinIOConfig;
-import ru.sashil.common.service.*;
-import ru.sashil.common.util.CommandUtils;
-import ru.sashil.common.util.ConfigLoader;
+import io.github.blackbaroness.vk.VkClient
+import io.github.blackbaroness.vk.model.method.GetUpdatesVkMethod
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import kotlinx.coroutines.runBlocking
+import ru.sashil.bot.handlers.*
+import ru.sashil.common.service.DatabaseService
+import ru.sashil.common.util.CommandUtils
+import ru.sashil.common.util.ConfigLoader
+import java.util.*
+import java.util.logging.Level
+import java.util.logging.Logger
 
-import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+class BotApplication {
+    companion object {
+        private val LOGGER = Logger.getLogger(BotApplication::class.java.name)
+        private lateinit var dbService: DatabaseService
+        private lateinit var regHandler: RegistrationHandler
+        private lateinit var editHandler: ProfileEditHandler
+        private lateinit var childHandler: ChildRegistrationHandler
+        private lateinit var childEditHandler: ChildEditHandler
 
-public class BotApplication {
-    private static final Logger LOGGER = Logger.getLogger(BotApplication.class.getName());
-    private static final Set<Integer> processedMessageIds = Collections.synchronizedSet(new HashSet<>());
-
-    private static DatabaseService dbService;
-    private static RegistrationHandler regHandler;
-    private static ProfileEditHandler editHandler;
-    private static ChildRegistrationHandler childHandler;
-    private static ChildEditHandler childEditHandler;
-    private static MinIOService minioService;
-
-    public static void main(String[] args) {
-        try {
-            ConfigLoader.load();
-            String dbUrl = "jdbc:postgresql://" + ConfigLoader.get("DB_HOST") + ":" + ConfigLoader.get("DB_PORT") + "/" + ConfigLoader.get("DB_NAME");
-            dbService = new DatabaseService(dbUrl, ConfigLoader.get("DB_USER"), ConfigLoader.get("DB_PASSWORD"));
-            regHandler = new RegistrationHandler();
-            editHandler = new ProfileEditHandler();
-            childHandler = new ChildRegistrationHandler();
-            childEditHandler = new ChildEditHandler();
-            minioService = new MinIOService();
-
-            String vkToken = ConfigLoader.get("VK_BOT_TOKEN");
-            long groupId = 239874040L;
-
-            TransportClient transportClient = new HttpTransportClient();
-            VkApiClient vk = new VkApiClient(transportClient);
-            GroupActor actor = new GroupActor(groupId, vkToken);
-            Random random = new Random();
-
-            LOGGER.info("Бот запущен!");
-            Integer ts = vk.messages().getLongPollServer(actor).execute().getTs();
-
-            while (true) {
-                try {
-                    var response = vk.messages().getLongPollHistory(actor).ts(ts).execute();
-                    List<Message> messages = response.getMessages().getItems();
-                    if (messages != null && !messages.isEmpty()) {
-                        for (Message message : messages) {
-                            processMessage(vk, actor, message, random);
-                        }
-                    }
-                    ts = vk.messages().getLongPollServer(actor).execute().getTs();
-                    Thread.sleep(500);
-                } catch (Exception e) {
-                    LOGGER.log(Level.SEVERE, "Ошибка цикла: " + e.getMessage(), e);
-                    Thread.sleep(2000);
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Критическая ошибка: " + e.getMessage(), e);
-        }
-    }
-
-    private static void processMessage(VkApiClient vk, GroupActor actor, Message message, Random random) {
-        Long userId = message.getFromId();
-        Integer messageId = message.getId();
-        String text = message.getText();
-
-        if (processedMessageIds.contains(messageId)) return;
-        processedMessageIds.add(messageId);
-
-        try {
-            if (regHandler.isRegistering(userId)) {
-                String result = regHandler.processStep(userId, text);
-                if ("SAVE_PARENT".equals(result)) {
-                    Map<String, String> data = regHandler.getData(userId);
-                    dbService.saveParent(userId, data.get("firstName"), data.get("lastName"),
-                            data.get("middleName"), data.get("email"));
-                    sendMessage(vk, actor, userId, "Регистрация завершена. Теперь вы можете добавить ребенка.", random);
-                    regHandler.clearData(userId);
-                } else {
-                    sendMessage(vk, actor, userId, result, random);
-                }
-                return;
-            }
-
-            if (editHandler.isEditing(userId)) {
-                String result = editHandler.processStep(userId, text, dbService);
-                sendMessage(vk, actor, userId, result, random);
-                return;
-            }
-
-            if (childHandler.isAddingChild(userId)) {
-                try {
-                    String result = childHandler.processStep(userId, text, dbService);
-                    sendMessage(vk, actor, userId, result, random);
-                } catch (Exception e) {
-                    sendMessage(vk, actor, userId, "Ошибка при добавлении: " + e.getMessage(), random);
-                    childHandler.cancel(userId);
-                }
-                return;
-            }
-
-            if (childEditHandler.isEditingChild(userId)) {
-                try {
-                    String result = childEditHandler.processStep(userId, text, dbService);
-                    sendMessage(vk, actor, userId, result, random);
-                } catch (Exception e) {
-                    sendMessage(vk, actor, userId, "Ошибка при обновлении: " + e.getMessage(), random);
-                    childEditHandler.cancel(userId);
-                }
-                return;
-            }
-
-            if (text != null) {
-                String cmd = CommandUtils.normalize(text);
-
-                if (cmd.equals("начать") || cmd.equals("start")) {
-                    boolean isReg = dbService.isParentRegistered(userId);
-                    if (isReg) {
-                        sendMessage(vk, actor, userId, "Вы уже зарегистрированы.", random);
-                    } else {
-                        sendMessage(vk, actor, userId, "Добро пожаловать! Давайте зарегистрируемся. Введите вашу фамилию:", random);
-                        regHandler.startRegistration(userId);
-                    }
-                }
-                else if (cmd.equals("редактировать") || cmd.equals("профиль")) {
-                    if (!dbService.isParentRegistered(userId)) {
-                        sendMessage(vk, actor, userId, "Сначала зарегистрируйтесь командой 'Начать'.", random);
-                    } else {
-                        Map<String, String> currentData = dbService.getParentData(userId);
-                        if (currentData != null) {
-                            editHandler.startEditing(userId, currentData);
-                            sendMessage(vk, actor, userId, "Режим редактирования. Текущая фамилия: " + currentData.get("lastName") + ". Введите новую фамилию:", random);
-                        }
-                    }
-                }
-                else if (cmd.equals("справка")) {
-                    sendMessage(vk, actor, userId, "Пришлите файл справки.", random);
-                }
-                else if (cmd.equals("добавитьребенка")) {
-                    if (!dbService.isParentRegistered(userId)) {
-                        sendMessage(vk, actor, userId, "Сначала зарегистрируйтесь командой 'Начать'.", random);
-                    } else {
-                        childHandler.startAddingChild(userId);
-                        sendMessage(vk, actor, userId, "Давайте добавим ребенка. Введите фамилию ребенка:", random);
-                    }
-                }
-                else if (cmd.equals("дети")) {
-                    if (!dbService.isParentRegistered(userId)) {
-                        sendMessage(vk, actor, userId, "Сначала зарегистрируйтесь командой 'Начать'.", random);
-                    } else {
-                        List<Map<String, Object>> children = dbService.getChildrenByParentVkId(userId);
-                        if (children.isEmpty()) {
-                            sendMessage(vk, actor, userId, "У вас пока нет добавленных детей. Напишите 'Добавить ребенка', чтобы создать запись.", random);
-                        } else {
-                            StringBuilder sb = new StringBuilder("Ваши дети:\n");
-                            for (int i = 0; i < children.size(); i++) {
-                                Map<String, Object> c = children.get(i);
-                                sb.append((i + 1)).append(". ").append(c.get("lastName")).append(" ").append(c.get("firstName"))
-                                        .append(" (").append(c.get("age")).append(" лет, ").append(c.get("gradeNumber")).append(" класс)\n");
-                            }
-                            sb.append("\nНапишите номер ребенка, чтобы редактировать его данные.");
-                            sendMessage(vk, actor, userId, sb.toString(), random);
-                        }
-                    }
-                }
-                else if (cmd.equals("договор")) {
-                    sendDocument(vk, actor, userId, "CONTRACT", "Договор оферты");
-                } else if (cmd.equals("согласие")) {
-                    sendDocument(vk, actor, userId, "CONSENT", "Согласие на обработку персональных данных");
-                } else if (cmd.equals("правила")) {
-                    sendDocument(vk, actor, userId, "RULES", "Правила посещения бассейна");
-                } else if (cmd.equals("квитанция")) {
-                    sendDocument(vk, actor, userId, "RECEIPT", "Образец квитанции");
-                }
-                else if (text.matches("\\d+")) {
-                    int num = Integer.parseInt(text);
-                    List<Map<String, Object>> children = dbService.getChildrenByParentVkId(userId);
-                    if (num > 0 && num <= children.size()) {
-                        Map<String, Object> selectedChild = children.get(num - 1);
-                        long childId = (Long) selectedChild.get("id");
-                        childEditHandler.startEditingChild(userId, childId, selectedChild);
-                        sendMessage(vk, actor, userId, "Редактирование: " + selectedChild.get("lastName") + " " + selectedChild.get("firstName") + ".\nТекущая фамилия: " + selectedChild.get("lastName") + ". Введите новую фамилию:", random);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Ошибка обработки: " + e.getMessage(), e);
+        @JvmStatic
+        fun main(args: Array<String>) {
             try {
-                sendMessage(vk, actor, userId, "Произошла внутренняя ошибка.", random);
-            } catch (Exception ex) { /* ignore */ }
-        }
-    }
+                ConfigLoader.load()
 
-    private static void sendMessage(VkApiClient vk, GroupActor actor, Long userId, String text, Random random) throws ApiException, ClientException {
-        vk.messages().sendDeprecated(actor)
-                .userId(userId)
-                .message(text)
-                .randomId(random.nextInt(100000))
-                .execute();
-    }
+                val dbUrl = "jdbc:postgresql://${ConfigLoader.get("DB_HOST")}:${ConfigLoader.get("DB_PORT")}/${ConfigLoader.get("DB_NAME")}"
+                dbService = DatabaseService(dbUrl, ConfigLoader.get("DB_USER"), ConfigLoader.get("DB_PASSWORD"))
 
-    private static void sendDocument(VkApiClient vk, GroupActor actor, Long userId, String docType, String title) {
-        try {
-            Map<String, Object> doc = dbService.getActiveDocument(docType);
-            if (doc != null) {
-                String fileName = (String) doc.get("fileName");
-                String url = MinIOConfig.getEndpoint() + "/" + MinIOConfig.getDocsBucket() + "/" + fileName;
-                sendMessage(vk, actor, userId, title + ": " + url, new Random());
-            } else {
-                sendMessage(vk, actor, userId, "Документ временно недоступен.", new Random());
+                regHandler = RegistrationHandler()
+                editHandler = ProfileEditHandler()
+                childHandler = ChildRegistrationHandler()
+                childEditHandler = ChildEditHandler()
+
+                val vkToken = ConfigLoader.get("VK_BOT_TOKEN")
+                val groupId = 239874040L
+
+                // Инициализация VkClient строго по документации
+                val bot = VkClient(
+                    token = vkToken,
+                    httpClient = HttpClient(CIO)
+                )
+
+                LOGGER.info("Бот запущен!")
+
+                runBlocking {
+                    // Настройка LongPoll settings
+                    bot.groups.setLongPollSettings(groupId) {
+                        enabled = true
+                        messageNew = true
+                    }
+
+                    // Запуск polling через startLongPolling
+                    bot.startLongPolling(groupId, null).collect { update ->
+                        processUpdate(bot, update)
+                    }
+                }
+            } catch (e: Exception) {
+                LOGGER.log(Level.SEVERE, "Критическая ошибка: ${e.message}", e)
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        }
+
+        private suspend fun processUpdate(bot: VkClient, update: GetUpdatesVkMethod.Result.Update) {
+            // Правильное получение сообщения через asMessageNew
+            val msgNew = update.asMessageNew ?: return
+            val msg = msgNew.message
+
+            val userId = msg.fromId
+            val text = msg.text
+
+            try {
+                when {
+                    regHandler.isRegistering(userId) -> handleRegistration(bot, userId, text)
+                    editHandler.isEditing(userId) -> handleEditProfile(bot, userId, text)
+                    childHandler.isAddingChild(userId) -> handleAddChild(bot, userId, text)
+                    childEditHandler.isEditingChild(userId) -> handleEditChild(bot, userId, text)
+                    else -> handleCommands(bot, userId, text)
+                }
+            } catch (e: Exception) {
+                LOGGER.log(Level.SEVERE, "Ошибка обработки сообщения от $userId: ${e.message}", e)
+                bot.messages.send(userId) {
+                    message = "Произошла внутренняя ошибка."
+                    randomId = Random().nextInt(Int.MAX_VALUE)
+                }
+            }
+        }
+
+        private suspend fun handleRegistration(bot: VkClient, userId: Long, text: String) {
+            val result = regHandler.processStep(userId, text)
+            if (result == "SAVE_PARENT") {
+                val data = regHandler.getData(userId)
+                dbService.saveParent(userId, data["firstName"], data["lastName"], data["middleName"], data["email"])
+                sendText(bot, userId, "Регистрация завершена.")
+                regHandler.clearData(userId)
+            } else {
+                sendText(bot, userId, result)
+            }
+        }
+
+        private suspend fun handleEditProfile(bot: VkClient, userId: Long, text: String) {
+            val result = editHandler.processStep(userId, text, dbService)
+            sendText(bot, userId, result)
+        }
+
+        private suspend fun handleAddChild(bot: VkClient, userId: Long, text: String) {
+            try {
+                val result = childHandler.processStep(userId, text, dbService)
+                sendText(bot, userId, result)
+            } catch (e: Exception) {
+                sendText(bot, userId, "Ошибка при добавлении: ${e.message}")
+                childHandler.cancel(userId)
+            }
+        }
+
+        private suspend fun handleEditChild(bot: VkClient, userId: Long, text: String) {
+            try {
+                val result = childEditHandler.processStep(userId, text, dbService)
+                sendText(bot, userId, result)
+            } catch (e: Exception) {
+                sendText(bot, userId, "Ошибка при обновлении: ${e.message}")
+                childEditHandler.cancel(userId)
+            }
+        }
+
+        private suspend fun handleCommands(bot: VkClient, userId: Long, text: String) {
+            val cmd = CommandUtils.normalize(text)
+            when (cmd) {
+                "начать", "start" -> {
+                    if (dbService.isParentRegistered(userId)) {
+                        sendText(bot, userId, "Вы уже зарегистрированы.")
+                    } else {
+                        sendText(bot, userId, "Добро пожаловать! Введите вашу фамилию:")
+                        regHandler.startRegistration(userId)
+                    }
+                }
+                "редактировать", "профиль" -> {
+                    if (!dbService.isParentRegistered(userId)) {
+                        sendText(bot, userId, "Сначала зарегистрируйтесь.")
+                    } else {
+                        val data = dbService.getParentData(userId)
+                        if (data != null) {
+                            editHandler.startEditing(userId, data)
+                            sendText(bot, userId, "Режим редактирования. Текущая фамилия: ${data["lastName"]}. Введите новую:")
+                        }
+                    }
+                }
+                "справка" -> sendText(bot, userId, "Пришлите фото справки одним сообщением.")
+                "добавитьребенка" -> {
+                    if (!dbService.isParentRegistered(userId)) {
+                        sendText(bot, userId, "Сначала зарегистрируйтесь.")
+                    } else {
+                        childHandler.startAddingChild(userId)
+                        sendText(bot, userId, "Введите фамилию ребенка:")
+                    }
+                }
+                "дети" -> {
+                    if (!dbService.isParentRegistered(userId)) {
+                        sendText(bot, userId, "Сначала зарегистрируйтесь.")
+                    } else {
+                        val children = dbService.getChildrenByParentVkId(userId)
+                        if (children.isEmpty()) {
+                            sendText(bot, userId, "У вас пока нет детей.")
+                        } else {
+                            val sb = StringBuilder("Ваши дети:\n")
+                            children.forEachIndexed { i, c ->
+                                sb.append("${i + 1}. ${c["lastName"]} ${c["firstName"]} (${c["age"]} лет, ${c["gradeNumber"]} кл.)\n")
+                            }
+                            sb.append("\nНапишите номер для редактирования.")
+                            sendText(bot, userId, sb.toString())
+                        }
+                    }
+                }
+                // Команды документов временно отключены для проверки текста
+                "договор" -> sendText(bot, userId, "Отправка документов временно отключена.")
+                "согласие" -> sendText(bot, userId, "Отправка документов временно отключена.")
+                "правила" -> sendText(bot, userId, "Отправка документов временно отключена.")
+                "квитанция" -> sendText(bot, userId, "Отправка документов временно отключена.")
+                else -> {
+                    if (text.matches("\\d+".toRegex())) {
+                        val num = text.toInt()
+                        val children = dbService.getChildrenByParentVkId(userId)
+                        if (num > 0 && num <= children.size) {
+                            val child = children[num - 1]
+                            childEditHandler.startEditingChild(userId, (child["id"] as Long), child)
+                            sendText(bot, userId, "Редактирование: ${child["lastName"]}. Введите новую фамилию:")
+                        }
+                    }
+                }
+            }
+        }
+
+        private suspend fun sendText(bot: VkClient, userId: Long, text: String) {
+            bot.messages.send(userId) {
+                message = text
+                randomId = Random().nextInt(Int.MAX_VALUE)
+            }
         }
     }
 }
