@@ -26,7 +26,7 @@ public class DataInitializer {
                 createAdmin(repository, encoder, "admin", "admin123", "Главный Администратор");
                 createAdmin(repository, encoder, "buh", "buh123", "Иванова Мария Ивановна");
                 createAdmin(repository, encoder, "coach", "coach123", "Петров Сергей Сергеевич");
-                System.out.println("✅ Тестовые администраторы созданы.");
+                System.out.println("Тестовые администраторы созданы.");
             }
 
             // Инициализация бассейнов
@@ -44,7 +44,7 @@ public class DataInitializer {
                 p3.setAddress("ул. Ленина, 42");
 
                 poolRepository.saveAll(List.of(p1, p2, p3));
-                System.out.println("✅ Тестовые бассейны созданы.");
+                System.out.println("Тестовые бассейны созданы.");
             }
         };
     }

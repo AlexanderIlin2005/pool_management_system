@@ -19,23 +19,23 @@ public class Main {
 
             switch (choice) {
                 case 1 -> {
-                    System.out.println("🚀 Запуск VK Бота...");
+                    System.out.println("Запуск VK Бота...");
                     BotApplication.main(args);
                 }
                 case 2 -> {
-                    System.out.println("🚀 Запуск Админ-панели...");
-                    System.out.println("⏳ Инициализация Spring Boot...");
+                    System.out.println("Запуск Админ-панели...");
+                    System.out.println("Инициализация Spring Boot...");
                     // Отключаем логи Spring для чистоты, если нужно, или оставляем как есть
                     AdminApplication.run(args);
                 }
                 case 3 -> {
-                    System.out.println("👋 Выход...");
+                    System.out.println("Выход...");
                     System.exit(0);
                 }
-                default -> System.out.println("❌ Неверный выбор");
+                default -> System.out.println("Неверный выбор");
             }
         } catch (Exception e) {
-            System.err.println("❌ Ошибка: " + e.getMessage());
+            System.err.println("Ошибка: " + e.getMessage());
             e.printStackTrace();
         }
     }
