@@ -5,7 +5,9 @@
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <h1>Расписание на неделю</h1>
-      <div th:if="${pools != null and pools.size() > 1}">
+
+      <!-- Селектор бассейнов показываем ТОЛЬКО админу и только если бассейнов > 1 -->
+      <div th:if="${role != null and role.name() == 'ADMIN' and pools != null and pools.size() > 1}">
         <label>Бассейн: </label>
         <select onchange="window.location.href='/schedule?poolId=' + this.value"
                 style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
@@ -24,7 +26,7 @@
       <div style="display: grid; grid-template-columns: 60px repeat(7, minmax(120px, 1fr)); border-bottom: 2px solid #eee; margin-bottom: 10px; min-width: max-content;">
         <div style="padding: 10px; font-weight: bold; color: #666;">Время</div>
         <div th:each="i : ${#numbers.sequence(1, 7)}"
-             th:style="${i == currentDayIndex} ? 'font-weight: bold; color: #007bff; border-bottom: 3px solid #dc3545;' : 'font-weight: bold; color: #333;'"
+             th:style="${i == currentDayIndex} ? 'font-weight: bold; color: #007bff; border-bottom: 3px solid #007bff;' : 'font-weight: bold; color: #333;'"
              style="padding: 10px; text-align: center; border-left: 1px solid #f0f0f0;">
                     <span th:switch="${i}">
                         <span th:case="1">Пн</span><span th:case="2">Вт</span><span th:case="3">Ср</span>
@@ -44,7 +46,7 @@
         </div>
 
         <div th:each="dayIdx : ${#numbers.sequence(1, 7)}"
-             th:style="${dayIdx == currentDayIndex} ? 'position: relative; border-left: 1px solid #f0f0f0; border: 2px solid #dc3545; box-sizing: border-box;' : 'position: relative; border-left: 1px solid #f0f0f0;'"
+             th:style="${dayIdx == currentDayIndex} ? 'position: relative; border-left: 1px solid #f0f0f0; border: 2px solid #007bff; box-sizing: border-box;' : 'position: relative; border-left: 1px solid #f0f0f0;'"
              style="height: 100%;">
 
           <div th:if="${dayIdx == currentDayIndex and currentTimePercent > 0}"
@@ -71,21 +73,12 @@
               <!-- Бассейн (только для тренера) -->
               <div th:if="${role != null and role.name() == 'COACH'}"
                    style="color: #666; font-size: 0.85em; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-                   th:text="' ' + ${slot.poolName}"></div>
+                   th:text="'🏊 ' + ${slot.poolName}"></div>
             </div>
 
             <!-- Содержимое узкой карточки (при пересечении) -->
             <div th:if="${slot.overlapping}" style="text-align: center; font-weight: bold; display: flex; align-items: center; justify-content: center; height: 100%;">
               <span th:text="${slot.groupNumber}"></span>
-            </div>
-
-            <!-- Тултип для узких карточек -->
-            <div th:if="${slot.overlapping}" class="slot-tooltip"
-                 style="display: none; position: absolute; bottom: 100%; left: 0; background: white; border: 1px solid #ccc; padding: 8px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 100; min-width: 180px; pointer-events: none;">
-              <strong th:text="${slot.groupName}" style="font-size: 0.9em;"></strong><br>
-              <span style="font-size: 0.8em; color: #555;" th:text="${slot.startTime} + ' - ' + ${slot.endTime}"></span><br>
-              <span th:if="${slot.trainerName}" style="font-size: 0.8em;" th:text="'👤 ' + ${slot.trainerName}"></span><br>
-              <span style="font-size: 0.8em;" th:text="'🏊 ' + ${slot.poolName}"></span>
             </div>
           </div>
         </div>
@@ -93,24 +86,5 @@
     </div>
   </div>
 </div>
-
-<script>
-  document.querySelectorAll('.schedule-slot').forEach(slot => {
-      const tooltip = slot.querySelector('.slot-tooltip');
-      if (tooltip) {
-          slot.addEventListener('mouseenter', () => {
-              tooltip.style.display = 'block';
-              // Центрируем тултип относительно карточки, если он вылезает за края
-              const rect = slot.getBoundingClientRect();
-              const tooltipRect = tooltip.getBoundingClientRect();
-              if (rect.right + tooltipRect.width > window.innerWidth) {
-                  tooltip.style.left = 'auto';
-                  tooltip.style.right = '0';
-              }
-          });
-          slot.addEventListener('mouseleave', () => tooltip.style.display = 'none');
-      }
-  });
-</script>
 </body>
 </html>
