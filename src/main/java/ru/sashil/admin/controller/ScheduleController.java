@@ -26,41 +26,53 @@ public class ScheduleController {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
-        // Бухгалтер и другие роли не имеют доступа
         if (user.getRole() != AdminUser.Role.ADMIN && user.getRole() != AdminUser.Role.COACH) {
             return "restricted";
         }
 
         List<Pool> availablePools = scheduleService.getAvailablePools(user);
 
-        // Если пулов нет или пользователь не выбрал, берем первый доступный
-        if (availablePools.isEmpty()) {
-            model.addAttribute("fullName", user.getFullName());
-            model.addAttribute("role", user.getRole());
-            model.addAttribute("activePage", "schedule");
-            model.addAttribute("message", "У вас пока нет назначенных групп или бассейнов.");
-            return "schedule";
+        // Для тренера переключатель не нужен, он видит всё сразу
+        boolean showPoolSelector = (user.getRole() == AdminUser.Role.ADMIN && availablePools.size() > 1);
+
+        Long selectedPoolId = null;
+        if (user.getRole() == AdminUser.Role.ADMIN) {
+            // Логика выбора бассейна для админа
+            if (availablePools.isEmpty()) {
+                model.addAttribute("message", "Нет доступных бассейнов.");
+                return renderBaseModel(model, user, "schedule");
+            }
+
+            final Long finalPoolId = poolId;
+            selectedPoolId = availablePools.stream()
+                    .anyMatch(p -> p.getId().equals(finalPoolId))
+                    ? finalPoolId
+                    : availablePools.get(0).getId();
+
+        } else {
+            // Тренер получает null, сервис вернет все его группы
+            selectedPoolId = null;
         }
 
-        // ИСПРАВЛЕНИЕ: используем финальную переменную для передачи в лямбду
-        final Long selectedPoolIdFinal = (poolId != null &&
-                availablePools.stream().anyMatch(p -> p.getId().equals(poolId)))
-                ? poolId
-                : availablePools.get(0).getId();
-
-        Map<String, Object> scheduleData = scheduleService.getWeeklySchedule(user, selectedPoolIdFinal);
+        Map<String, Object> scheduleData = scheduleService.getWeeklySchedule(user, selectedPoolId);
 
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "schedule");
         model.addAttribute("pools", availablePools);
-        model.addAttribute("selectedPoolId", selectedPoolIdFinal);
+        model.addAttribute("selectedPoolId", selectedPoolId);
+        model.addAttribute("showPoolSelector", showPoolSelector); // Флаг для шаблона
         model.addAttribute("schedule", scheduleData.get("schedule"));
         model.addAttribute("currentDayIndex", scheduleData.get("currentDayIndex"));
         model.addAttribute("currentTimePercent", scheduleData.get("currentTimePercent"));
-        model.addAttribute("dayStart", scheduleData.get("dayStart"));
-        model.addAttribute("dayEnd", scheduleData.get("dayEnd"));
 
         return "schedule";
+    }
+
+    private String renderBaseModel(Model model, AdminUser user, String viewName) {
+        model.addAttribute("fullName", user.getFullName());
+        model.addAttribute("role", user.getRole());
+        model.addAttribute("activePage", "schedule");
+        return viewName;
     }
 }

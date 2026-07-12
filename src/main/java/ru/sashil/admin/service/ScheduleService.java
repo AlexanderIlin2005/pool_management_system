@@ -50,9 +50,11 @@ public class ScheduleService {
         List<Group> groups;
 
         if (user.getRole() == AdminUser.Role.ADMIN) {
-            groups = groupRepository.findByPool_Id(poolId);
+            // Админ смотрит конкретный бассейн
+            groups = poolId != null ? groupRepository.findByPool_Id(poolId) : Collections.emptyList();
         } else if (user.getRole() == AdminUser.Role.COACH) {
-            groups = groupRepository.findByTrainer_IdAndPool_Id(user.getId(), poolId);
+            // Тренер смотрит ВСЕ свои группы (poolId здесь null)
+            groups = groupRepository.findByTrainer_Id(user.getId());
         } else {
             groups = Collections.emptyList();
         }
@@ -70,7 +72,7 @@ public class ScheduleService {
             addSlotForDay(weekSchedule, 7, g, user);
         }
 
-        // Для админа рассчитываем разделение колонок
+        // Разделение колонок нужно только админу (тренер не ведет 2 группы одновременно)
         if (user.getRole() == AdminUser.Role.ADMIN) {
             calculateColumnSplits(weekSchedule);
         }
@@ -89,9 +91,6 @@ public class ScheduleService {
         result.put("schedule", weekSchedule);
         result.put("currentDayIndex", dayOfWeek);
         result.put("currentTimePercent", currentTimePercent);
-        result.put("dayStart", DAY_START);
-        result.put("dayEnd", DAY_END);
-
         return result;
     }
 
@@ -110,7 +109,7 @@ public class ScheduleService {
             String poolName = g.getPool() != null ? g.getPool().getName() : "Н/Д";
             slot.setPoolName(poolName);
 
-            // Форматирование имени тренера через утилиту
+            // Имя тренера всегда форматируем через утилиту
             if (g.getTrainer() != null) {
                 slot.setTrainerName(NameUtils.toInitials(g.getTrainer().getFullName()));
             }
@@ -130,38 +129,26 @@ public class ScheduleService {
         }
     }
 
-    /**
-     * Алгоритм разделения пересекающихся занятий на под-колонки.
-     * Работает только для ADMIN视图.
-     */
     private void calculateColumnSplits(Map<Integer, List<ScheduleSlot>> schedule) {
         for (List<ScheduleSlot> slots : schedule.values()) {
             if (slots.isEmpty()) continue;
+            slots.sort(Comparator.comparing(ScheduleSlot::getStartTime).thenComparing(ScheduleSlot::getEndTime));
 
-            // Сортируем по времени начала, затем по длительности
-            slots.sort(Comparator.comparing(ScheduleSlot::getStartTime)
-                    .thenComparing(ScheduleSlot::getEndTime));
-
-            // Находим группы пересекающихся событий
             List<List<ScheduleSlot>> overlapGroups = new ArrayList<>();
             boolean[] assigned = new boolean[slots.size()];
 
             for (int i = 0; i < slots.size(); i++) {
                 if (assigned[i]) continue;
-
                 List<ScheduleSlot> currentGroup = new ArrayList<>();
                 currentGroup.add(slots.get(i));
                 assigned[i] = true;
 
-                // Ищем все события, которые пересекаются с текущей группой
                 boolean changed = true;
                 while (changed) {
                     changed = false;
                     for (int j = i + 1; j < slots.size(); j++) {
                         if (assigned[j]) continue;
-
                         ScheduleSlot candidate = slots.get(j);
-                        // Проверяем пересечение кандидата с ЛЮБЫМ элементом в группе
                         for (ScheduleSlot groupSlot : currentGroup) {
                             if (candidate.getStartTime().isBefore(groupSlot.getEndTime()) &&
                                     groupSlot.getStartTime().isBefore(candidate.getEndTime())) {
@@ -176,15 +163,12 @@ public class ScheduleService {
                 overlapGroups.add(currentGroup);
             }
 
-            // Распределяем ширину для каждой группы пересечений
             for (List<ScheduleSlot> group : overlapGroups) {
                 if (group.size() == 1) {
-                    // Нет пересечений, полная ширина
                     group.get(0).setOverlapping(false);
                     group.get(0).setLeftPercent(0);
                     group.get(0).setWidthPercent(100);
                 } else {
-                    // Есть пересечения, делим ширину поровну
                     double colWidth = 100.0 / group.size();
                     for (int k = 0; k < group.size(); k++) {
                         ScheduleSlot s = group.get(k);
