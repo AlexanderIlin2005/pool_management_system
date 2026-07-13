@@ -53,8 +53,8 @@
           </div>
 
           <!-- Карточки занятий (показываются только если есть реальное занятие в БД на эту неделю) -->
-          <div th:if="${schedule.get(dayIdx) != null}" th:each="slot : ${schedule.get(dayIdx)}"
-               th:if="${slot.lessonId != null and slot.lessonId != ''}"
+          <div th:each="slot : ${schedule.get(dayIdx) != null ? schedule.get(dayIdx) : null}"
+               th:if="${slot != null and slot.lessonId != null and slot.lessonId != ''}"
                th:onclick="'window.location.href=\'/attendance/mark/' + ${slot.lessonId} + '\''"
                th:style="'position: absolute; left: calc(' + ${slot.leftPercent} + '% + 2px); width: calc(' + ${slot.widthPercent} + '% - 4px); top: ' + ${slot.topPercent} + '%; height: ' + ${slot.heightPercent} + '%; background: ' + (${slot.overlapping} ? '#fff3cd' : '#e7f1ff') + '; border-left: 4px solid ' + (${slot.overlapping} ? '#ffc107' : '#007bff') + '; padding: 4px; font-size: 0.75em; overflow: hidden; cursor: pointer; transition: all 0.2s; z-index: ' + (${slot.overlapping} ? '5' : '1') + ';'"
                th:title="${slot.groupName} + '\n' + ${slot.startTime} + ' - ' + ${slot.endTime}">
