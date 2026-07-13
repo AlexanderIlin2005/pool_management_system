@@ -20,28 +20,28 @@
     </properties>
 
     <dependencies>
-        <!-- VK SDK -->
+        <!-- VK SDK (старый, только для LongPoll и upload_url) -->
         <dependency>
             <groupId>com.vk.api</groupId>
             <artifactId>sdk</artifactId>
             <version>1.0.16</version>
         </dependency>
 
-        <!-- Kotlin VK SDK -->
+        <!-- Новая Kotlin библиотека для отправки сообщений -->
         <dependency>
             <groupId>io.github.blackbaroness</groupId>
             <artifactId>vk-sdk-kotlin</artifactId>
             <version>2.2.0</version>
         </dependency>
 
-        <!-- Ktor Client CIO -->
+        <!-- Ktor Client CIO (нужен для VkClient) -->
         <dependency>
             <groupId>io.ktor</groupId>
             <artifactId>ktor-client-cio-jvm</artifactId>
             <version>${ktor.version}</version>
         </dependency>
 
-        <!-- Kotlin Coroutines -->
+        <!-- Kotlin Coroutines (нужны для suspend fun и runBlocking) -->
         <dependency>
             <groupId>org.jetbrains.kotlinx</groupId>
             <artifactId>kotlinx-coroutines-core-jvm</artifactId>
@@ -119,7 +119,7 @@
     <build>
         <sourceDirectory>${project.basedir}/src/main/java</sourceDirectory>
         <plugins>
-            <!-- Kotlin Plugin - компилирует ТОЛЬКО .kt файлы -->
+            <!-- Kotlin Plugin -->
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
@@ -127,46 +127,34 @@
                 <executions>
                     <execution>
                         <id>compile</id>
-                        <phase>process-resources</phase>
+                        <phase>compile</phase>
                         <goals><goal>compile</goal></goals>
-                        <configuration>
-                            <sourceDirs>
-                                <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
-                            </sourceDirs>
-                        </configuration>
                     </execution>
                     <execution>
                         <id>test-compile</id>
-                        <phase>process-test-resources</phase>
+                        <phase>test-compile</phase>
                         <goals><goal>test-compile</goal></goals>
-                        <configuration>
-                            <sourceDirs>
-                                <sourceDir>${project.basedir}/src/test/kotlin</sourceDir>
-                            </sourceDirs>
-                        </configuration>
                     </execution>
                 </executions>
                 <configuration>
                     <jvmTarget>17</jvmTarget>
+                    <sourceDirs>
+                        <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
+                        <sourceDir>${project.basedir}/src/main/java</sourceDir>
+                    </sourceDirs>
                 </configuration>
             </plugin>
 
-            <!-- Java Compiler - компилирует ТОЛЬКО .java файлы с Lombok -->
+            <!-- Java Compiler -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.15.0</version>
                 <configuration>
                     <parameters>true</parameters>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>1.18.30</version>
-                        </path>
-                    </annotationProcessorPaths>
                 </configuration>
                 <executions>
+                    <!-- Отключаем стандартную компиляцию Java, чтобы она шла после Kotlin -->
                     <execution>
                         <id>default-compile</id>
                         <phase>none</phase>

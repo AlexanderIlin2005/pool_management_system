@@ -26,7 +26,7 @@ public class ScheduleService {
 
     private static final LocalTime DAY_START = LocalTime.of(9, 0);
     private static final LocalTime DAY_END = LocalTime.of(23, 0);
-    private static final long TOTAL_MINUTES = java.time.Duration.between(DAY_START, DAY_END).toMinutes();
+    public static final long TOTAL_MINUTES = java.time.Duration.between(DAY_START, DAY_END).toMinutes();
 
     public List<Pool> getAvailablePools(AdminUser user) {
         if (user.getRole() == AdminUser.Role.ADMIN) {
