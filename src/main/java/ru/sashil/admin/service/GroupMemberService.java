@@ -9,6 +9,7 @@ import ru.sashil.admin.model.GroupChild;
 import ru.sashil.admin.model.GroupChildId;
 import ru.sashil.admin.repository.GroupChildRepository;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -62,10 +63,6 @@ public class GroupMemberService {
         return jdbcTemplate.queryForList(sql.toString(), params.toArray());
     }
 
-    /**
-     * Получает полное имя ребенка по ID для логирования.
-     * Выполняется до изменения связей, чтобы гарантировать наличие данных.
-     */
     public String getChildFullName(Long childId) {
         String sql = "SELECT first_name, last_name FROM pool.children WHERE id = ?";
         try {
@@ -74,7 +71,7 @@ public class GroupMemberService {
             String lastName = (String) row.get("last_name");
             return (lastName != null ? lastName : "") + " " + (firstName != null ? firstName : "");
         } catch (Exception e) {
-            return "Ребенок ID=" + childId; // Фолбэк, если ребенок не найден
+            return "Ребенок ID=" + childId;
         }
     }
 
@@ -83,6 +80,8 @@ public class GroupMemberService {
             GroupChild link = new GroupChild();
             link.setGroupId(groupId);
             link.setChildId(childId);
+            // ИСПРАВЛЕНИЕ: Явно устанавливаем дату добавления
+            link.setCreatedAt(LocalDateTime.now());
             groupChildRepository.save(link);
         }
     }

@@ -83,6 +83,7 @@ CREATE TABLE pool.groups (
 CREATE TABLE pool.group_children (
     group_id BIGINT REFERENCES pool.groups(id) ON DELETE CASCADE,
     child_id BIGINT REFERENCES pool.children(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (group_id, child_id)
 );
 
@@ -96,12 +97,61 @@ CREATE TABLE IF NOT EXISTS pool.document_versions (
     admin_id BIGINT REFERENCES pool.admin_users(id)
 );
 
+-- Таблица занятий (генерируется автоматически или вручную)
+CREATE TABLE IF NOT EXISTS pool.pool_lessons (
+    id BIGSERIAL PRIMARY KEY,
+    group_id BIGINT REFERENCES pool.groups(id) ON DELETE CASCADE,
+    lesson_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    is_cancelled BOOLEAN DEFAULT FALSE, -- Отмена занятия (праздник/каникулы)
+    cancellation_reason VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(group_id, lesson_date, start_time)
+);
+
+-- Таблица посещаемости
+CREATE TABLE IF NOT EXISTS pool.attendance (
+    id BIGSERIAL PRIMARY KEY,
+    lesson_id BIGINT REFERENCES pool.pool_lessons(id) ON DELETE CASCADE,
+    child_id BIGINT REFERENCES pool.children(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('PRESENT', 'ABSENT', 'SICK', 'EXCUSED')),
+    marked_by BIGINT REFERENCES pool.admin_users(id),
+    marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    comment TEXT,
+    UNIQUE(lesson_id, child_id)
+);
+
+-- Государственные праздники РФ
+CREATE TABLE IF NOT EXISTS pool.holidays (
+    id BIGSERIAL PRIMARY KEY,
+    holiday_date DATE NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL
+);
+
+-- Школьные каникулы (диапазоны дат)
+CREATE TABLE IF NOT EXISTS pool.school_vacations (
+    id BIGSERIAL PRIMARY KEY,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    CONSTRAINT check_dates CHECK (end_date >= start_date)
+);
+
+
+
 -- Индексы для быстрого поиска
 CREATE INDEX IF NOT EXISTS idx_parents_vk_id ON pool.parents(vk_id);
 CREATE INDEX IF NOT EXISTS idx_children_parent_id ON pool.children(parent_id);
 
 -- Индекс для быстрого поиска активного документа каждого типа
 CREATE UNIQUE INDEX idx_active_doc_type ON pool.document_versions(doc_type) WHERE is_active = TRUE;
+
+-- Индексы для быстрого поиска
+CREATE INDEX IF NOT EXISTS idx_pool_lessons_date ON pool.pool_lessons(lesson_date);
+CREATE INDEX IF NOT EXISTS idx_pool_lessons_group_date ON pool.pool_lessons(group_id, lesson_date);
+CREATE INDEX IF NOT EXISTS idx_attendance_lesson ON pool.attendance(lesson_id);
+CREATE INDEX IF NOT EXISTS idx_holidays_date ON pool.holidays(holiday_date);
 
 CREATE OR REPLACE FUNCTION pool.calculate_age()
 RETURNS TRIGGER AS $$

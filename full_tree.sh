@@ -32,10 +32,14 @@ find . -type f \
   -not -path "*/.git/*" \
   -not -path "*/gradle/*" \
   -not -path "*/target/*" \
+  -not -path "*/minio/*" \
+  -not -path "*/.idea/*" \
   -print0 | while IFS= read -r -d '' file
 do
     # Дополнительная проверка на скрипт и файл вывода
     if [[ "$file" == "./full_tree.sh" ]] || \
+       [[ "$file" == "./гант.png" ]] || \
+       [[ "$file" == "./gradlew" ]] || \
        [[ "$file" == "./$OUTPUT_FILE" ]] || \
        [[ "$file" =~ /\.gradle/ ]] || \
        [[ "$file" =~ /build/ ]] || \

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Отметить посещение', ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="card" style="max-width: 900px; margin: 0 auto;">
+        <h2>Отметка посещаемости</h2>
+        <p style="color: #666;">
+            Группа: <strong th:text="${lesson.group.name}"></strong> |
+            Дата: <strong th:text="${#temporals.format(lesson.lessonDate, 'dd.MM.yyyy')}"></strong> |
+            Время: <strong th:text="${lesson.startTime} + ' - ' + ${lesson.endTime}"></strong>
+        </p>
+
+        <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+            Посещаемость успешно сохранена!
+        </div>
+
+        <form th:action="@{/attendance/save/{id}(id=${lesson.id})}" method="post">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                <tr style="background: #f8f9fa;">
+                    <th style="padding: 10px; text-align: left;">Ребенок</th>
+                    <th style="padding: 10px; text-align: center;">Статус</th>
+                    <th style="padding: 10px;">Комментарий</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="child : ${children}" style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 10px;" th:text="${child.lastName} + ' ' + ${child.firstName}"></td>
+                    <td style="padding: 10px; text-align: center;">
+                        <select th:name="'marks[' + ${child.id} + ']'" required style="padding: 5px; border-radius: 4px;">
+                            <option value="">Выберите...</option>
+                            <option th:each="status : ${T(ru.sashil.admin.model.Attendance.Status).values()}"
+                                    th:value="${status}" th:text="${status.label}"
+                                    th:selected="${currentMarks[child.id] == status}">
+                            </option>
+                        </select>
+                    </td>
+                    <td style="padding: 10px;">
+                        <input type="text" th:name="'comments[' + ${child.id} + ']'"
+                               th:value="${currentComments != null ? currentComments[child.id] : ''}"
+                               style="width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button type="submit" class="btn">Сохранить посещаемость</button>
+                <a href="/schedule" class="btn" style="background: #6c757d;">Назад к расписанию</a>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>

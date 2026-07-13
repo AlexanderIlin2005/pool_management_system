@@ -5,11 +5,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import ru.sashil.admin.model.AdminUser;
-import ru.sashil.admin.model.Pool;
 import ru.sashil.admin.service.ScheduleService;
-
 import jakarta.servlet.http.HttpSession;
-import java.util.List;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.Map;
 
 @Controller
@@ -21,58 +20,36 @@ public class ScheduleController {
 
     @GetMapping
     public String showSchedule(Model model, HttpSession session,
-                               @RequestParam(required = false) Long poolId) {
+                               @RequestParam(required = false) Long poolId,
+                               @RequestParam(defaultValue = "0") int weekOffset) {
 
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
-
         if (user.getRole() != AdminUser.Role.ADMIN && user.getRole() != AdminUser.Role.COACH) {
             return "restricted";
         }
 
-        List<Pool> availablePools = scheduleService.getAvailablePools(user);
+        // Вычисляем дату начала запрашиваемой недели
+        LocalDate currentWeekStart = LocalDate.now().with(DayOfWeek.MONDAY).plusWeeks(weekOffset);
 
-        // Для тренера переключатель не нужен, он видит всё сразу
-        boolean showPoolSelector = (user.getRole() == AdminUser.Role.ADMIN && availablePools.size() > 1);
-
-        Long selectedPoolId = null;
-        if (user.getRole() == AdminUser.Role.ADMIN) {
-            // Логика выбора бассейна для админа
-            if (availablePools.isEmpty()) {
-                model.addAttribute("message", "Нет доступных бассейнов.");
-                return renderBaseModel(model, user, "schedule");
-            }
-
-            final Long finalPoolId = poolId;
-            selectedPoolId = availablePools.stream()
-                    .anyMatch(p -> p.getId().equals(finalPoolId))
-                    ? finalPoolId
-                    : availablePools.get(0).getId();
-
-        } else {
-            // Тренер получает null, сервис вернет все его группы
-            selectedPoolId = null;
-        }
-
-        Map<String, Object> scheduleData = scheduleService.getWeeklySchedule(user, selectedPoolId);
+        // Запрашиваем данные у сервиса СТРОГО для этой недели и выбранного бассейна
+        Map<String, Object> scheduleData = scheduleService.getWeeklySchedule(user, poolId, currentWeekStart);
 
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "schedule");
-        model.addAttribute("pools", availablePools);
-        model.addAttribute("selectedPoolId", selectedPoolId);
-        model.addAttribute("showPoolSelector", showPoolSelector); // Флаг для шаблона
+        model.addAttribute("pools", scheduleData.get("availablePools"));
+        model.addAttribute("selectedPoolId", scheduleData.get("selectedPoolId"));
+        model.addAttribute("showPoolSelector", scheduleData.get("showPoolSelector"));
         model.addAttribute("schedule", scheduleData.get("schedule"));
         model.addAttribute("currentDayIndex", scheduleData.get("currentDayIndex"));
         model.addAttribute("currentTimePercent", scheduleData.get("currentTimePercent"));
 
-        return "schedule";
-    }
+        // Передаем параметры навигации
+        model.addAttribute("weekOffset", weekOffset);
+        model.addAttribute("weekStart", currentWeekStart);
+        model.addAttribute("weekEnd", currentWeekStart.plusDays(6));
 
-    private String renderBaseModel(Model model, AdminUser user, String viewName) {
-        model.addAttribute("fullName", user.getFullName());
-        model.addAttribute("role", user.getRole());
-        model.addAttribute("activePage", "schedule");
-        return viewName;
+        return "schedule";
     }
 }

@@ -10,6 +10,7 @@ import java.time.LocalTime;
 @AllArgsConstructor
 public class ScheduleSlot {
     private Long groupId;
+    private Long lessonId; // <-- ДОБАВЛЕНО ПОЛЕ ДЛЯ ССЫЛКИ НА ЗАНЯТИЕ В БД
     private String groupName;
     private Integer groupNumber;
     private LocalTime startTime;
@@ -22,8 +23,6 @@ public class ScheduleSlot {
     private double heightPercent;
 
     // Позиционирование по горизонтали (для разделения колонок)
-    // leftPercent: отступ слева в % от ширины колонки дня
-    // widthPercent: ширина карточки в % от ширины колонки дня
     private double leftPercent;
     private double widthPercent;
 

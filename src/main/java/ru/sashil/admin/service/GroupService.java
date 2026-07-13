@@ -25,6 +25,9 @@ public class GroupService {
     @Autowired
     private AdminUserRepository adminUserRepository;
 
+    @Autowired
+    private LessonService lessonService; // <-- ДОБАВЛЕНО
+
     public List<Group> getAllGroups() {
         return groupRepository.findAll();
     }
@@ -34,8 +37,10 @@ public class GroupService {
     }
 
     public void saveGroup(Group group) {
+        boolean isNew = group.getId() == null;
+
         // Проверка уникальности номера
-        if (group.getId() == null) {
+        if (isNew) {
             if (groupRepository.existsByNumber(group.getNumber())) {
                 throw new IllegalArgumentException("Группа с таким номером уже существует!");
             }
@@ -58,6 +63,9 @@ public class GroupService {
         validateDayTime(group.getDay7Start(), group.getDay7End(), "Воскресенье");
 
         groupRepository.save(group);
+
+        // ГЕНЕРАЦИЯ ЗАНЯТИЙ ПОСЛЕ СОХРАНЕНИЯ ГРУППЫ
+        lessonService.generateLessonsForGroup(group);
     }
 
     private void validateDayTime(LocalTime start, LocalTime end, String dayName) {
@@ -80,6 +88,7 @@ public class GroupService {
     }
 
     public void deleteGroup(Long id) {
+        // ПРИ УДАЛЕНИИ ГРУППЫ ЗАНЯТИЯ УДАЛЯТСЯ АВТОМАТИЧЕСКИ ЧЕРЕЗ CASCADE
         groupRepository.deleteById(id);
     }
 

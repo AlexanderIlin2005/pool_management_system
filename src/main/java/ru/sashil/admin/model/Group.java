@@ -3,6 +3,7 @@ package ru.sashil.admin.model;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "groups", schema = "pool")
@@ -44,4 +45,7 @@ public class Group {
     @Column(name = "day_6_end")   private LocalTime day6End;
     @Column(name = "day_7_start") private LocalTime day7Start;
     @Column(name = "day_7_end")   private LocalTime day7End;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 }

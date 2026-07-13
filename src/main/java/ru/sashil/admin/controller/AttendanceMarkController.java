@@ -1,0 +1,64 @@
+package ru.sashil.admin.controller;
+
+import jakarta.servlet.http.HttpSession;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+import ru.sashil.admin.model.*;
+import ru.sashil.admin.repository.GroupRepository;
+import ru.sashil.admin.service.AttendanceService;
+import ru.sashil.admin.service.LessonService;
+import java.time.LocalDate;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Controller
+@RequestMapping("/attendance")
+public class AttendanceMarkController {
+
+    @Autowired private AttendanceService attendanceService;
+    @Autowired private LessonService lessonService;
+    @Autowired private GroupRepository groupRepository;
+
+    @GetMapping("/mark/{lessonId}")
+    public String markPage(@PathVariable Long lessonId, Model model, HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return "redirect:/login";
+
+        Optional<PoolLesson> lessonOpt = lessonService.getLessonForAttendance(lessonId, user);
+        if (lessonOpt.isEmpty()) return "redirect:/schedule?error=access_denied";
+
+        PoolLesson lesson = lessonOpt.get();
+        List<Child> children = attendanceService.getEligibleChildren(lesson.getGroup().getId(), lesson.getLessonDate());
+
+        List<Attendance> existing = attendanceService.getByLessonId(lessonId);
+        Map<Long, Attendance.Status> currentMarks = existing.stream()
+                .collect(Collectors.toMap(a -> a.getChild().getId(), Attendance::getStatus));
+
+        model.addAttribute("lesson", lesson);
+        model.addAttribute("children", children);
+        model.addAttribute("currentMarks", currentMarks);
+        model.addAttribute("fullName", user.getFullName());
+        model.addAttribute("role", user.getRole());
+        model.addAttribute("activePage", "schedule");
+        return "attendance-mark";
+    }
+
+    @PostMapping("/save/{lessonId}")
+    public String saveMarks(@PathVariable Long lessonId,
+                            @RequestParam Map<String, String> marks,
+                            HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return "redirect:/login";
+
+        Optional<PoolLesson> lessonOpt = lessonService.getLessonForAttendance(lessonId, user);
+        if (lessonOpt.isEmpty()) return "redirect:/schedule?error=access_denied";
+
+        Map<Long, String> longKeyMarks = marks.entrySet().stream()
+                .collect(Collectors.toMap(e -> Long.parseLong(e.getKey()), Map.Entry::getValue));
+
+        attendanceService.saveAttendance(lessonId, longKeyMarks, user);
+        return "redirect:/attendance/mark/" + lessonId + "?success=true";
+    }
+}
