@@ -37,7 +37,7 @@ public class AttendanceService {
     }
 
     @Transactional
-    public void saveAttendance(Long lessonId, Map<Long, String> marks, AdminUser marker) {
+    public void saveAttendanceWithComments(Long lessonId, Map<Long, String> marks, Map<Long, String> comments, AdminUser marker) {
         if (marks == null || marks.isEmpty()) return;
 
         for (Map.Entry<Long, String> entry : marks.entrySet()) {
@@ -66,6 +66,14 @@ public class AttendanceService {
                 }
 
                 attendance.setStatus(status);
+
+                // Сохраняем комментарий, если он есть
+                if (comments != null && comments.containsKey(childId)) {
+                    attendance.setComment(comments.get(childId));
+                } else {
+                    attendance.setComment(null);
+                }
+
                 attendance.setMarkedBy(marker);
                 attendance.setMarkedAt(LocalDateTime.now());
 
@@ -75,4 +83,5 @@ public class AttendanceService {
             }
         }
     }
+
 }

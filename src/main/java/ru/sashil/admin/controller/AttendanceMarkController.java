@@ -48,7 +48,7 @@ public class AttendanceMarkController {
 
     @PostMapping("/save/{lessonId}")
     public String saveMarks(@PathVariable Long lessonId,
-                            @RequestParam Map<String, String> marks,
+                            @RequestParam Map<String, String> allParams,
                             HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
@@ -56,10 +56,39 @@ public class AttendanceMarkController {
         Optional<PoolLesson> lessonOpt = lessonService.getLessonForAttendance(lessonId, user);
         if (lessonOpt.isEmpty()) return "redirect:/schedule?error=access_denied";
 
-        Map<Long, String> longKeyMarks = marks.entrySet().stream()
-                .collect(Collectors.toMap(e -> Long.parseLong(e.getKey()), Map.Entry::getValue));
+        // 1. Разбираем статусы (ключи вида "marks[ID]")
+        Map<Long, String> marks = new HashMap<>();
+        // 2. Разбираем комментарии (ключи вида "comments[ID]")
+        Map<Long, String> comments = new HashMap<>();
 
-        attendanceService.saveAttendance(lessonId, longKeyMarks, user);
+        for (Map.Entry<String, String> entry : allParams.entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+
+            if (key.startsWith("marks[")) {
+                // Извлекаем ID: убираем "marks[" и "]"
+                try {
+                    String idStr = key.substring(6, key.length() - 1);
+                    Long childId = Long.parseLong(idStr);
+                    marks.put(childId, value);
+                } catch (Exception e) {
+                    // Игнорируем некорректные ключи
+                }
+            } else if (key.startsWith("comments[")) {
+                try {
+                    String idStr = key.substring(9, key.length() - 1);
+                    Long childId = Long.parseLong(idStr);
+                    if (value != null && !value.isEmpty()) {
+                        comments.put(childId, value);
+                    }
+                } catch (Exception e) {
+                    // Игнорируем
+                }
+            }
+        }
+
+        attendanceService.saveAttendanceWithComments(lessonId, marks, comments, user);
         return "redirect:/attendance/mark/" + lessonId + "?success=true";
     }
+
 }
