@@ -5,15 +5,15 @@
     <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto;">
         <h1 style="margin-bottom: 30px;">Управление календарем</h1>
         <p style="color: #666; margin-bottom: 20px;">
-            Здесь вы можете добавить выходные дни и школьные каникулы.
-            Занятия в эти даты автоматически генерироваться не будут.
+            Здесь вы можете добавить нерабочие дни и школьные каникулы.
+            Занятия в эти даты автоматически удаляются или не создаются.
         </p>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
 
-            <!-- Блок 1: Праздники / Выходные -->
+            <!-- Блок 1: Нерабочие дни -->
             <div>
-                <h3>Праздничные дни</h3>
+                <h3>Нерабочие дни</h3>
 
                 <!-- Форма добавления -->
                 <form th:action="@{/calendar/add-holiday}" method="post" style="display: flex; gap: 10px; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 6px;">
@@ -42,7 +42,7 @@
                         </td>
                     </tr>
                     <tr th:if="${#lists.isEmpty(holidays)}">
-                        <td colspan="3" style="padding: 10px; text-align: center; color: #999;">Нет добавленных праздников</td>
+                        <td colspan="3" style="padding: 10px; text-align: center; color: #999;">Нет добавленных дней</td>
                     </tr>
                     </tbody>
                 </table>

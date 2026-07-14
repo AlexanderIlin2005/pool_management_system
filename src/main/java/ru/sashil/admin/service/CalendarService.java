@@ -3,8 +3,10 @@ package ru.sashil.admin.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.sashil.admin.model.Group;
 import ru.sashil.admin.model.Holiday;
 import ru.sashil.admin.model.SchoolVacation;
+import ru.sashil.admin.repository.GroupRepository;
 import ru.sashil.admin.repository.HolidayRepository;
 import ru.sashil.admin.repository.SchoolVacationRepository;
 
@@ -19,6 +21,12 @@ public class CalendarService {
 
     @Autowired
     private SchoolVacationRepository vacationRepo;
+
+    @Autowired
+    private GroupRepository groupRepo;
+
+    @Autowired
+    private LessonService lessonService;
 
     public List<Holiday> getAllHolidays() {
         return holidayRepo.findAllByOrderByHolidayDateAsc();
@@ -35,12 +43,18 @@ public class CalendarService {
             holiday.setHolidayDate(date);
             holiday.setName(name);
             holidayRepo.save(holiday);
+
+            // Перегенерируем расписание для всех групп
+            regenerateAllSchedules();
         }
     }
 
     @Transactional
     public void deleteHoliday(Long id) {
         holidayRepo.deleteById(id);
+
+        // Перегенерируем расписание для всех групп
+        regenerateAllSchedules();
     }
 
     @Transactional
@@ -52,10 +66,31 @@ public class CalendarService {
         vacation.setEndDate(end);
         vacation.setName(name);
         vacationRepo.save(vacation);
+
+        // Перегенерируем расписание для всех групп
+        regenerateAllSchedules();
     }
 
     @Transactional
     public void deleteVacation(Long id) {
         vacationRepo.deleteById(id);
+
+        // Перегенерируем расписание для всех групп
+        regenerateAllSchedules();
+    }
+
+    /**
+     * Перегенерирует будущие занятия для всех активных групп.
+     */
+    private void regenerateAllSchedules() {
+        List<Group> allGroups = groupRepo.findAll();
+        for (Group group : allGroups) {
+            try {
+                lessonService.regenerateFutureLessons(group);
+            } catch (Exception e) {
+                // Логируем ошибку, но не прерываем процесс для остальных групп
+                System.err.println("Ошибка при перегенерации расписания для группы " + group.getId() + ": " + e.getMessage());
+            }
+        }
     }
 }
