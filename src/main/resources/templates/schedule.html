@@ -15,14 +15,12 @@
       <!-- Селектор бассейнов с сохранением недели -->
       <div th:if="${showPoolSelector}">
         <label>Бассейн: </label>
-        <!-- ИСПРАВЛЕНИЕ: Используем скрытый input для передачи weekOffset в JS -->
         <input type="hidden" id="currentWeekOffset" th:value="${weekOffset}" />
         <select onchange="window.location.href='/schedule?poolId=' + this.value + '&weekOffset=' + document.getElementById('currentWeekOffset').value"
                 style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
           <option th:each="p : ${pools}" th:value="${p.id}" th:text="${p.name}" th:selected="${p.id == selectedPoolId}"></option>
         </select>
       </div>
-
     </div>
 
     <div th:unless="${message}" style="position: relative; overflow-x: auto; min-width: 100%;">
@@ -55,10 +53,12 @@
             <div style="position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; background: #dc3545; border-radius: 50%;"></div>
           </div>
 
-          <!-- Карточки занятий (показываются только если есть реальное занятие в БД на эту неделю) -->
+          <!-- Карточки занятий -->
           <div th:each="slot : ${schedule.get(dayIdx) != null ? schedule.get(dayIdx) : null}"
                th:if="${slot != null and slot.lessonId != null and slot.lessonId != ''}"
-               th:onclick="'window.location.href=\'/attendance/mark/' + ${slot.lessonId} + '\''"
+               th:data-lesson-id="${slot.lessonId}"
+               th:data-lesson-date="${weekStart.plusDays(dayIdx - 1)}"
+               onclick="handleAttendanceClick(this)"
                th:style="'position: absolute; left: calc(' + ${slot.leftPercent} + '% + 2px); width: calc(' + ${slot.widthPercent} + '% - 4px); top: ' + ${slot.topPercent} + '%; height: ' + ${slot.heightPercent} + '%; background: ' + (${slot.overlapping} ? '#fff3cd' : '#e7f1ff') + '; border-left: 4px solid ' + (${slot.overlapping} ? '#ffc107' : '#007bff') + '; padding: 4px; font-size: 0.75em; overflow: hidden; cursor: pointer; transition: all 0.2s; z-index: ' + (${slot.overlapping} ? '5' : '1') + ';'"
                th:title="${slot.groupName} + '\n' + ${slot.startTime} + ' - ' + ${slot.endTime}">
 
@@ -74,6 +74,41 @@
       </div>
     </div>
   </div>
+
+  <script th:inline="javascript">
+    /* Получаем сегодняшнюю дату с бэкенда */
+    const todayStr = /*[[${today}]]*/ '2026-07-14';
+
+    // Вычисляем дату 2 недели назад
+    const twoWeeksAgo = new Date(todayStr);
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+    const twoWeeksAgoStr = twoWeeksAgo.toISOString().split('T')[0]; // Формат YYYY-MM-DD
+
+    function handleAttendanceClick(element) {
+        const lessonId = element.getAttribute('data-lesson-id');
+        const lessonDateStr = element.getAttribute('data-lesson-date'); // Формат YYYY-MM-DD
+
+        if (!lessonId) return;
+
+        // Сравниваем строки дат (лексикографическое сравнение работает для формата YYYY-MM-DD)
+
+        // 1. Проверка на будущее
+        if (lessonDateStr > todayStr) {
+            alert("Нельзя отметить посещение заранее! Выберите занятие, которое уже прошло или проходит сегодня.");
+            return;
+        }
+
+        // 2. Проверка на слишком далекое прошлое (более 2 недель)
+        if (lessonDateStr < twoWeeksAgoStr) {
+            alert("Отметка посещаемости доступна только за последние 2 недели.");
+            return;
+        }
+
+        // 3. Если всё ок - переходим
+        window.location.href = '/attendance/mark/' + lessonId;
+    }
+  </script>
+
 </div>
 </body>
 </html>

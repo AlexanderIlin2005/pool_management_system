@@ -50,6 +50,9 @@ public class ScheduleController {
         model.addAttribute("weekStart", currentWeekStart);
         model.addAttribute("weekEnd", currentWeekStart.plusDays(6));
 
+        // ДОБАВЛЯЕМ ЭТУ СТРОКУ:
+        model.addAttribute("today", LocalDate.now());
+
         return "schedule";
     }
 }
