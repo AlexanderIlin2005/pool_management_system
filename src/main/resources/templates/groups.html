@@ -23,7 +23,7 @@
                 <th style="padding: 12px; border: 1px solid #ddd;">Бассейн</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Тренер</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Расписание</th>
-                <!--<th style="padding: 12px; border: 1px solid #ddd;">Численность</th> -->
+                <!-- <th style="padding: 12px; border: 1px solid #ddd;">Вместимость</th>-->
                 <th style="padding: 12px; border: 1px solid #ddd;">Заполненность</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Действия</th>
             </tr>
@@ -45,7 +45,9 @@
                     <span th:if="${g.day6Start != null}" th:text="'Сб ' + ${g.day6Start} + '-' + ${g.day6End}"></span><br>
                     <span th:if="${g.day7Start != null}" th:text="'Вс ' + ${g.day7Start} + '-' + ${g.day7End}"></span>
                 </td>
-                <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.capacity}"></td>
+
+
+                <!--<td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.capacity}"></td>-->
 
                 <!-- НОВАЯ ЯЧЕЙКА С ИНДИКАТОРОМ -->
                 <td style="padding: 12px; border: 1px solid #ddd;">
