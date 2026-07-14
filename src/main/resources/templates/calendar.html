@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Календарь', ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto;">
+        <h1 style="margin-bottom: 30px;">Управление календарем</h1>
+        <p style="color: #666; margin-bottom: 20px;">
+            Здесь вы можете добавить выходные дни и школьные каникулы.
+            Занятия в эти даты автоматически генерироваться не будут.
+        </p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+
+            <!-- Блок 1: Праздники / Выходные -->
+            <div>
+                <h3>Праздничные дни</h3>
+
+                <!-- Форма добавления -->
+                <form th:action="@{/calendar/add-holiday}" method="post" style="display: flex; gap: 10px; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 6px;">
+                    <input type="date" name="date" required style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    <input type="text" name="name" placeholder="Название (напр. 9 Мая)" required style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    <button type="submit" class="btn">Добавить</button>
+                </form>
+
+                <!-- Список -->
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                    <tr style="background: #f1f3f5; text-align: left;">
+                        <th style="padding: 10px; border: 1px solid #ddd;">Дата</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Название</th>
+                        <th style="padding: 10px; border: 1px solid #ddd; width: 50px;"></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="h : ${holidays}">
+                        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${#temporals.format(h.holidayDate, 'dd.MM.yyyy')}"></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${h.name}"></td>
+                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                            <form th:action="@{/calendar/delete-holiday/{id}(id=${h.id})}" method="post">
+                                <button type="submit" style="background: none; border: none; color: #dc3545; cursor: pointer; font-weight: bold;">✕</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(holidays)}">
+                        <td colspan="3" style="padding: 10px; text-align: center; color: #999;">Нет добавленных праздников</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Блок 2: Школьные каникулы -->
+            <div>
+                <h3>Школьные каникулы</h3>
+
+                <!-- Форма добавления -->
+                <form th:action="@{/calendar/add-vacation}" method="post" style="display: flex; gap: 10px; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 6px; align-items: center;">
+                    <div style="display: flex; flex-direction: column;">
+                        <label style="font-size: 0.8em; color: #666;">С:</label>
+                        <input type="date" name="startDate" required style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    <div style="display: flex; flex-direction: column;">
+                        <label style="font-size: 0.8em; color: #666;">По:</label>
+                        <input type="date" name="endDate" required style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    <input type="text" name="name" placeholder="Название (напр. Зимние)" required style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    <button type="submit" class="btn">Добавить</button>
+                </form>
+
+                <!-- Список -->
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                    <tr style="background: #f1f3f5; text-align: left;">
+                        <th style="padding: 10px; border: 1px solid #ddd;">Период</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Название</th>
+                        <th style="padding: 10px; border: 1px solid #ddd; width: 50px;"></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="v : ${vacations}">
+                        <td style="padding: 10px; border: 1px solid #ddd;"
+                            th:text="${#temporals.format(v.startDate, 'dd.MM')} + ' — ' + ${#temporals.format(v.endDate, 'dd.MM.yyyy')}"></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${v.name}"></td>
+                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                            <form th:action="@{/calendar/delete-vacation/{id}(id=${v.id})}" method="post">
+                                <button type="submit" style="background: none; border: none; color: #dc3545; cursor: pointer; font-weight: bold;">✕</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(vacations)}">
+                        <td colspan="3" style="padding: 10px; text-align: center; color: #999;">Нет добавленных каникул</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+</div>
+</body>
+</html>
