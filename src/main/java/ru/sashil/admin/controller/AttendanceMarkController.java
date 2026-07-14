@@ -9,7 +9,7 @@ import ru.sashil.admin.model.*;
 import ru.sashil.admin.repository.GroupRepository;
 import ru.sashil.admin.service.AttendanceService;
 import ru.sashil.admin.service.LessonService;
-import java.time.LocalDate;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -19,7 +19,6 @@ public class AttendanceMarkController {
 
     @Autowired private AttendanceService attendanceService;
     @Autowired private LessonService lessonService;
-    @Autowired private GroupRepository groupRepository;
 
     @GetMapping("/mark/{lessonId}")
     public String markPage(@PathVariable Long lessonId, Model model, HttpSession session) {
@@ -30,14 +29,16 @@ public class AttendanceMarkController {
         if (lessonOpt.isEmpty()) return "redirect:/schedule?error=access_denied";
 
         PoolLesson lesson = lessonOpt.get();
-        List<Child> children = attendanceService.getEligibleChildren(lesson.getGroup().getId(), lesson.getLessonDate());
+
+        // Теперь здесь список ChildSimple, в котором нет поля skill
+        List<ChildSimple> children = attendanceService.getEligibleChildren(lesson.getGroup().getId(), lesson.getLessonDate());
 
         List<Attendance> existing = attendanceService.getByLessonId(lessonId);
         Map<Long, Attendance.Status> currentMarks = existing.stream()
                 .collect(Collectors.toMap(a -> a.getChild().getId(), Attendance::getStatus));
 
         model.addAttribute("lesson", lesson);
-        model.addAttribute("children", children);
+        model.addAttribute("children", children); // Передаем упрощенный список
         model.addAttribute("currentMarks", currentMarks);
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());

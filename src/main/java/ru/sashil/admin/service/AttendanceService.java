@@ -25,12 +25,15 @@ public class AttendanceService {
     private PoolLessonRepository lessonRepo;
 
     /**
-     * Получает список детей группы.
-     * Используем нативный запрос, чтобы избежать ошибок маппинга Enum и LazyLoading.
+     * Теперь возвращает список ChildSimple, где нет поля skill.
+     * Ошибка маппинга Enum больше невозможна.
      */
-    public List<Child> getEligibleChildren(Long groupId, LocalDate lessonDate) {
-        // Возвращаем всех детей, которые сейчас числятся в группе
-        return childRepository.findByGroupIdNative(groupId);
+    public List<ChildSimple> getEligibleChildren(Long groupId, LocalDate lessonDate) {
+        return childRepository.findSimpleByGroupId(groupId);
+    }
+
+    public List<Attendance> getByLessonId(Long lessonId) {
+        return attendanceRepo.findByLessonId(lessonId);
     }
 
     @Transactional
@@ -71,19 +74,5 @@ public class AttendanceService {
                 System.err.println("Неверный статус: " + statusStr);
             }
         }
-    }
-
-    public boolean canMarkAttendance(PoolLesson lesson, AdminUser user) {
-        if (user == null) return false;
-        if (user.getRole() == AdminUser.Role.ADMIN) return true;
-
-        if (user.getRole() == AdminUser.Role.COACH && lesson.getGroup().getTrainer() != null) {
-            return lesson.getGroup().getTrainer().getId().equals(user.getId());
-        }
-        return false;
-    }
-
-    public List<Attendance> getByLessonId(Long lessonId) {
-        return attendanceRepo.findByLessonId(lessonId);
     }
 }

@@ -41,6 +41,7 @@ public class Child {
     // Используем EnumType.STRING для соответствия типу ENUM в Postgres
     @Enumerated(EnumType.STRING)
     @Column(name = "skill", nullable = false)
+    @Convert(converter = SwimmingSkill.SwimmingSkillConverter.class)
     private SwimmingSkill skill;
 
     @Column(name = "created_at")
