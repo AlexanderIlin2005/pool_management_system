@@ -27,6 +27,14 @@ public class GroupMemberService {
         return jdbcTemplate.queryForList(sql, groupId);
     }
 
+    /**
+     * Возвращает текущее количество участников в группе.
+     */
+    public int getMemberCount(Long groupId) {
+        String sql = "SELECT COUNT(*) FROM pool.group_children WHERE group_id = ?";
+        return jdbcTemplate.queryForObject(sql, Integer.class, groupId);
+    }
+
     public List<Map<String, Object>> getAvailableChildren(Long groupId, String search,
                                                           List<String> skills, Integer ageFrom, Integer ageTo,
                                                           Integer gradeFrom, Integer gradeTo) {
@@ -80,7 +88,6 @@ public class GroupMemberService {
             GroupChild link = new GroupChild();
             link.setGroupId(groupId);
             link.setChildId(childId);
-            // ИСПРАВЛЕНИЕ: Явно устанавливаем дату добавления
             link.setCreatedAt(LocalDateTime.now());
             groupChildRepository.save(link);
         }

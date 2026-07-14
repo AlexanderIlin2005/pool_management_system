@@ -23,7 +23,8 @@
                 <th style="padding: 12px; border: 1px solid #ddd;">Бассейн</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Тренер</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Расписание</th>
-                <th style="padding: 12px; border: 1px solid #ddd;">Численность</th>
+                <!--<th style="padding: 12px; border: 1px solid #ddd;">Численность</th> -->
+                <th style="padding: 12px; border: 1px solid #ddd;">Заполненность</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Действия</th>
             </tr>
             </thead>
@@ -45,6 +46,23 @@
                     <span th:if="${g.day7Start != null}" th:text="'Вс ' + ${g.day7Start} + '-' + ${g.day7End}"></span>
                 </td>
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.capacity}"></td>
+
+                <!-- НОВАЯ ЯЧЕЙКА С ИНДИКАТОРОМ -->
+                <td style="padding: 12px; border: 1px solid #ddd;">
+                    <div th:with="count=${memberCounts[g.id]}, cap=${g.capacity}, percent=${cap != null and cap > 0 ? (count * 100 / cap) : 0}">
+                        <span th:text="${count} + ' / ' + ${cap}"></span>
+
+                        <!-- Цвет текста в зависимости от процента -->
+                        <span th:if="${percent < 90}" style="color: #28a745; font-weight: bold; margin-left: 5px;">●</span>
+                        <span th:if="${percent >= 90 and percent <= 100}" style="color: #fd7e14; font-weight: bold; margin-left: 5px;">●</span>
+                        <span th:if="${percent > 100 and percent <= 125}" style="color: #dc3545; font-weight: bold; margin-left: 5px;">●</span>
+                        <span th:if="${percent > 125}" style="color: #721c24; font-weight: bold; margin-left: 5px;">●</span>
+
+                        <!-- Подсказка -->
+                        <small th:if="${percent > 100}" style="display: block; color: #dc3545; font-size: 0.8em;">Переполнена!</small>
+                    </div>
+                </td>
+
                 <td style="padding: 12px; border: 1px solid #ddd; display: flex; gap: 5px;">
                     <!-- Кнопка Участники -->
                     <a th:href="@{/groups/{id}/members(id=${g.id})}" class="btn" style="padding: 5px 10px; font-size: 0.8em; background-color: #28a745;">Участники</a>

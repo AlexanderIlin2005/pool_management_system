@@ -46,8 +46,25 @@
   </style>
 
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1400px; margin: 0 auto;">
+
     <div class="header">
-      <h1>Группа: <span th:text="${group.name}"></span> (№ <span th:text="${group.number}"></span>)</h1>
+      <div>
+        <h1 style="margin-bottom: 5px;">Группа: <span th:text="${group.name}"></span> (№ <span th:text="${group.number}"></span>)</h1>
+
+        <!-- ИНДИКАТОР ЗАПОЛНЕННОСТИ -->
+        <div th:with="cap=${group.capacity}, percent=${cap != null and cap > 0 ? (currentCount * 100 / cap) : 0}"
+             style="font-size: 0.9em; margin-top: 5px;">
+
+          <strong th:text="${currentCount} + ' / ' + ${cap}"></strong>
+
+          <span th:if="${percent < 90}" style="color: #28a745; margin-left: 10px;">Есть свободные места</span>
+          <span th:if="${percent >= 90 and percent < 100}" style="color: #fd7e14; margin-left: 10px;">Почти заполнена</span>
+          <span th:if="${percent == 100}" style="color: #dc3545; margin-left: 10px;">Заполнена</span>
+          <span th:if="${percent > 100 and percent <= 125}" style="color: #dc3545; margin-left: 10px;">Переполнена</span>
+          <span th:if="${percent > 125}" style="color: #721c24; margin-left: 10px; font-weight: bold;">Значительно переполнена!</span>
+        </div>
+      </div>
+
       <a href="/groups" class="btn" style="background-color: #6c757d;">Назад к группам</a>
     </div>
 

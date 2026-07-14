@@ -17,11 +17,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Controller
@@ -57,7 +53,7 @@ public class AdminController {
         return user != null && user.getRole() == ru.sashil.admin.model.AdminUser.Role.ADMIN;
     }
 
-    // ... (методы parentsPage, groupsPage, newGroupPage, editGroupPage, saveGroup, deleteGroup остаются без изменений) ...
+
 
     @GetMapping("/parents")
     public String parentsPage(HttpSession session, Model model,
@@ -115,7 +111,6 @@ public class AdminController {
                              @RequestParam(required = false) String search,
                              @RequestParam(required = false) String sortField,
                              @RequestParam(required = false) String sortOrder) {
-        // Код метода groupsPage без изменений
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
         model.addAttribute("fullName", user.getFullName());
@@ -124,6 +119,13 @@ public class AdminController {
         if (!isAdmin(session)) return "restricted";
 
         List<Group> allGroups = groupService.getAllGroups();
+
+        // Создаем мапу для быстрого доступа к количеству участников по ID группы
+        Map<Long, Integer> memberCounts = new HashMap<>();
+        for (Group g : allGroups) {
+            memberCounts.put(g.getId(), memberService.getMemberCount(g.getId()));
+        }
+
         List<Group> filteredGroups = new ArrayList<>();
         if (search != null && !search.isEmpty()) {
             for (Group g : allGroups) {
@@ -137,6 +139,8 @@ public class AdminController {
         } else {
             filteredGroups = allGroups;
         }
+
+        // Сортировка (без изменений)
         if (sortField != null) {
             Comparator<Group> comparator = null;
             switch (sortField) {
@@ -148,7 +152,9 @@ public class AdminController {
             if ("desc".equals(sortOrder)) comparator = comparator.reversed();
             filteredGroups.sort(comparator);
         }
+
         model.addAttribute("groups", filteredGroups);
+        model.addAttribute("memberCounts", memberCounts); // <-- ПЕРЕДАЕМ МАПУ СЧЕТЧИКОВ
         model.addAttribute("currentSearch", search);
         model.addAttribute("currentSortField", sortField);
         model.addAttribute("currentSortOrder", sortOrder);
@@ -225,9 +231,15 @@ public class AdminController {
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "groups");
+
         Optional<ru.sashil.admin.model.Group> groupOpt = groupService.getGroupById(id);
         if (groupOpt.isEmpty()) return "redirect:/groups";
-        model.addAttribute("group", groupOpt.get());
+
+        Group group = groupOpt.get();
+        int currentCount = memberService.getMemberCount(id); // <-- ПОЛУЧАЕМ ТЕКУЩЕЕ КОЛИЧЕСТВО
+
+        model.addAttribute("group", group);
+        model.addAttribute("currentCount", currentCount); // <-- ПЕРЕДАЕМ В МОДЕЛЬ
         model.addAttribute("members", memberService.getGroupMembers(id));
         model.addAttribute("availableChildren", memberService.getAvailableChildren(id, search, skills, ageFrom, ageTo, gradeFrom, gradeTo));
         model.addAttribute("currentSearch", search);
