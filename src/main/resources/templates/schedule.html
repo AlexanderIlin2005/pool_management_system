@@ -15,11 +15,14 @@
       <!-- Селектор бассейнов с сохранением недели -->
       <div th:if="${showPoolSelector}">
         <label>Бассейн: </label>
-        <select onchange="window.location.href='/schedule?poolId=' + this.value + '&weekOffset=' + [[${weekOffset}]]"
+        <!-- ИСПРАВЛЕНИЕ: Используем скрытый input для передачи weekOffset в JS -->
+        <input type="hidden" id="currentWeekOffset" th:value="${weekOffset}" />
+        <select onchange="window.location.href='/schedule?poolId=' + this.value + '&weekOffset=' + document.getElementById('currentWeekOffset').value"
                 style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
           <option th:each="p : ${pools}" th:value="${p.id}" th:text="${p.name}" th:selected="${p.id == selectedPoolId}"></option>
         </select>
       </div>
+
     </div>
 
     <div th:unless="${message}" style="position: relative; overflow-x: auto; min-width: 100%;">

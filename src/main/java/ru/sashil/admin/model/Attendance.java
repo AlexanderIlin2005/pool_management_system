@@ -8,12 +8,31 @@ import java.time.LocalDateTime;
 @Table(name = "attendance", schema = "pool")
 @Data
 public class Attendance {
+
     public enum Status {
-        PRESENT("Присутствует"), ABSENT("Отсутствует"), SICK("Болеет"), EXCUSED("Уважительная причина");
+        PRESENT("Присутствует"),
+        ABSENT("Отсутствует"),
+        SICK("Болеет"),
+        EXCUSED("Уважительная причина");
 
         private final String label;
-        Status(String label) { this.label = label; }
-        public String getLabel() { return label; }
+
+        Status(String label) {
+            this.label = label;
+        }
+
+        public String getLabel() {
+            return label;
+        }
+
+        public static Status fromLabel(String label) {
+            for (Status s : values()) {
+                if (s.label.equals(label) || s.name().equals(label)) {
+                    return s;
+                }
+            }
+            throw new IllegalArgumentException("Unknown status: " + label);
+        }
     }
 
     @Id
@@ -28,7 +47,8 @@ public class Attendance {
     @JoinColumn(name = "child_id", nullable = false)
     private Child child;
 
-    @Enumerated(EnumType.STRING)
+    // ИСПРАВЛЕНИЕ: Используем кастомный конвертер вместо стандартного EnumType.STRING
+    @Convert(converter = StatusConverter.class)
     @Column(nullable = false)
     private Status status;
 
@@ -41,4 +61,17 @@ public class Attendance {
 
     @Column(columnDefinition = "TEXT")
     private String comment;
+
+    @Converter
+    public static class StatusConverter implements AttributeConverter<Status, String> {
+        @Override
+        public String convertToDatabaseColumn(Status attribute) {
+            return attribute != null ? attribute.getLabel() : null;
+        }
+
+        @Override
+        public Status convertToEntityAttribute(String dbData) {
+            return dbData != null ? Status.fromLabel(dbData) : null;
+        }
+    }
 }

@@ -1,12 +1,11 @@
 package ru.sashil.admin.model;
 
-/**
- * Навык плавания ребенка.
- * Значения должны точно совпадать с ENUM в PostgreSQL: pool.swimming_skill
- */
+import jakarta.persistence.AttributeConverter;
+import jakarta.persistence.Converter;
+
 public enum SwimmingSkill {
     НЕ_УМЕЕТ("не умеет"),
-    ДЕРЖИТСЯ_НA_ВОДЕ("держится на воде"),
+    ДЕРЖИТСЯ_НА_ВОДЕ("держится на воде"),
     УВЕРЕННО_ПЛАВАЕТ("уверенно плавает");
 
     private final String dbValue;
@@ -15,12 +14,26 @@ public enum SwimmingSkill {
         this.dbValue = dbValue;
     }
 
-    /**
-     * Возвращает точное значение, которое хранится в базе данных.
-     * Используется при сохранении/чтении через JPA (EnumType.STRING).
-     */
-    @Override
-    public String toString() {
+    public String getDbValue() {
         return dbValue;
+    }
+
+    @Converter(autoApply = true)
+    public static class SwimmingSkillConverter implements AttributeConverter<SwimmingSkill, String> {
+        @Override
+        public String convertToDatabaseColumn(SwimmingSkill attribute) {
+            return attribute != null ? attribute.getDbValue() : null;
+        }
+
+        @Override
+        public SwimmingSkill convertToEntityAttribute(String dbData) {
+            if (dbData == null) return null;
+            for (SwimmingSkill skill : SwimmingSkill.values()) {
+                if (skill.getDbValue().equals(dbData)) {
+                    return skill;
+                }
+            }
+            throw new IllegalArgumentException("Unknown swimming skill: " + dbData);
+        }
     }
 }
