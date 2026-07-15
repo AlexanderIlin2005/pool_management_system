@@ -149,6 +149,20 @@ CREATE TABLE IF NOT EXISTS pool.notification_log (
     UNIQUE(parent_id, child_id, notification_type, lesson_date)
 );
 
+CREATE TABLE IF NOT EXISTS pool.broadcast_messages (
+    id BIGSERIAL PRIMARY KEY,
+    sender_id BIGINT REFERENCES pool.admin_users(id), -- Кто отправил (админ или тренер)
+    target_type VARCHAR(20) NOT NULL, -- 'ALL' (всем) или 'GROUP' (конкретной группе)
+    target_group_id BIGINT, -- ID группы, если target_type = 'GROUP'
+    message_text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'PENDING', -- PENDING, SENT, ERROR
+    sent_count INT DEFAULT 0 -- Сколько родителей получили сообщение
+);
+
+-- Индекс для быстрого поиска неотправленных сообщений
+CREATE INDEX IF NOT EXISTS idx_broadcast_status ON pool.broadcast_messages(status);
+
 -- Добавляем флаг отключения регулярных уведомлений в таблицу родителей
 ALTER TABLE pool.parents ADD COLUMN IF NOT EXISTS notify_regular BOOLEAN DEFAULT TRUE;
 

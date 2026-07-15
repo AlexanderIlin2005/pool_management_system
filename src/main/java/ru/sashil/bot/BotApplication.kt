@@ -9,6 +9,7 @@ import ru.sashil.bot.handlers.*
 import ru.sashil.common.service.DatabaseService
 import ru.sashil.common.util.CommandUtils
 import ru.sashil.common.util.ConfigLoader
+import java.sql.DriverManager
 import java.util.*
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -60,7 +61,12 @@ class BotApplication {
                         startNotificationScheduler(bot)
                     }
 
-                    // Запуск polling
+                    // Запускаем слушатель рассылок в отдельной корутине
+                    launch {
+                        startBroadcastListener(bot, dbUrl, ConfigLoader.get("DB_USER"), ConfigLoader.get("DB_PASSWORD"))
+                    }
+
+                    // Основной цикл обработки сообщений
                     bot.startLongPolling(groupId, null).collect { update ->
                         processUpdate(bot, update)
                     }
@@ -70,7 +76,9 @@ class BotApplication {
             }
         }
 
-        // ИСПРАВЛЕНИЕ: Делаем метод расширением для CoroutineScope, чтобы видеть isActive
+        /**
+         * Планировщик регулярных уведомлений
+         */
         private suspend fun CoroutineScope.startNotificationScheduler(bot: VkClient) {
             // Проверяем уведомления каждый час
             while (isActive) {
@@ -81,6 +89,115 @@ class BotApplication {
                 }
                 delay(60 * 60 * 1000) // 1 час
             }
+        }
+
+        /**
+         * Слушает таблицу broadcast_messages и отправляет сообщения
+         */
+        private suspend fun startBroadcastListener(bot: VkClient, dbUrl: String, dbUser: String, dbPass: String) {
+            while (true) {
+                try {
+                    checkAndSendBroadcasts(bot, dbUrl, dbUser, dbPass)
+                } catch (e: Exception) {
+                    LOGGER.severe("Ошибка в слушателе рассылок: ${e.message}")
+                }
+                delay(30000) // Проверяем каждые 30 секунд
+            }
+        }
+
+        // ИСПРАВЛЕНИЕ: Добавлен модификатор suspend
+        private suspend fun checkAndSendBroadcasts(bot: VkClient, dbUrl: String, dbUser: String, dbPass: String) {
+            // Используем прямой JDBC, так как DatabaseService может не иметь нужных методов
+            DriverManager.getConnection(dbUrl, dbUser, dbPass).use { conn ->
+                // 1. Находим все PENDING задачи
+                val selectSql = "SELECT id, target_type, target_group_id, message_text FROM pool.broadcast_messages WHERE status = 'PENDING'"
+                val stmt = conn.prepareStatement(selectSql)
+                val rs = stmt.executeQuery()
+
+                val tasks = mutableListOf<Map<String, Any>>()
+                while (rs.next()) {
+                    tasks.add(mapOf(
+                        "id" to rs.getLong("id"),
+                        "type" to rs.getString("target_type"),
+                        "groupId" to rs.getObject("target_group_id"),
+                        "text" to rs.getString("message_text")
+                    ))
+                }
+                rs.close()
+                stmt.close()
+
+                // 2. Обрабатываем каждую задачу
+                for (task in tasks) {
+                    val taskId = task["id"] as Long
+                    val type = task["type"] as String
+                    val groupId = task["groupId"] as? Long
+                    val text = task["text"] as String
+
+                    var sentCount = 0
+                    try {
+                        val recipients = getRecipients(conn, type, groupId)
+
+                        for (vkId in recipients) {
+                            try {
+                                // ИСПРАВЛЕНИЕ: randomId теперь Int, а не Long
+                                bot.messages.send(vkId) {
+                                    message = text
+                                    randomId = Random().nextInt(Int.MAX_VALUE)
+                                }
+                                sentCount++
+                                // ИСПРАВЛЕНИЕ: delay теперь работает, так как функция suspend
+                                delay(100) // Небольшая задержка, чтобы не спамить API слишком быстро
+                            } catch (e: Exception) {
+                                LOGGER.warning("Не удалось отправить сообщение пользователю $vkId: ${e.message}")
+                            }
+                        }
+
+                        // Обновляем статус задачи
+                        val updateSql = "UPDATE pool.broadcast_messages SET status = 'SENT', sent_count = ? WHERE id = ?"
+                        val updateStmt = conn.prepareStatement(updateSql)
+                        updateStmt.setInt(1, sentCount)
+                        updateStmt.setLong(2, taskId)
+                        updateStmt.executeUpdate()
+                        updateStmt.close()
+
+                        LOGGER.info("Рассылка #$taskId выполнена. Получателей: $sentCount")
+
+                    } catch (e: Exception) {
+                        LOGGER.severe("Ошибка при выполнении рассылки #$taskId: ${e.message}")
+                        // Помечаем как ошибку
+                        val errorSql = "UPDATE pool.broadcast_messages SET status = 'ERROR' WHERE id = ?"
+                        val errorStmt = conn.prepareStatement(errorSql)
+                        errorStmt.setLong(1, taskId)
+                        errorStmt.executeUpdate()
+                        errorStmt.close()
+                    }
+                }
+            }
+        }
+
+        /**
+         * Получает список VK ID родителей для рассылки
+         */
+        private fun getRecipients(conn: java.sql.Connection, type: String, groupId: Long?): List<Long> {
+            val ids = mutableListOf<Long>()
+            val sql = if (type == "ALL") {
+                "SELECT DISTINCT p.vk_id FROM pool.parents p WHERE p.vk_id IS NOT NULL"
+            } else {
+                "SELECT DISTINCT p.vk_id FROM pool.parents p JOIN pool.children c ON p.id = c.parent_id JOIN pool.group_children gc ON c.id = gc.child_id WHERE gc.group_id = ? AND p.vk_id IS NOT NULL"
+            }
+
+            val stmt = conn.prepareStatement(sql)
+            if (type != "ALL") {
+                stmt.setLong(1, groupId!!)
+            }
+
+            val rs = stmt.executeQuery()
+            while (rs.next()) {
+                ids.add(rs.getLong("vk_id"))
+            }
+            rs.close()
+            stmt.close()
+            return ids
         }
 
         private suspend fun processUpdate(bot: VkClient, update: GetUpdatesVkMethod.Result.Update) {
@@ -99,6 +216,7 @@ class BotApplication {
                 }
             } catch (e: Exception) {
                 LOGGER.log(Level.SEVERE, "Ошибка обработки сообщения от $userId: ${e.message}", e)
+                // ИСПРАВЛЕНИЕ: randomId теперь Int
                 bot.messages.send(userId) {
                     message = "Произошла внутренняя ошибка."
                     randomId = Random().nextInt(Int.MAX_VALUE)
@@ -224,6 +342,7 @@ class BotApplication {
         }
 
         private suspend fun sendText(bot: VkClient, userId: Long, text: String) {
+            // ИСПРАВЛЕНИЕ: randomId теперь Int
             bot.messages.send(userId) {
                 message = text
                 randomId = Random().nextInt(Int.MAX_VALUE)

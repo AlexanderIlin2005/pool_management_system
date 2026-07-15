@@ -97,6 +97,7 @@
   <!-- Расписание доступно Админу и Тренеру -->
   <div th:if="${role != null and (role.name() == 'ADMIN' or role.name() == 'COACH')}">
     <a href="/schedule" th:classappend="${activePage == 'schedule'} ? 'active'">Расписание</a>
+    <a href="/broadcast" th:classappend="${activePage == 'broadcast'} ? 'active'">Рассылка</a> <!-- НОВОЕ -->
   </div>
 
   <!-- АДМИНСКИЕ ВКЛАДКИ: Видны ТОЛЬКО ADMIN -->

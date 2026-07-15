@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Рассылка сообщений', ~{::content})}">
+<body>
+<div th:fragment="content">
+  <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto;">
+    <h1>Рассылка сообщений</h1>
+
+    <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+      Задача на рассылку успешно создана! Бот отправит сообщения в течение минуты.
+    </div>
+
+    <div th:if="${param.error}" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+      Ошибка: Тренеры не могут делать общую рассылку всем родителям. Выберите конкретную группу.
+    </div>
+
+    <form th:action="@{/broadcast/send}" method="post" style="margin-bottom: 30px;">
+      <div style="margin-bottom: 15px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Кому отправить:</label>
+        <select name="targetType" id="targetType" onchange="toggleGroupSelect()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+          <!-- Пункт 1: Скрываем опцию "Всем" для тренеров -->
+          <option th:unless="${isCoach}" value="ALL">Всем зарегистрированным родителям</option>
+          <option value="GROUP" selected>Родителям конкретной группы</option>
+        </select>
+      </div>
+
+      <div id="groupSelectBlock" style="display: block; margin-bottom: 15px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 5px;">
+          <!-- Пункт 2: Меняем текст лейбла для тренера -->
+          <span th:if="${isCoach}">Выберите одну из Ваших групп:</span>
+          <span th:unless="${isCoach}">Выберите группу:</span>
+        </label>
+        <select name="groupId" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+          <option th:each="g : ${groups}" th:value="${g.id}" th:text="${g.name}"></option>
+        </select>
+      </div>
+
+      <div style="margin-bottom: 15px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Текст сообщения:</label>
+        <textarea name="message" required rows="5" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;" placeholder="Введите текст сообщения..."></textarea>
+        <small style="color: #666;">
+          <span th:if="${role.name() == 'COACH'}">К сообщению автоматически добавится ваша подпись.</span>
+          <span th:if="${role.name() == 'ADMIN'}">К сообщению автоматически добавится подпись "Администрация бассейна".</span>
+        </small>
+      </div>
+
+      <button type="submit" class="btn">Отправить рассылку</button>
+    </form>
+
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
+
+    <h3>История рассылок</h3>
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+      <tr style="background: #f8f9fa; text-align: left;">
+        <th style="padding: 10px; border: 1px solid #ddd;">Дата</th>
+        <th style="padding: 10px; border: 1px solid #ddd;">Отправитель</th>
+        <th style="padding: 10px; border: 1px solid #ddd;">Статус</th>
+        <th style="padding: 10px; border: 1px solid #ddd;">Получателей</th>
+        <th style="padding: 10px; border: 1px solid #ddd;">Текст</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="h : ${history}">
+        <td style="padding: 10px; border: 1px solid #ddd;"
+            th:text="${#temporals.format(T(java.time.LocalDateTime).ofInstant(h.created_at.toInstant(), T(java.time.ZoneId).systemDefault()), 'dd.MM.yyyy HH:mm')}"></td>
+
+        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${h.sender_name}"></td>
+        <td style="padding: 10px; border: 1px solid #ddd;">
+          <span th:if="${h.status == 'SENT'}" style="color: green;">Отправлено</span>
+          <span th:if="${h.status == 'PENDING'}" style="color: orange;">В очереди</span>
+          <span th:if="${h.status == 'ERROR'}" style="color: red;">Ошибка</span>
+        </td>
+        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${h.sent_count}"></td>
+
+        <!-- Пункт 4: Обрезка текста и кнопка "Показать" -->
+        <td style="padding: 10px; border: 1px solid #ddd; max-width: 300px;">
+          <div th:id="'msg-preview-' + ${h.id}" th:text="${#strings.length(h.message_text) > 50 ? #strings.substring(h.message_text, 0, 50) + '...' : h.message_text}"
+               style="white-space: pre-wrap; word-break: break-word;"></div>
+
+          <div th:id="'msg-full-' + ${h.id}" th:text="${h.message_text}"
+               style="display: none; white-space: pre-wrap; word-break: break-word; background: #f9f9f9; padding: 5px; margin-top: 5px; border-radius: 4px;"></div>
+
+          <a href="javascript:void(0)" th:if="${#strings.length(h.message_text) > 50}"
+             th:onclick="'toggleMessage(' + ${h.id} + ')'"
+             style="font-size: 0.8em; color: #007bff; text-decoration: underline; cursor: pointer;">Показать полностью</a>
+        </td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(history)}">
+        <td colspan="5" style="padding: 10px; text-align: center; color: #999;">История пуста</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    function toggleGroupSelect() {
+        const type = document.getElementById('targetType').value;
+        const block = document.getElementById('groupSelectBlock');
+        // Если выбрано "Группа", показываем блок. Если "Всем" (для админа), скрываем.
+        block.style.display = (type === 'GROUP') ? 'block' : 'none';
+    }
+
+    // Пункт 4: Логика раскрытия текста
+    function toggleMessage(id) {
+        const preview = document.getElementById('msg-preview-' + id);
+        const full = document.getElementById('msg-full-' + id);
+
+        if (full.style.display === 'none') {
+            full.style.display = 'block';
+            preview.style.display = 'none';
+        } else {
+            full.style.display = 'none';
+            preview.style.display = 'block';
+        }
+    }
+
+    // Инициализация состояния селектора при загрузке
+    window.onload = function() {
+        toggleGroupSelect();
+    };
+  </script>
+</div>
+</body>
+</html>
