@@ -88,6 +88,47 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.css" rel="stylesheet">
   <!-- noUiSlider JS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+  <script th:inline="javascript">
+    /*<![CDATA[*/
+    var socket = new SockJS('/ws');
+    var stompClient = Stomp.over(socket);
+
+    // Отключаем лишние логи
+    stompClient.debug = null;
+
+    // Флаг, чтобы не перезагружаться сразу после своего же действия
+    var isJustSubmitted = false;
+
+    // Слушаем отправку форм на странице
+    document.addEventListener('submit', function() {
+        isJustSubmitted = true;
+        // Сбрасываем флаг через 3 секунды (время на редирект и загрузку новой страницы)
+        setTimeout(function() { isJustSubmitted = false; }, 3000);
+    });
+
+    stompClient.connect({}, function (frame) {
+        console.log('Connected: ' + frame);
+        stompClient.subscribe('/topic/updates', function (message) {
+            console.log('Received update: ' + message.body);
+
+            // Если мы только что что-то отправили, не перезагружаемся,
+            // так как редирект сам обновит данные.
+            // Это предотвращает конфликт редиректа и reload().
+            if (!isJustSubmitted) {
+                location.reload();
+            }
+        });
+    });
+
+    // Обработка ошибок соединения (чтобы не спамить в консоль)
+    socket.onerror = function() {};
+    /*]]>*/
+  </script>
+
 </head>
 <body>
 <div class="sidebar">

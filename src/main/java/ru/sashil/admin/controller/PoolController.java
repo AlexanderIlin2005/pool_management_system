@@ -7,6 +7,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.model.Pool;
+import ru.sashil.admin.service.WsNotificationService;
 import ru.sashil.admin.service.PoolService;
 import jakarta.servlet.http.HttpSession;
 import java.util.List;
@@ -21,6 +22,9 @@ public class PoolController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private WsNotificationService wsNotificationService;
 
     private boolean isAdmin(HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
@@ -82,6 +86,7 @@ public class PoolController {
         }
 
         poolService.savePool(pool);
+        wsNotificationService.sendUpdateNotification("POOL_SAVED");
         return "redirect:/pools";
     }
 
@@ -97,6 +102,7 @@ public class PoolController {
         }
 
         poolService.deletePool(id);
+        wsNotificationService.sendUpdateNotification("POOL_DELETED");
         return "redirect:/pools";
     }
 }

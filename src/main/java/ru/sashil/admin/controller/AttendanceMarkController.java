@@ -9,6 +9,7 @@ import ru.sashil.admin.model.*;
 import ru.sashil.admin.repository.GroupRepository;
 import ru.sashil.admin.service.AttendanceService;
 import ru.sashil.admin.service.LessonService;
+import ru.sashil.admin.service.WsNotificationService;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -19,6 +20,7 @@ public class AttendanceMarkController {
 
     @Autowired private AttendanceService attendanceService;
     @Autowired private LessonService lessonService;
+    @Autowired private WsNotificationService wsNotificationService;
 
     @GetMapping("/mark/{lessonId}")
     public String markPage(@PathVariable Long lessonId, Model model, HttpSession session) {
@@ -88,6 +90,7 @@ public class AttendanceMarkController {
         }
 
         attendanceService.saveAttendanceWithComments(lessonId, marks, comments, user);
+        wsNotificationService.sendUpdateNotification("ATTENDANCE_MARK_UPDATED");
         return "redirect:/attendance/mark/" + lessonId + "?success=true";
     }
 

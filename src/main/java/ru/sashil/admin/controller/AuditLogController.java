@@ -9,6 +9,8 @@ import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.service.AuditLogService;
 
 import jakarta.servlet.http.HttpSession;
+import ru.sashil.admin.service.WsNotificationService;
+
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +23,9 @@ public class AuditLogController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private WsNotificationService wsNotificationService;
 
     @GetMapping
     public String logsPage(Model model, HttpSession session,
@@ -53,6 +58,7 @@ public class AuditLogController {
         }
 
         auditLogService.clearLogs(user);
+        wsNotificationService.sendUpdateNotification("AUDIT_LOGS_CLEARED");
         return "redirect:/logs?cleared=true";
     }
 }

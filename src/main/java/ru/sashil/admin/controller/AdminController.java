@@ -14,11 +14,12 @@ import ru.sashil.admin.util.FileUtils;
 
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpServletResponse;
+import ru.sashil.admin.service.WsNotificationService;
+
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Controller
 public class AdminController {
@@ -46,6 +47,9 @@ public class AdminController {
 
     @Autowired
     private AuditLogService auditLogService;
+
+    @Autowired
+    private WsNotificationService wsNotificationService;
 
     // Проверка роли (вспомогательный метод)
     private boolean isAdmin(HttpSession session) {
@@ -197,6 +201,7 @@ public class AdminController {
         if (!isAdmin(session)) return "redirect:/parents";
         try {
             groupService.saveGroup(group);
+            wsNotificationService.sendUpdateNotification("GROUP_SAVED");
             return "redirect:/groups?success";
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
@@ -215,6 +220,7 @@ public class AdminController {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
         groupService.deleteGroup(id);
+        wsNotificationService.sendUpdateNotification("GROUP_DELETED");
         return "redirect:/groups";
     }
 
@@ -266,6 +272,7 @@ public class AdminController {
         }
 
         memberService.addChildToGroup(id, childId, user);
+        wsNotificationService.sendUpdateNotification("CHILD_ADDED_TO_GROUP");
         return "redirect:/groups/{id}/members";
     }
 
@@ -284,10 +291,11 @@ public class AdminController {
         }
 
         memberService.removeChildFromGroup(id, childId, user);
+        wsNotificationService.sendUpdateNotification("CHILD_REMOVED_FROM_GROUP");
         return "redirect:/groups/{id}/members";
     }
 
-    // ... (остальные методы usersPage, registerUserPage, processRegister, editUserPage, updatePasswordAndDownload, deleteUser, documentsPage, uploadDocument, activateDocument остаются без изменений, кроме addUser если там тоже были ID) ...
+
 
     @GetMapping("/users")
     public String usersPage(Model model, HttpSession session) {
@@ -327,6 +335,7 @@ public class AdminController {
             adminUserService.saveUser(newUser);
             auditLogService.log("USER_CREATED", currentUser,
                     "Создан пользователь: " + newUser.getFullName() + " (" + newUser.getLogin() + ", роль: " + newUser.getRole() + ")");
+            wsNotificationService.sendUpdateNotification("NEW_USER_HAS_REGISTERED");
         } catch (IllegalArgumentException e) {
             return "redirect:/users/register?error";
         }
@@ -371,6 +380,7 @@ public class AdminController {
             passwordChanged = true;
         }
         adminUserService.saveUser(targetUser);
+        wsNotificationService.sendUpdateNotification("USER_UPDATED");
         if (currentUser != null) {
             String details = "Обновлены данные пользователя ID=" + userId;
             if (!oldLogin.equals(newLogin)) details += ", логин изменен с '" + oldLogin + "' на '" + newLogin + "'";
@@ -412,6 +422,7 @@ public class AdminController {
         adminUserService.deleteUser(id);
         auditLogService.log("USER_DELETED", currentUser,
                 "Удален пользователь: " + deletedUserInfo);
+        wsNotificationService.sendUpdateNotification("USER_DELETED");
         return "redirect:/users";
     }
 
@@ -444,6 +455,7 @@ public class AdminController {
             e.printStackTrace();
             return "redirect:/documents?error";
         }
+        wsNotificationService.sendUpdateNotification("DOCUMENT_UPLOADED");
         return "redirect:/documents";
     }
 
@@ -455,6 +467,7 @@ public class AdminController {
             auditLogService.log("DOCUMENT_ACTIVATED", currentUser,
                     "Активирована версия документа ID=" + id);
         }
+        wsNotificationService.sendUpdateNotification("DOCUMENT_ACTIVATED");
         return "redirect:/documents";
     }
 }

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.repository.AdminUserRepository;
+import ru.sashil.admin.service.WsNotificationService;
 
 import jakarta.servlet.http.HttpSession;
 import java.util.Optional;
@@ -23,6 +24,9 @@ public class AuthController {
 
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
+
+    @Autowired
+    private WsNotificationService wsNotificationService;
 
     @GetMapping("/login")
     public String loginPage() {
@@ -81,6 +85,7 @@ public class AuthController {
         newUser.setRole(role);
 
         userRepository.save(newUser);
+        wsNotificationService.sendUpdateNotification("NEW_USER_SELF_REGISTERED");
 
         return "redirect:/login?registered";
     }

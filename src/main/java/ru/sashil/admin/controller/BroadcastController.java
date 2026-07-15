@@ -7,6 +7,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.service.BroadcastService;
+import ru.sashil.admin.service.WsNotificationService;
 
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,9 @@ public class BroadcastController {
 
     @Autowired
     private BroadcastService broadcastService;
+
+    @Autowired
+    private WsNotificationService wsNotificationService;
 
     @GetMapping
     public String showBroadcastPage(Model model, HttpSession session) {
@@ -59,6 +63,7 @@ public class BroadcastController {
         }
 
         broadcastService.createBroadcast(user, targetType, groupId, message);
+        wsNotificationService.sendUpdateNotification("BROADCAST_SENDED");
         return "redirect:/broadcast?success=true";
     }
 }

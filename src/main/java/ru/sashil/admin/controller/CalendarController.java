@@ -7,6 +7,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.service.CalendarService;
+import ru.sashil.admin.service.WsNotificationService;
 
 import java.time.LocalDate;
 
@@ -16,6 +17,9 @@ public class CalendarController {
 
     @Autowired
     private CalendarService calendarService;
+
+    @Autowired
+    private WsNotificationService wsNotificationService;
 
     @GetMapping
     public String showCalendar(Model model, HttpSession session) {
@@ -36,24 +40,28 @@ public class CalendarController {
     @PostMapping("/add-holiday")
     public String addHoliday(@RequestParam LocalDate date, @RequestParam String name) {
         calendarService.addHoliday(date, name);
+        wsNotificationService.sendUpdateNotification("HOLIDAY_ADDED");
         return "redirect:/calendar";
     }
 
     @PostMapping("/delete-holiday/{id}")
     public String deleteHoliday(@PathVariable Long id) {
         calendarService.deleteHoliday(id);
+        wsNotificationService.sendUpdateNotification("HOLIDAY_DELETED");
         return "redirect:/calendar";
     }
 
     @PostMapping("/add-vacation")
     public String addVacation(@RequestParam LocalDate startDate, @RequestParam LocalDate endDate, @RequestParam String name) {
         calendarService.addVacation(startDate, endDate, name);
+        wsNotificationService.sendUpdateNotification("VACATION_ADDED");
         return "redirect:/calendar";
     }
 
     @PostMapping("/delete-vacation/{id}")
     public String deleteVacation(@PathVariable Long id) {
         calendarService.deleteVacation(id);
+        wsNotificationService.sendUpdateNotification("VACATION_DELETED");
         return "redirect:/calendar";
     }
 }
