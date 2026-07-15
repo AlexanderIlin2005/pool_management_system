@@ -138,7 +138,22 @@ CREATE TABLE IF NOT EXISTS pool.school_vacations (
     CONSTRAINT check_dates CHECK (end_date >= start_date)
 );
 
+-- Таблица для отслеживания отправленных уведомлений
+CREATE TABLE IF NOT EXISTS pool.notification_log (
+    id BIGSERIAL PRIMARY KEY,
+    parent_id BIGINT REFERENCES pool.parents(id) ON DELETE CASCADE,
+    child_id BIGINT REFERENCES pool.children(id) ON DELETE CASCADE,
+    notification_type VARCHAR(50) NOT NULL, -- 'TOMORROW', 'TODAY', 'CANCELLED', 'TIME_CHANGED'
+    lesson_date DATE NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(parent_id, child_id, notification_type, lesson_date)
+);
 
+-- Добавляем флаг отключения регулярных уведомлений в таблицу родителей
+ALTER TABLE pool.parents ADD COLUMN IF NOT EXISTS notify_regular BOOLEAN DEFAULT TRUE;
+
+-- Индекс для быстрого поиска
+CREATE INDEX IF NOT EXISTS idx_notification_log_parent_date ON pool.notification_log(parent_id, lesson_date);
 
 -- Индексы для быстрого поиска
 CREATE INDEX IF NOT EXISTS idx_parents_vk_id ON pool.parents(vk_id);

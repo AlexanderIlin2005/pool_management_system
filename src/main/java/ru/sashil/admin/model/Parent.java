@@ -33,4 +33,7 @@ public class Parent {
 
     @OneToMany(mappedBy = "parent")
     private List<Child> children;
+
+    @Column(name = "notify_regular", nullable = false)
+    private Boolean notifyRegular = true;
 }

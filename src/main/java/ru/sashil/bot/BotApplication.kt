@@ -4,7 +4,7 @@ import io.github.blackbaroness.vk.VkClient
 import io.github.blackbaroness.vk.model.method.GetUpdatesVkMethod
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import ru.sashil.bot.handlers.*
 import ru.sashil.common.service.DatabaseService
 import ru.sashil.common.util.CommandUtils
@@ -21,6 +21,7 @@ class BotApplication {
         private lateinit var editHandler: ProfileEditHandler
         private lateinit var childHandler: ChildRegistrationHandler
         private lateinit var childEditHandler: ChildEditHandler
+        private lateinit var notificationService: NotificationService
 
         @JvmStatic
         fun main(args: Array<String>) {
@@ -38,22 +39,28 @@ class BotApplication {
                 val vkToken = ConfigLoader.get("VK_BOT_TOKEN")
                 val groupId = 239874040L
 
-                // Инициализация VkClient строго по документации
                 val bot = VkClient(
                     token = vkToken,
                     httpClient = HttpClient(CIO)
                 )
 
+                // Инициализация сервиса уведомлений
+                notificationService = NotificationService(dbService, bot)
+
                 LOGGER.info("Бот запущен!")
 
                 runBlocking {
-                    // Настройка LongPoll settings
                     bot.groups.setLongPollSettings(groupId) {
                         enabled = true
                         messageNew = true
                     }
 
-                    // Запуск polling через startLongPolling
+                    // Запускаем планировщик уведомлений в отдельной корутине
+                    launch {
+                        startNotificationScheduler(bot)
+                    }
+
+                    // Запуск polling
                     bot.startLongPolling(groupId, null).collect { update ->
                         processUpdate(bot, update)
                     }
@@ -63,11 +70,22 @@ class BotApplication {
             }
         }
 
+        // ИСПРАВЛЕНИЕ: Делаем метод расширением для CoroutineScope, чтобы видеть isActive
+        private suspend fun CoroutineScope.startNotificationScheduler(bot: VkClient) {
+            // Проверяем уведомления каждый час
+            while (isActive) {
+                try {
+                    notificationService.checkAndSendNotifications()
+                } catch (e: Exception) {
+                    LOGGER.severe("Ошибка в планировщике уведомлений: ${e.message}")
+                }
+                delay(60 * 60 * 1000) // 1 час
+            }
+        }
+
         private suspend fun processUpdate(bot: VkClient, update: GetUpdatesVkMethod.Result.Update) {
-            // Правильное получение сообщения через asMessageNew
             val msgNew = update.asMessageNew ?: return
             val msg = msgNew.message
-
             val userId = msg.fromId
             val text = msg.text
 
@@ -173,11 +191,24 @@ class BotApplication {
                         }
                     }
                 }
-                // Команды документов временно отключены для проверки текста
-                "договор" -> sendText(bot, userId, "Отправка документов временно отключена.")
-                "согласие" -> sendText(bot, userId, "Отправка документов временно отключена.")
-                "правила" -> sendText(bot, userId, "Отправка документов временно отключена.")
-                "квитанция" -> sendText(bot, userId, "Отправка документов временно отключена.")
+                "уведомления" -> {
+                    if (!dbService.isParentRegistered(userId)) {
+                        sendText(bot, userId, "Сначала зарегистрируйтесь.")
+                    } else {
+                        val isEnabled = dbService.isRegularNotificationsEnabled(userId)
+                        val status = if (isEnabled) "включены" else "выключены"
+                        sendText(bot, userId, "Регулярные напоминания о занятиях сейчас $status.\nНапишите 'включить уведомления' или 'выключить уведомления', чтобы изменить.")
+                    }
+                }
+                "включитьуведомления" -> {
+                    dbService.toggleRegularNotifications(userId, true)
+                    sendText(bot, userId, "Регулярные напоминания включены.")
+                }
+                "выключитьуведомления" -> {
+                    dbService.toggleRegularNotifications(userId, false)
+                    sendText(bot, userId, "Регулярные напоминания выключены. Вы все равно будете получать уведомления об отменах занятий.")
+                }
+                "договор", "согласие", "правила", "квитанция" -> sendText(bot, userId, "Отправка документов временно отключена.")
                 else -> {
                     if (text.matches("\\d+".toRegex())) {
                         val num = text.toInt()
