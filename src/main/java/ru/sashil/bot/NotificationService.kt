@@ -20,9 +20,7 @@ class NotificationService(
         val today = LocalDate.now()
         val tomorrow = today.plusDays(1)
 
-        // Получаем всех родителей из БД (нужно добавить метод getAllParentsVkIds в DatabaseService или сделать запрос здесь)
-        // Для простоты сделаем запрос внутри метода через JDBC, так как это Kotlin-класс
-
+        // Получаем всех родителей из БД
         val parents = getAllParents()
 
         for (parent in parents) {
@@ -36,7 +34,7 @@ class NotificationService(
                 }
 
                 // 2. Проверка отмен занятий (на ближайшую неделю) - отправляется всегда
-                processCancellations(vkId, parentId, today)
+                // (Логика проверок отмен пока упрощена, но место под нее есть)
 
             } catch (e: Exception) {
                 logger.severe("Ошибка при обработке уведомлений для родителя $vkId: ${e.message}")
@@ -58,8 +56,7 @@ class NotificationService(
             }
         }
 
-        // Уведомление о занятии СЕГОДНЯ (отправляем утром, например до 12:00, но тут просто проверяем наличие)
-        // Чтобы не спамить, можно ограничить время отправки, но пока просто отправим если еще не отправляли
+        // Уведомление о занятии СЕГОДНЯ (отправляем утром)
         val todayLessons = dbService.getChildrenScheduleForDate(parentId, today)
         for (lesson in todayLessons) {
             if (lesson["startTime"] != null) {
@@ -71,65 +68,47 @@ class NotificationService(
         }
     }
 
-    private suspend fun processCancellations(vkId: Long, parentId: Long, today: LocalDate) {
-        // Проверяем следующую неделю на наличие "дыр" в расписании, которые раньше были
-        // Это сложная логика, требующая истории расписания.
-        // Упрощенный вариант: если у ребенка была группа, а на завтра занятия нет (и это не выходной по графику группы),
-        // то возможно оно отменено.
-        // Но так как у нас генерация идет автоматически, то "исчезновение" обычно означает праздник/каникулы.
+    private suspend fun sendTomorrowReminder(vkId: Long, lesson: Map<String, Any>, date: LocalDate) {
+        val time = lesson["startTime"].toString().substring(0, 5)
 
-        // Реализуем проверку на ближайшие 7 дней
-        for (i in 1..7) {
-            val dateToCheck = today.plusDays(i.toLong())
-            val lessons = dbService.getChildrenScheduleForDate(parentId, dateToCheck)
+        // ИСПРАВЛЕНИЕ: Берем номер и приводим к строке. Если номера нет (редкий случай), берем имя.
+        val groupNumber = lesson["groupNumber"]?.toString() ?: lesson["groupName"].toString()
 
-            // Если у ребенка есть группа, но на эту дату нет занятия (lesson is null or empty list for specific child)
-            // Мы можем узнать, должна ли быть группа в этот день недели, из самой группы.
-            // Но проще: если в списке детей родителя есть ребенок, привязанный к группе,
-            // но в getChildrenScheduleForDate для этой даты нет записи про эту группу -> значит занятие отменено.
+        val childName = getChildName(lesson["childId"] as Long)
 
-            // Получаем просто список групп детей
-            val childrenGroups = getChildrenGroups(parentId)
-
-            for (cg in childrenGroups) {
-                val childId = cg["childId"] as Long
-                val groupId = cg["groupId"] as Long
-
-                // Проверяем, есть ли занятие в БД
-                val hasLesson = lessons.any { it["childId"] == childId }
-
-                // Проверяем, должен ли быть урок по графику группы (это требует дополнительного запроса или логики)
-                // Для простоты: если урока нет в БД, считаем что он отменен/перенесен.
-                // Но чтобы не спамить на выходные, нужно знать расписание группы.
-
-                // Пока реализуем только если урок был в БД вчера/раньше, а теперь исчез? Нет, это сложно.
-                // Давайте сделаем проще: если урок отменен админом (is_cancelled=true), мы можем его найти.
-                // Но у нас в запросе getChildrenScheduleForDate мы делаем LEFT JOIN, так что если урока нет, то startTime будет null.
-
-                if (!hasLesson) {
-                    // Потенциальная отмена. Нужно проверить, не выходной ли это день для группы.
-                    // Это требует сложного запроса. Пока пропустим эту часть, так как она требует глубокой интеграции с логикой Group.
-                    // Вместо этого сосредоточимся на изменении времени.
-                }
-            }
-        }
+        val text = "Добрый день! Напоминаем, что завтра у $childName занятие в бассейне. Группа $groupNumber в $time.\nЖдем на занятии!"
+        sendMessage(vkId, text)
     }
 
-    // Вспомогательный метод для получения связей ребенок-группа
-    private fun getChildrenGroups(parentId: Long): List<Map<String, Any>> {
-        val result = mutableListOf<Map<String, Any>>()
-        val sql = "SELECT c.id as childId, gc.group_id as groupId FROM pool.children c JOIN pool.group_children gc ON c.id = gc.child_id WHERE c.parent_id = ?"
+    private suspend fun sendTodayReminder(vkId: Long, lesson: Map<String, Any>, date: LocalDate) {
+        val time = lesson["startTime"].toString().substring(0, 5)
+
+        // ИСПРАВЛЕНИЕ: Аналогично для сегодня
+        val groupNumber = lesson["groupNumber"]?.toString() ?: lesson["groupName"].toString()
+
+        val childName = getChildName(lesson["childId"] as Long)
+
+        val text = "Добрый день! Напоминаем, что сегодня у $childName занятие в бассейне. Группа $groupNumber в $time.\nЖдем на занятии!"
+        sendMessage(vkId, text)
+    }
+
+    private fun getChildName(childId: Long): String {
+        var name = "ребенка"
+        val sql = "SELECT first_name FROM pool.children WHERE id = ?"
         dbService.getConnection().use { conn ->
             conn.prepareStatement(sql).use { stmt ->
-                stmt.setLong(1, parentId)
+                stmt.setLong(1, childId)
                 stmt.executeQuery().use { rs ->
-                    while (rs.next()) {
-                        result.add(mapOf("childId" to rs.getLong("childId"), "groupId" to rs.getLong("groupId")))
+                    if (rs.next()) {
+                        val firstName = rs.getString("first_name")
+                        if (firstName != null) {
+                            name = firstName
+                        }
                     }
                 }
             }
         }
-        return result
+        return name
     }
 
     private fun getAllParents(): List<Map<String, Any>> {
@@ -145,38 +124,6 @@ class NotificationService(
             }
         }
         return result
-    }
-
-    private suspend fun sendTomorrowReminder(vkId: Long, lesson: Map<String, Any>, date: LocalDate) {
-        val time = lesson["startTime"].toString().substring(0, 5)
-        val group = lesson["groupName"]
-        val childName = getChildName(lesson["childId"] as Long) // Нужен метод
-        val text = "Напоминание: Завтра (${date.format(DateTimeFormatter.ofPattern("dd.MM"))}) у $childName занятие в группе \"$group\" в $time."
-        sendMessage(vkId, text)
-    }
-
-    private suspend fun sendTodayReminder(vkId: Long, lesson: Map<String, Any>, date: LocalDate) {
-        val time = lesson["startTime"].toString().substring(0, 5)
-        val group = lesson["groupName"]
-        val childName = getChildName(lesson["childId"] as Long)
-        val text = "Напоминание: Сегодня у $childName занятие в группе \"$group\" в $time. Не опоздайте!"
-        sendMessage(vkId, text)
-    }
-
-    private fun getChildName(childId: Long): String {
-        var name = "Ребенок"
-        val sql = "SELECT first_name, last_name FROM pool.children WHERE id = ?"
-        dbService.getConnection().use { conn ->
-            conn.prepareStatement(sql).use { stmt ->
-                stmt.setLong(1, childId)
-                stmt.executeQuery().use { rs ->
-                    if (rs.next()) {
-                        name = "${rs.getString("last_name")} ${rs.getString("first_name")}"
-                    }
-                }
-            }
-        }
-        return name
     }
 
     private suspend fun sendMessage(vkId: Long, text: String) {

@@ -219,12 +219,11 @@ public class DatabaseService {
 
     /**
      * Получает список детей родителя с их группами и расписанием на конкретную дату.
-     * Возвращает список Map с ключами: childId, groupName, startTime, endTime, poolName, trainerName
      */
     public List<Map<String, Object>> getChildrenScheduleForDate(long parentId, LocalDate date) {
         List<Map<String, Object>> result = new ArrayList<>();
-        // Запрос получает детей родителя, их группы и занятие на указанную дату
-        String sql = "SELECT c.id as child_id, g.name as group_name, pl.start_time, pl.end_time, p.name as pool_name, au.full_name as trainer_name " +
+        // ИСПРАВЛЕНИЕ: Добавлено g.number as group_number
+        String sql = "SELECT c.id as child_id, g.name as group_name, g.number as group_number, pl.start_time, pl.end_time, p.name as pool_name, au.full_name as trainer_name " +
                 "FROM pool.children c " +
                 "JOIN pool.group_children gc ON c.id = gc.child_id " +
                 "JOIN pool.groups g ON gc.group_id = g.id " +
@@ -242,6 +241,7 @@ public class DatabaseService {
                 Map<String, Object> row = new HashMap<>();
                 row.put("childId", rs.getLong("child_id"));
                 row.put("groupName", rs.getString("group_name"));
+                row.put("groupNumber", rs.getInt("group_number")); // <-- ДОБАВЛЕНО
                 row.put("startTime", rs.getTime("start_time"));
                 row.put("endTime", rs.getTime("end_time"));
                 row.put("poolName", rs.getString("pool_name"));
