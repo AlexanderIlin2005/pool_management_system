@@ -22,29 +22,45 @@ public class BroadcastService {
     public void createBroadcast(AdminUser sender, String targetType, Long groupId, String text) {
         String sql = "INSERT INTO pool.broadcast_messages (sender_id, target_type, target_group_id, message_text, created_at, status) VALUES (?, ?, ?, ?, ?, 'PENDING')";
 
+        // Формируем подпись, если отправитель - тренер
         String finalText = text;
-
-        // Добавляем подпись в зависимости от роли
-        if (sender.getRole() == AdminUser.Role.COACH) {
+        if (sender.getRole() == ru.sashil.admin.model.AdminUser.Role.COACH) {
             String initials = NameUtils.toInitials(sender.getFullName());
             finalText += "\n\nС уважением, тренер " + initials;
-        } else if (sender.getRole() == AdminUser.Role.ADMIN) {
+        } else if (sender.getRole() == ru.sashil.admin.model.AdminUser.Role.ADMIN) {
             finalText += "\n\nС уважением, Администрация бассейна";
         }
 
-        // Добавляем информацию о получателях для ясности (опционально, но полезно)
+        // Добавляем информацию о получателях
         String recipientInfo = "";
         if ("ALL".equals(targetType)) {
             recipientInfo = "\n[Рассылка всем родителям]";
         } else if (groupId != null) {
-            // Можно было бы достать имя группы, но пока оставим просто пометку
-            recipientInfo = "\n[Рассылка группе №" + groupId + "]";
+            // ИСПРАВЛЕНИЕ: Достаем номер группы вместо ID
+            Integer groupNumber = getGroupNumberById(groupId);
+            if (groupNumber != null) {
+                recipientInfo = "\n[Рассылка группе №" + groupNumber + "]";
+            } else {
+                recipientInfo = "\n[Рассылка группе ID=" + groupId + "]"; // Fallback на случай ошибки
+            }
         }
 
-        // Вставляем инфо о получателях перед подписью, чтобы не ломать структуру
+        // Вставляем инфо о получателях перед подписью
         finalText = text + recipientInfo + (finalText.equals(text) ? "" : finalText.substring(text.length()));
 
         jdbcTemplate.update(sql, sender.getId(), targetType, groupId, finalText, LocalDateTime.now());
+    }
+
+    /**
+     * Вспомогательный метод для получения номера группы по ID.
+     */
+    private Integer getGroupNumberById(Long groupId) {
+        try {
+            String sql = "SELECT number FROM pool.groups WHERE id = ?";
+            return jdbcTemplate.queryForObject(sql, Integer.class, groupId);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
