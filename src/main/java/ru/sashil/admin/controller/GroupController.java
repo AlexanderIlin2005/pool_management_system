@@ -219,4 +219,79 @@ public class GroupController {
         wsNotificationService.sendUpdateNotification("CHILD_REMOVED_FROM_GROUP");
         return "redirect:/groups/{id}/members";
     }
+
+
+    @GetMapping("/transfer")
+    public String transferPage(Model model, HttpSession session,
+                               @RequestParam(required = false) Long group1Id,
+                               @RequestParam(required = false) Long group2Id) {
+        if (!isAdmin(session)) return "redirect:/parents";
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+
+        model.addAttribute("fullName", user.getFullName());
+        model.addAttribute("role", user.getRole());
+        model.addAttribute("activePage", "groups");
+
+        // Получаем все группы для выбора в выпадающих списках
+        List<Group> allGroups = groupService.getAllGroups();
+        model.addAttribute("allGroups", allGroups);
+
+        // Если группы выбраны, загружаем их участников
+        if (group1Id != null) {
+            Optional<Group> g1 = groupService.getGroupById(group1Id);
+            if (g1.isPresent()) {
+                model.addAttribute("group1", g1.get());
+                model.addAttribute("members1", memberService.getGroupMembers(group1Id));
+            }
+        }
+
+        if (group2Id != null) {
+            Optional<Group> g2 = groupService.getGroupById(group2Id);
+            if (g2.isPresent()) {
+                model.addAttribute("group2", g2.get());
+                model.addAttribute("members2", memberService.getGroupMembers(group2Id));
+            }
+        }
+
+        return "group-transfer";
+    }
+
+    @PostMapping("/transfer/save")
+    public String saveTransfer(@RequestParam Long group1Id,
+                               @RequestParam Long group2Id,
+                               @RequestParam(required = false) List<Long> toGroup2, // ID детей, которых перемещаем из 1 во 2
+                               @RequestParam(required = false) List<Long> toGroup1, // ID детей, которых перемещаем из 2 в 1
+                               HttpSession session) {
+        if (!isAdmin(session)) return "redirect:/parents";
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+
+        // Перемещение из Группы 1 в Группу 2
+        if (toGroup2 != null) {
+            for (Long childId : toGroup2) {
+                // Сначала удаляем из старой группы
+                memberService.removeChildFromGroup(group1Id, childId, user);
+                // Добавляем в новую (с новой датой created_at, так как это изменение)
+                memberService.addChildToGroup(group2Id, childId, user);
+
+                auditLogService.log("CHILD_TRANSFERRED", user,
+                        "Ребенок ID=" + childId + " перемещен из группы ID=" + group1Id + " в группу ID=" + group2Id);
+            }
+        }
+
+        // Перемещение из Группы 2 в Группу 1
+        if (toGroup1 != null) {
+            for (Long childId : toGroup1) {
+                memberService.removeChildFromGroup(group2Id, childId, user);
+                memberService.addChildToGroup(group1Id, childId, user);
+
+                auditLogService.log("CHILD_TRANSFERRED", user,
+                        "Ребенок ID=" + childId + " перемещен из группы ID=" + group2Id + " в группу ID=" + group1Id);
+            }
+        }
+
+        wsNotificationService.sendUpdateNotification("GROUP_MEMBERS_TRANSFERRED");
+        return "redirect:/groups/transfer?group1Id=" + group1Id + "&group2Id=" + group2Id + "&success=true";
+    }
+
+
 }

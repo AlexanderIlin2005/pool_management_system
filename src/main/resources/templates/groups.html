@@ -4,8 +4,10 @@
 <div th:fragment="content">
     <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1400px; margin: 0 auto;">
         <div class="header">
-            <h1>Управление группами</h1>
-            <a href="/groups/new" class="btn">+ Создать группу</a>
+            <div style="display: flex; gap: 10px;">
+                <a href="/groups/transfer" class="btn" style="background-color: #17a2b8;">↔ Переместить участников</a>
+                <a href="/groups/new" class="btn">+ Создать группу</a>
+            </div>
         </div>
 
         <!-- Форма поиска -->
