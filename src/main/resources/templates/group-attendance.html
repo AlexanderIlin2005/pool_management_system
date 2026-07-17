@@ -50,19 +50,25 @@
             th:text="${row['fullName']}"></td>
 
         <!-- Выводим статусы по ИНДЕКСУ дня -->
-        <!-- Выводим статусы по ИНДЕКСУ дня -->
         <td th:each="day, dayStat : ${days}"
             style="padding: 5px; border: 1px solid #ddd; text-align: center; color: #555;">
 
-          <!-- ПРОСТОЙ ВЫВОД БЕЗ УСЛОВИЙ -->
-          <span th:text="${row['statusSymbols'].get(dayStat.index)}">TEST</span>
+          <!-- Получаем символ по индексу и сразу выводим со стилем -->
+          <span th:with="statusSymbol=${row['statusSymbols'].get(dayStat.index)}"
+                th:text="${statusSymbol}"
+                th:title="${statusSymbol == 'П' ? 'Присутствует' : (statusSymbol == 'О' ? 'Отсутствует' : (statusSymbol == 'Б' ? 'Болеет' : (statusSymbol == 'У' ? 'Уважительная причина' : '')))}"
+                th:style="${statusSymbol == 'П'} ? 'color: green; font-weight: bold;' :
+                           (${statusSymbol == 'О'} ? 'color: red;' :
+                           (${statusSymbol == 'Б'} ? 'color: orange;' :
+                           (${statusSymbol == 'У'} ? 'color: blue;' : 'color: transparent;')))">
+            </span>
 
         </td>
-</tr>
-<tr th:if="${#lists.isEmpty(tableRows)}">
-  <td colspan="100%" style="padding: 20px; text-align: center; color: #999;">В группе нет участников</td>
-</tr>
-</tbody>
+      </tr>
+      <tr th:if="${#lists.isEmpty(tableRows)}">
+        <td colspan="100%" style="padding: 20px; text-align: center; color: #999;">В группе нет участников</td>
+      </tr>
+      </tbody>
 
 </table>
 
