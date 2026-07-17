@@ -5,8 +5,10 @@
     <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1400px; margin: 0 auto;">
         <div class="header">
             <div style="display: flex; gap: 10px;">
-                <a href="/groups/transfer" class="btn" style="background-color: #17a2b8;">↔ Переместить участников</a>
-                <a href="/groups/new" class="btn">+ Создать группу</a>
+                <!-- Кнопка перемещения только для админа -->
+                <a th:if="${role.name() == 'ADMIN'}" href="/groups/transfer" class="btn" style="background-color: #17a2b8;">↔ Переместить участников</a>
+                <!-- Создание группы только для админа -->
+                <a th:if="${role.name() == 'ADMIN'}" href="/groups/new" class="btn">+ Создать группу</a>
             </div>
         </div>
 
@@ -23,7 +25,8 @@
                 <th style="padding: 12px; border: 1px solid #ddd;">№</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Название</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Бассейн</th>
-                <th style="padding: 12px; border: 1px solid #ddd;">Тренер</th>
+                <!-- Скрываем колонку Тренер для самого тренера -->
+                <th th:if="${role.name() == 'ADMIN'}" style="padding: 12px; border: 1px solid #ddd;">Тренер</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Расписание</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Количество участников</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Действия</th>
@@ -33,10 +36,15 @@
             <tr th:each="g : ${groups}" style="border-bottom: 1px solid #eee;">
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.number}"></td>
                 <td style="padding: 12px; border: 1px solid #ddd;">
-                    <a th:href="@{/groups/edit/{id}(id=${g.id})}" style="color: #007bff; text-decoration: none; font-weight: bold;" th:text="${g.name}"></a>
+                    <!-- Ссылка на редактирование только для админа -->
+                    <a th:if="${role.name() == 'ADMIN'}" th:href="@{/groups/edit/{id}(id=${g.id})}" style="color: #007bff; text-decoration: none; font-weight: bold;" th:text="${g.name}"></a>
+                    <span th:unless="${role.name() == 'ADMIN'}" th:text="${g.name}" style="font-weight: bold;"></span>
                 </td>
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.pool != null ? g.pool.name : '-'}"></td>
-                <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.trainer != null ? g.trainer.fullName : '-'}"></td>
+
+                <!-- Ячейка тренера только для админа -->
+                <td th:if="${role.name() == 'ADMIN'}" style="padding: 12px; border: 1px solid #ddd;" th:text="${g.trainer != null ? g.trainer.fullName : '-'}"></td>
+
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <span th:if="${g.day1Start != null}" th:text="'Пн ' + ${g.day1Start} + '-' + ${g.day1End}"></span><br>
                     <span th:if="${g.day2Start != null}" th:text="'Вт ' + ${g.day2Start} + '-' + ${g.day2End}"></span><br>
@@ -47,31 +55,26 @@
                     <span th:if="${g.day7Start != null}" th:text="'Вс ' + ${g.day7Start} + '-' + ${g.day7End}"></span>
                 </td>
 
-
-
-
-                <!-- НОВАЯ ЯЧЕЙКА С ИНДИКАТОРОМ -->
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <div th:with="count=${memberCounts[g.id]}, cap=${g.capacity}, percent=${cap != null and cap > 0 ? (count * 100 / cap) : 0}">
                         <span th:text="${count} + ' / ' + ${cap}"></span>
-
-                        <!-- Цвет текста в зависимости от процента -->
                         <span th:if="${percent < 90}" style="color: #28a745; font-weight: bold; margin-left: 5px;">●</span>
                         <span th:if="${percent >= 90 and percent <= 100}" style="color: #fd7e14; font-weight: bold; margin-left: 5px;">●</span>
                         <span th:if="${percent > 100 and percent <= 125}" style="color: #dc3545; font-weight: bold; margin-left: 5px;">●</span>
                         <span th:if="${percent > 125}" style="color: #721c24; font-weight: bold; margin-left: 5px;">●</span>
-
-                        <!-- Подсказка -->
                         <small th:if="${percent > 100}" style="display: block; color: #dc3545; font-size: 0.8em;">Переполнена!</small>
                     </div>
                 </td>
 
                 <td style="padding: 12px; border: 1px solid #ddd; display: flex; gap: 5px;">
-                    <!-- Кнопка Участники -->
-                    <a th:href="@{/groups/{id}/members(id=${g.id})}" class="btn" style="padding: 5px 10px; font-size: 0.8em; background-color: #28a745;">Участники</a>
+                    <!-- Кнопка Участники только для админа -->
+                    <a th:if="${role.name() == 'ADMIN'}" th:href="@{/groups/{id}/members(id=${g.id})}" class="btn" style="padding: 5px 10px; font-size: 0.8em; background-color: #28a745;">Участники</a>
 
-                    <!-- Кнопка Удалить -->
-                    <form th:action="@{/groups/delete/{id}(id=${g.id})}" method="post" class="delete-group-form">
+                    <!-- Кнопка Посещаемость для всех -->
+                    <a th:href="@{/groups/{id}/attendance(id=${g.id})}" class="btn" style="padding: 5px 10px; font-size: 0.8em; background-color: #17a2b8;">Посещаемость</a>
+
+                    <!-- Кнопка Удалить только для админа -->
+                    <form th:if="${role.name() == 'ADMIN'}" th:action="@{/groups/delete/{id}(id=${g.id})}" method="post" class="delete-group-form">
                         <input type="hidden" name="groupName" th:value="${g.name}">
                         <button type="submit" class="btn btn-danger" style="padding: 5px 10px; font-size: 0.8em;">Удалить</button>
                     </form>
@@ -83,8 +86,7 @@
             </tbody>
         </table>
     </div>
-
-    <!-- Подключаем скрипт подтверждения удаления ГРУППЫ -->
     <script src="/js/confirm-delete-group.js"></script>
 </div>
 </body>
+</html>

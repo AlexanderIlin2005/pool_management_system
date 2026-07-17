@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS pool.attendance (
     comment TEXT,
     UNIQUE(lesson_id, child_id)
 );
-
+sele
 -- Государственные праздники РФ
 CREATE TABLE IF NOT EXISTS pool.holidays (
     id BIGSERIAL PRIMARY KEY,

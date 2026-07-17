@@ -4,9 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.sashil.admin.model.*;
-import ru.sashil.admin.repository.GroupRepository;
-import ru.sashil.admin.repository.PoolLessonRepository;
-import ru.sashil.admin.repository.PoolRepository;
+import ru.sashil.admin.repository.*;
 import ru.sashil.common.util.NameUtils;
 
 import java.time.DayOfWeek;
@@ -23,6 +21,8 @@ public class ScheduleService {
     @Autowired private GroupRepository groupRepository;
     @Autowired private PoolRepository poolRepository;
     @Autowired private PoolLessonRepository poolLessonRepository;
+    @Autowired private AttendanceRepository attendanceRepository;
+    @Autowired private ChildRepository childRepository;
 
     private static final LocalTime DAY_START = LocalTime.of(9, 0);
     private static final LocalTime DAY_END = LocalTime.of(23, 0);
@@ -228,4 +228,52 @@ public class ScheduleService {
             case 7: return g.getDay7End(); default: return null;
         }
     }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getMonthlyAttendance(Group group, int year, int month) {
+        LocalDate startDate = LocalDate.of(year, month, 1);
+        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+
+        // 1. Получаем всех детей группы
+        List<ChildSimple> children = childRepository.findSimpleByGroupId(group.getId()); // Используем существующий метод из ChildRepository
+
+        // 2. Получаем все занятия группы за этот месяц
+        List<PoolLesson> lessons = poolLessonRepository.findByGroupIdAndLessonDateBetweenOrderByStartTime(
+                group.getId(), startDate, endDate);
+
+        // 3. Получаем все отметки посещаемости за эти занятия
+        List<Long> lessonIds = lessons.stream().map(PoolLesson::getId).collect(Collectors.toList());
+        List<Attendance> attendances = new ArrayList<>();
+        if (!lessonIds.isEmpty()) {
+            attendances = attendanceRepository.findByLessonIdIn(lessonIds);
+        }
+
+        // 4. Формируем карту: ChildId -> (Date -> Status)
+        Map<Long, Map<LocalDate, Attendance.Status>> attendanceMap = new HashMap<>();
+        for (Attendance a : attendances) {
+            Long childId = a.getChild().getId();
+            LocalDate date = a.getLesson().getLessonDate();
+
+            attendanceMap.computeIfAbsent(childId, k -> new HashMap<>())
+                    .put(date, a.getStatus());
+        }
+
+        // 5. Формируем список дней месяца, которые являются днями занятий этой группы
+        List<LocalDate> activeDays = new ArrayList<>();
+        Set<LocalDate> lessonDates = lessons.stream().map(PoolLesson::getLessonDate).collect(Collectors.toSet());
+
+        for (LocalDate d = startDate; !d.isAfter(endDate); d = d.plusDays(1)) {
+            if (lessonDates.contains(d)) {
+                activeDays.add(d);
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("days", activeDays);
+        result.put("children", children);
+        result.put("attendanceMap", attendanceMap);
+
+        return result;
+    }
+
 }

@@ -138,13 +138,13 @@
   <!-- Расписание доступно Админу и Тренеру -->
   <div th:if="${role != null and (role.name() == 'ADMIN' or role.name() == 'COACH')}">
     <a href="/schedule" th:classappend="${activePage == 'schedule'} ? 'active'">Расписание</a>
+    <a href="/groups" th:classappend="${activePage == 'groups'} ? 'active'">Группы</a>
     <a href="/broadcast" th:classappend="${activePage == 'broadcast'} ? 'active'">Рассылка</a> <!-- НОВОЕ -->
   </div>
 
   <!-- АДМИНСКИЕ ВКЛАДКИ: Видны ТОЛЬКО ADMIN -->
   <div th:if="${role != null and role.name() == 'ADMIN'}">
     <a href="/parents" th:classappend="${activePage == 'parents'} ? 'active'">Родители</a>
-    <a href="/groups" th:classappend="${activePage == 'groups'} ? 'active'">Группы</a>
     <a href="/users" th:classappend="${activePage == 'users'} ? 'active'">Персонал</a>
     <a href="/pools" th:classappend="${activePage == 'pools'} ? 'active'">Бассейны</a>
     <a href="/calendar" th:classappend="${activePage == 'calendar'} ? 'active'">Календарь</a>

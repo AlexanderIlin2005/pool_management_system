@@ -4,11 +4,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import ru.sashil.admin.model.AdminUser;
-import ru.sashil.admin.model.Group;
+import ru.sashil.admin.model.*;
 import ru.sashil.admin.service.*;
+import ru.sashil.admin.repository.*;
 import jakarta.servlet.http.HttpSession;
+
+import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/groups")
@@ -24,7 +27,16 @@ public class GroupController {
     private AuditLogService auditLogService;
 
     @Autowired
+    private ScheduleService scheduleService;
+
+    @Autowired
+    private CalendarService calendarService;
+
+    @Autowired
     private WsNotificationService wsNotificationService;
+
+    @Autowired
+    private GroupRepository groupRepository;
 
     private boolean isAdmin(HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
@@ -43,9 +55,18 @@ public class GroupController {
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "groups");
 
-        if (!isAdmin(session)) return "restricted";
+        List<Group> allGroups;
 
-        List<Group> allGroups = groupService.getAllGroups();
+        // РАЗДЕЛЕНИЕ ПРАВ ДОСТУПА
+        if (user.getRole() == AdminUser.Role.ADMIN) {
+            allGroups = groupService.getAllGroups();
+        } else if (user.getRole() == AdminUser.Role.COACH) {
+            allGroups = groupRepository.findByTrainer_Id(user.getId());
+        } else {
+            return "restricted";
+        }
+
+
         Map<Long, Integer> memberCounts = new HashMap<>();
         for (Group g : allGroups) {
             memberCounts.put(g.getId(), memberService.getMemberCount(g.getId()));
@@ -293,5 +314,112 @@ public class GroupController {
         return "redirect:/groups/transfer?group1Id=" + group1Id + "&group2Id=" + group2Id + "&success=true";
     }
 
+
+    // ... существующий код GroupController ...
+
+    @GetMapping("/{id}/attendance")
+    public String groupAttendancePage(@PathVariable Long id, Model model, HttpSession session,
+                                      @RequestParam(required = false) Integer year,
+                                      @RequestParam(required = false) Integer month) {
+
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return "redirect:/login";
+
+        Optional<Group> groupOpt = groupService.getGroupById(id);
+        if (groupOpt.isEmpty()) return "redirect:/groups";
+
+        Group group = groupOpt.get();
+
+        // Проверка прав
+        if (user.getRole() == AdminUser.Role.COACH) {
+            if (group.getTrainer() == null || !group.getTrainer().getId().equals(user.getId())) {
+                return "redirect:/schedule?error=access_denied";
+            }
+        } else if (user.getRole() != AdminUser.Role.ADMIN) {
+            return "restricted";
+        }
+
+        LocalDate today = LocalDate.now();
+        int currentYear = year != null ? year : today.getYear();
+        int currentMonth = month != null ? month : today.getMonthValue();
+
+        // Получаем сырые данные из сервиса
+        Map<String, Object> attendanceData = scheduleService.getMonthlyAttendance(group, currentYear, currentMonth);
+
+        List<LocalDate> days = (List<LocalDate>) attendanceData.get("days");
+        List<ChildSimple> children = (List<ChildSimple>) attendanceData.get("children");
+        Map<Long, Map<LocalDate, Attendance.Status>> rawAttendanceMap =
+                (Map<Long, Map<LocalDate, Attendance.Status>>) attendanceData.get("attendanceMap");
+
+        // ПОДГОТОВКА ДАННЫХ ДЛЯ ШАБЛОНА
+        List<Holiday> holidays = calendarService.getAllHolidays();
+        List<SchoolVacation> vacations = calendarService.getAllVacations();
+
+        Set<LocalDate> holidayDates = holidays.stream().map(Holiday::getHolidayDate).collect(Collectors.toSet());
+        Set<LocalDate> vacationDates = new HashSet<>();
+        for (SchoolVacation v : vacations) {
+            LocalDate d = v.getStartDate();
+            while (!d.isAfter(v.getEndDate())) {
+                vacationDates.add(d);
+                d = d.plusDays(1);
+            }
+        }
+
+        // Создаем список строк для таблицы
+        List<Map<String, Object>> tableRows = new ArrayList<>();
+
+        if (children != null) {
+            for (ChildSimple child : children) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("fullName", child.getLastName() + " " + child.getFirstName());
+
+                // ВАЖНО: Создаем СПИСОК символов вместо карты
+                List<String> statusSymbols = new ArrayList<>();
+                Map<LocalDate, Attendance.Status> childMap = rawAttendanceMap.getOrDefault(child.getId(), Collections.emptyMap());
+
+                for (LocalDate day : days) {
+                    Attendance.Status status = childMap.get(day);
+                    if (status != null) {
+                        statusSymbols.add(status.getLabel().substring(0, 1));
+                    } else {
+                        statusSymbols.add(""); // ИСПРАВЛЕНИЕ: Пустая строка вместо null
+                    }
+                }
+
+                row.put("statusSymbols", statusSymbols);
+                tableRows.add(row);
+            }
+        }
+
+        model.addAttribute("fullName", user.getFullName());
+        model.addAttribute("role", user.getRole());
+        model.addAttribute("activePage", "groups");
+        model.addAttribute("group", group);
+        model.addAttribute("year", currentYear);
+        model.addAttribute("month", currentMonth);
+        model.addAttribute("days", days);
+        model.addAttribute("tableRows", tableRows);
+        System.out.println(tableRows);
+
+        model.addAttribute("holidayDates", holidayDates);
+        model.addAttribute("vacationDates", vacationDates);
+
+        model.addAttribute("prevMonthDate", LocalDate.of(currentYear, currentMonth, 1).minusMonths(1));
+        model.addAttribute("nextMonthDate", LocalDate.of(currentYear, currentMonth, 1).plusMonths(1));
+
+        return "group-attendance";
+    }
+
+    // Внутренний класс для строки таблицы посещаемости
+    public static class AttendanceRow {
+        private String fullName;
+        private Map<LocalDate, String> dayStatuses;
+
+        public String getFullName() { return fullName; }
+        public void setFullName(String fullName) { this.fullName = fullName; }
+
+        public Map<LocalDate, String> getDayStatuses() { return dayStatuses; }
+        public void setDayStatuses(Map<LocalDate, String> dayStatuses) { this.dayStatuses = dayStatuses; }
+    }
 
 }

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Посещаемость группы', ~{::content})}">
+<body>
+<div th:fragment="content">
+  <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 98%; margin: 0 auto; overflow-x: auto;">
+    <div class="header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div>
+        <h1 style="margin-bottom: 5px;">Посещаемость: <span th:text="${group.name}"></span> (№ <span th:text="${group.number}"></span>)</h1>
+        <a th:href="${role.name() == 'COACH'} ? '/schedule' : '/groups'"
+           class="btn" style="background-color: #6c757d; font-size: 0.8em;">Назад</a>
+      </div>
+
+      <!-- Навигация по месяцам -->
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <a th:href="@{/groups/{id}/attendance(id=${group.id}, year=${prevMonthDate.year}, month=${prevMonthDate.monthValue})}"
+           class="btn" style="padding: 5px 10px;">← Пред.</a>
+
+        <h2 style="margin: 0;" th:text="${#temporals.format(T(java.time.LocalDate).of(year, month, 1), 'MMMM yyyy')}"></h2>
+
+        <a th:if="${T(java.time.LocalDate).now().isAfter(T(java.time.LocalDate).of(year, month, 1).withDayOfMonth(T(java.time.LocalDate).of(year, month, 1).lengthOfMonth()))}"
+           th:href="@{/groups/{id}/attendance(id=${group.id}, year=${nextMonthDate.year}, month=${nextMonthDate.monthValue})}"
+           class="btn" style="padding: 5px 10px;">След. →</a>
+        <span th:unless="${T(java.time.LocalDate).now().isAfter(T(java.time.LocalDate).of(year, month, 1).withDayOfMonth(T(java.time.LocalDate).of(year, month, 1).lengthOfMonth()))}"
+              class="btn" style="padding: 5px 10px; background: #ccc; cursor: not-allowed;">След. →</span>
+      </div>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+      <thead>
+      <tr style="background: #f8f9fa;">
+        <th style="padding: 10px; border: 1px solid #ddd; position: sticky; left: 0; background: #f8f9fa; z-index: 2; min-width: 200px;">ФИО</th>
+
+        <!-- Шапка дат -->
+        <th th:each="day : ${days}"
+            style="padding: 10px; text-align: center; border-left: 1px solid #f0f0f0; min-width: 40px;">
+
+          <div th:with="isHoliday=${holidayDates.contains(day)},
+                          isVacation=${vacationDates.contains(day)},
+                          isToday=${day.equals(T(java.time.LocalDate).now())}"
+               th:style="${isToday} ? 'font-weight: bold; color: #007bff; border-bottom: 3px solid #007bff;' : (${isHoliday or isVacation} ? 'font-weight: bold; color: #dc3545;' : 'font-weight: bold; color: #333;')">
+            <span th:text="${#temporals.format(day, 'E dd.MM')}"></span>
+          </div>
+        </th>
+      </tr>
+      </thead>
+
+      <tbody>
+      <tr th:each="row : ${tableRows}" style="border-bottom: 1px solid #eee;">
+        <td style="padding: 10px; border: 1px solid #ddd; position: sticky; left: 0; background: white; z-index: 1; font-weight: 500;"
+            th:text="${row['fullName']}"></td>
+
+        <!-- Выводим статусы по ИНДЕКСУ дня -->
+        <!-- Выводим статусы по ИНДЕКСУ дня -->
+        <td th:each="day, dayStat : ${days}"
+            style="padding: 5px; border: 1px solid #ddd; text-align: center; color: #555;">
+
+          <!-- ПРОСТОЙ ВЫВОД БЕЗ УСЛОВИЙ -->
+          <span th:text="${row['statusSymbols'].get(dayStat.index)}">TEST</span>
+
+        </td>
+</tr>
+<tr th:if="${#lists.isEmpty(tableRows)}">
+  <td colspan="100%" style="padding: 20px; text-align: center; color: #999;">В группе нет участников</td>
+</tr>
+</tbody>
+
+</table>
+
+<div style="margin-top: 20px; font-size: 0.8em; color: #666;">
+<strong>Легенда:</strong>
+<span style="color: green; font-weight: bold;">+</span> - Присутствует,
+<span style="color: red;">-</span> - Отсутствует,
+<span style="color: orange;">Б</span> - Болеет,
+<span style="color: blue;">У</span> - Уважительная причина.
+<br>
+<span style="color: #dc3545; font-weight: bold;">Красная дата</span> - Праздник или каникулы.
+</div>
+</div>
+</div>
+</body>
+</html>
