@@ -2,6 +2,7 @@ package ru.sashil.admin.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.CreationTimestamp; // <-- Добавь этот импорт
 import java.time.LocalTime;
 import java.time.LocalDateTime;
 
@@ -25,12 +26,10 @@ public class Group {
     @JoinColumn(name = "pool_id")
     private Pool pool;
 
-    // Связь с тренером (AdminUser с ролью COACH)
     @ManyToOne
     @JoinColumn(name = "trainer_id")
     private AdminUser trainer;
 
-    // Время для 7 дней недели
     @Column(name = "day_1_start") private LocalTime day1Start;
     @Column(name = "day_1_end")   private LocalTime day1End;
     @Column(name = "day_2_start") private LocalTime day2Start;
@@ -46,6 +45,8 @@ public class Group {
     @Column(name = "day_7_start") private LocalTime day7Start;
     @Column(name = "day_7_end")   private LocalTime day7End;
 
-    @Column(name = "created_at", updatable = false)
+    // ИСПРАВЛЕНИЕ: Используем CreationTimestamp для автоматической установки даты создания
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false, insertable = false)
     private LocalDateTime createdAt;
 }
