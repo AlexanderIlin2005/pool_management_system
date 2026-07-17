@@ -21,7 +21,8 @@ public interface ChildRepository extends JpaRepository<Child, Long> {
             nativeQuery = true)
     List<Long> findIdsByGroupIdNative(Long groupId);
 
-    @Query("SELECT new ru.sashil.admin.model.ChildSimple(c.id, c.firstName, c.lastName) " +
+    // ИСПРАВЛЕНИЕ: Добавили c.middleName в выборку и в конструктор
+    @Query("SELECT new ru.sashil.admin.model.ChildSimple(c.id, c.firstName, c.lastName, c.middleName) " +
             "FROM Child c JOIN GroupChild gc ON c.id = gc.childId WHERE gc.groupId = :groupId")
     List<ChildSimple> findSimpleByGroupId(Long groupId);
 }

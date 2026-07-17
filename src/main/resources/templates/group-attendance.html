@@ -12,11 +12,17 @@
 
       <!-- Навигация по месяцам -->
       <div style="display: flex; align-items: center; gap: 15px;">
-        <a th:href="@{/groups/{id}/attendance(id=${group.id}, year=${prevMonthDate.year}, month=${prevMonthDate.monthValue})}"
+
+        <!-- Кнопка НАЗАД с проверкой даты создания группы -->
+        <a th:if="${minNavigationDate == null or prevMonthDate.isAfter(minNavigationDate.withDayOfMonth(1).minusDays(1))}"
+           th:href="@{/groups/{id}/attendance(id=${group.id}, year=${prevMonthDate.year}, month=${prevMonthDate.monthValue})}"
            class="btn" style="padding: 5px 10px;">← Пред.</a>
+        <span th:unless="${minNavigationDate == null or prevMonthDate.isAfter(minNavigationDate.withDayOfMonth(1).minusDays(1))}"
+              class="btn" style="padding: 5px 10px; background: #ccc; cursor: not-allowed;">← Пред.</span>
 
         <h2 style="margin: 0;" th:text="${#temporals.format(T(java.time.LocalDate).of(year, month, 1), 'MMMM yyyy')}"></h2>
 
+        <!-- Кнопка ВПЕРЕД (только если месяц не в будущем) -->
         <a th:if="${T(java.time.LocalDate).now().isAfter(T(java.time.LocalDate).of(year, month, 1).withDayOfMonth(T(java.time.LocalDate).of(year, month, 1).lengthOfMonth()))}"
            th:href="@{/groups/{id}/attendance(id=${group.id}, year=${nextMonthDate.year}, month=${nextMonthDate.monthValue})}"
            class="btn" style="padding: 5px 10px;">След. →</a>
@@ -43,7 +49,6 @@
         </th>
       </tr>
       </thead>
-
       <tbody>
       <tr th:each="row : ${tableRows}" style="border-bottom: 1px solid #eee;">
         <td style="padding: 10px; border: 1px solid #ddd; position: sticky; left: 0; background: white; z-index: 1; font-weight: 500;"
@@ -53,11 +58,10 @@
         <td th:each="day, dayStat : ${days}"
             style="padding: 5px; border: 1px solid #ddd; text-align: center; color: #555;">
 
-          <!-- Получаем символ по индексу и сразу выводим со стилем -->
-          <span th:with="statusSymbol=${row['statusSymbols'].get(dayStat.index)}"
-                th:text="${statusSymbol}"
-                th:title="${statusSymbol == 'П' ? 'Присутствует' : (statusSymbol == 'О' ? 'Отсутствует' : (statusSymbol == 'Б' ? 'Болеет' : (statusSymbol == 'У' ? 'Уважительная причина' : '')))}"
-                th:style="${statusSymbol == 'П'} ? 'color: green; font-weight: bold;' :
+            <span th:with="statusSymbol=${row['statusSymbols'].get(dayStat.index)}"
+                  th:text="${statusSymbol}"
+                  th:title="${statusSymbol == 'П' ? 'Присутствует' : (statusSymbol == 'О' ? 'Отсутствует' : (statusSymbol == 'Б' ? 'Болеет' : (statusSymbol == 'У' ? 'Уважительная причина' : '')))}"
+                  th:style="${statusSymbol == 'П'} ? 'color: green; font-weight: bold;' :
                            (${statusSymbol == 'О'} ? 'color: red;' :
                            (${statusSymbol == 'Б'} ? 'color: orange;' :
                            (${statusSymbol == 'У'} ? 'color: blue;' : 'color: transparent;')))">
@@ -69,19 +73,18 @@
         <td colspan="100%" style="padding: 20px; text-align: center; color: #999;">В группе нет участников</td>
       </tr>
       </tbody>
+    </table>
 
-</table>
-
-<div style="margin-top: 20px; font-size: 0.8em; color: #666;">
-<strong>Легенда:</strong>
-<span style="color: green; font-weight: bold;">+</span> - Присутствует,
-<span style="color: red;">-</span> - Отсутствует,
-<span style="color: orange;">Б</span> - Болеет,
-<span style="color: blue;">У</span> - Уважительная причина.
-<br>
-<span style="color: #dc3545; font-weight: bold;">Красная дата</span> - Праздник или каникулы.
-</div>
-</div>
+    <div style="margin-top: 20px; font-size: 0.8em; color: #666;">
+      <strong>Легенда:</strong>
+      <span style="color: green; font-weight: bold;">П</span> - Присутствует,
+      <span style="color: red;">О</span> - Отсутствует,
+      <span style="color: orange;">Б</span> - Болеет,
+      <span style="color: blue;">У</span> - Уважительная причина.
+      <br>
+      <span style="color: #dc3545; font-weight: bold;">Красная дата</span> - Праздник или каникулы.
+    </div>
+  </div>
 </div>
 </body>
 </html>

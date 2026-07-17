@@ -315,8 +315,6 @@ public class GroupController {
     }
 
 
-    // ... существующий код GroupController ...
-
     @GetMapping("/{id}/attendance")
     public String groupAttendancePage(@PathVariable Long id, Model model, HttpSession session,
                                       @RequestParam(required = false) Integer year,
@@ -371,7 +369,10 @@ public class GroupController {
         if (children != null) {
             for (ChildSimple child : children) {
                 Map<String, Object> row = new HashMap<>();
-                row.put("fullName", child.getLastName() + " " + child.getFirstName());
+
+                // ИСПРАВЛЕНИЕ 1: Добавляем отчество, если оно есть
+                String middleName = child.getMiddleName() != null ? " " + child.getMiddleName() : "";
+                row.put("fullName", child.getLastName() + " " + child.getFirstName() + middleName);
 
                 // ВАЖНО: Создаем СПИСОК символов вместо карты
                 List<String> statusSymbols = new ArrayList<>();
@@ -382,7 +383,7 @@ public class GroupController {
                     if (status != null) {
                         statusSymbols.add(status.getLabel().substring(0, 1));
                     } else {
-                        statusSymbols.add(""); // ИСПРАВЛЕНИЕ: Пустая строка вместо null
+                        statusSymbols.add(""); // Пустая строка вместо null
                     }
                 }
 
@@ -399,27 +400,24 @@ public class GroupController {
         model.addAttribute("month", currentMonth);
         model.addAttribute("days", days);
         model.addAttribute("tableRows", tableRows);
-        System.out.println(tableRows);
 
         model.addAttribute("holidayDates", holidayDates);
         model.addAttribute("vacationDates", vacationDates);
 
+        // Навигация
         model.addAttribute("prevMonthDate", LocalDate.of(currentYear, currentMonth, 1).minusMonths(1));
         model.addAttribute("nextMonthDate", LocalDate.of(currentYear, currentMonth, 1).plusMonths(1));
+
+        // ИСПРАВЛЕНИЕ 2: Определяем минимальную дату для навигации (дата создания группы)
+        LocalDate minNavigationDate = null;
+        if (group.getCreatedAt() != null) {
+            minNavigationDate = group.getCreatedAt().toLocalDate();
+        }
+        model.addAttribute("minNavigationDate", minNavigationDate);
 
         return "group-attendance";
     }
 
-    // Внутренний класс для строки таблицы посещаемости
-    public static class AttendanceRow {
-        private String fullName;
-        private Map<LocalDate, String> dayStatuses;
 
-        public String getFullName() { return fullName; }
-        public void setFullName(String fullName) { this.fullName = fullName; }
-
-        public Map<LocalDate, String> getDayStatuses() { return dayStatuses; }
-        public void setDayStatuses(Map<LocalDate, String> dayStatuses) { this.dayStatuses = dayStatuses; }
-    }
 
 }
