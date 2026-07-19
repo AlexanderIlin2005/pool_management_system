@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpSession;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.Set;
 
 @Controller
 @RequestMapping("/schedule")
@@ -52,6 +53,10 @@ public class ScheduleController {
 
         // ДОБАВЛЯЕМ ЭТУ СТРОКУ:
         model.addAttribute("today", LocalDate.now());
+
+        // ПЕРЕДАЕМ ДАННЫЕ КАЛЕНДАРЯ В ШАБЛОН
+        model.addAttribute("holidayDates", scheduleData.get("holidayDates"));
+        model.addAttribute("vacationDates", scheduleData.get("vacationDates"));
 
         return "schedule";
     }
