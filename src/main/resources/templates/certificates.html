@@ -21,7 +21,8 @@
       </thead>
       <tbody>
       <tr th:each="cert : ${certificates}">
-        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${#temporals.format(cert.uploaded_at, 'dd.MM.yyyy HH:mm')}"></td>
+        <!-- ИСПРАВЛЕНО: Используем #dates.format для Timestamp -->
+        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${#dates.format(cert.uploaded_at, 'dd.MM.yyyy HH:mm')}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${cert.parent_name}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${cert.child_name}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;">

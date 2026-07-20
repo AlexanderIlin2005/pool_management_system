@@ -58,21 +58,7 @@ class BotApplication {
 
                 LOGGER.info("Бот запущен!")
 
-                // --- ТЕСТОВАЯ ОТПРАВКА ---
-                runBlocking {
-                    try {
-                        LOGGER.info("Отправка тестового сообщения на VK ID 986308...")
-                        bot.messages.send(986308) {
-                            message = "Тест запуска бота. Если ты это видишь, значит отправка работает."
-                            randomId = Random().nextInt(Int.MAX_VALUE)
-                        }
-                        LOGGER.info("✅ Тестовое сообщение успешно отправлено!")
-                    } catch (e: Exception) {
-                        LOGGER.severe("❌ Ошибка отправки тестового сообщения: ${e.message}")
-                        e.printStackTrace()
-                    }
-                }
-                // -------------------------
+
 
                 runBlocking {
                     // Настройка LongPoll settings

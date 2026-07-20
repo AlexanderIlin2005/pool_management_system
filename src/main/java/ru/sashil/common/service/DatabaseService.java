@@ -289,14 +289,41 @@ public class DatabaseService {
     }
 
 
+
+
     /**
-     * Сохраняет справку в БД
+     * Получает ID родителя по его VK ID
      */
-    public void saveCertificate(Long parentId, Long childId, String fileUrl) {
+    public Long getParentIdByVkId(long vkId) {
+        String sql = "SELECT id FROM pool.parents WHERE vk_id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, vkId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getLong("id");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * Сохраняет справку в БД (принимает vkId, внутри находит parent_id)
+     */
+    public void saveCertificate(Long parentVkId, Long childId, String fileUrl) {
+        // Сначала находим реальный ID родителя
+        Long parentId = getParentIdByVkId(parentVkId);
+        if (parentId == null) {
+            LOGGER.severe("Ошибка: Родитель с VK ID " + parentVkId + " не найден в базе.");
+            return;
+        }
+
         String sql = "INSERT INTO pool.certificates (parent_id, child_id, file_url, uploaded_at, is_read, status) VALUES (?, ?, ?, CURRENT_TIMESTAMP, FALSE, 'PENDING')";
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setLong(1, parentId);
+            stmt.setLong(1, parentId); // Используем найденный ID
             stmt.setLong(2, childId);
             stmt.setString(3, fileUrl);
             stmt.executeUpdate();
