@@ -289,5 +289,212 @@ public class DatabaseService {
     }
 
 
+    /**
+     * Сохраняет справку в БД
+     */
+    public void saveCertificate(Long parentId, Long childId, String fileUrl) {
+        String sql = "INSERT INTO pool.certificates (parent_id, child_id, file_url, uploaded_at, is_read, status) VALUES (?, ?, ?, CURRENT_TIMESTAMP, FALSE, 'PENDING')";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, parentId);
+            stmt.setLong(2, childId);
+            stmt.setString(3, fileUrl);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Получает список детей родителя для выбора
+     */
+    public List<Map<String, Object>> getChildrenForParent(Long vkId) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        String sql = "SELECT c.id, c.first_name, c.last_name FROM pool.children c JOIN pool.parents p ON c.parent_id = p.id WHERE p.vk_id = ? ORDER BY c.birth_date DESC";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, vkId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("id", rs.getLong("id"));
+                row.put("name", rs.getString("last_name") + " " + rs.getString("first_name"));
+                result.add(row);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    /**
+     * Получает все непрочитанные справки (для Админа)
+     */
+    public List<Map<String, Object>> getUnreadCertificates() {
+        String sql = "SELECT cert.id, cert.uploaded_at, cert.file_url, cert.status, " +
+                "p.last_name || ' ' || p.first_name as parent_name, " +
+                "c.last_name || ' ' || c.first_name as child_name " +
+                "FROM pool.certificates cert " +
+                "JOIN pool.parents p ON cert.parent_id = p.id " +
+                "JOIN pool.children c ON cert.child_id = c.id " +
+                "WHERE cert.is_read = FALSE " +
+                "ORDER BY cert.uploaded_at DESC";
+        return executeQuery(sql);
+    }
+
+    /**
+     * Получает непрочитанные справки только для групп тренера
+     */
+    public List<Map<String, Object>> getUnreadCertificatesForCoach(Long coachId) {
+        String sql = "SELECT cert.id, cert.uploaded_at, cert.file_url, cert.status, " +
+                "p.last_name || ' ' || p.first_name as parent_name, " +
+                "c.last_name || ' ' || c.first_name as child_name " +
+                "FROM pool.certificates cert " +
+                "JOIN pool.parents p ON cert.parent_id = p.id " +
+                "JOIN pool.children c ON cert.child_id = c.id " +
+                "JOIN pool.group_children gc ON c.id = gc.child_id " +
+                "JOIN pool.groups g ON gc.group_id = g.id " +
+                "WHERE cert.is_read = FALSE AND g.trainer_id = ? " +
+                "GROUP BY cert.id, p.last_name, p.first_name, c.last_name, c.first_name " +
+                "ORDER BY cert.uploaded_at DESC";
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, coachId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("id", rs.getLong("id"));
+                row.put("uploaded_at", rs.getTimestamp("uploaded_at"));
+                row.put("file_url", rs.getString("file_url"));
+                row.put("status", rs.getString("status"));
+                row.put("parent_name", rs.getString("parent_name"));
+                row.put("child_name", rs.getString("child_name"));
+                result.add(row);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    /**
+     * Обрабатывает справку: обновляет статус, даты и проставляет посещаемость во ВСЕХ группах ребенка
+     */
+    public void processCertificate(Long certId, Long adminId, String status, LocalDate dateFrom, LocalDate dateTo) {
+        if (dateFrom == null || dateTo == null) return;
+
+        String dbStatus = "APPROVED_SICK".equals(status) ? "SICK" : "EXCUSED";
+        String comment = "Подтверждено справкой ID=" + certId + " администратором/trainer ID=" + adminId;
+
+        // 1. Обновляем саму справку
+        String updateCertSql = "UPDATE pool.certificates SET is_read = TRUE, status = ?, date_from = ?, date_to = ?, processed_by = ? WHERE id = ?";
+
+        // 2. SQL для обновления/создания посещаемости во всех группах ребенка
+        // Мы ищем все занятия ребенка в указанный период во всех его группах
+        String updateAttendanceSql = "INSERT INTO pool.attendance (lesson_id, child_id, status, marked_by, marked_at, comment) " +
+                "SELECT pl.id, gc.child_id, ?, ?, CURRENT_TIMESTAMP, ? " +
+                "FROM pool.group_children gc " +
+                "JOIN pool.pool_lessons pl ON pl.group_id = gc.group_id " +
+                "WHERE gc.child_id = (SELECT child_id FROM pool.certificates WHERE id = ?) " +
+                "AND pl.lesson_date BETWEEN ? AND ? " +
+                "ON CONFLICT (lesson_id, child_id) DO UPDATE SET status = EXCLUDED.status, comment = EXCLUDED.comment";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                // Обновляем сертификат
+                try (PreparedStatement stmt1 = conn.prepareStatement(updateCertSql)) {
+                    stmt1.setString(1, status);
+                    stmt1.setDate(2, Date.valueOf(dateFrom));
+                    stmt1.setDate(3, Date.valueOf(dateTo));
+                    stmt1.setLong(4, adminId);
+                    stmt1.setLong(5, certId);
+                    stmt1.executeUpdate();
+                }
+
+                // Обновляем посещаемость
+                try (PreparedStatement stmt2 = conn.prepareStatement(updateAttendanceSql)) {
+                    stmt2.setString(1, dbStatus);
+                    stmt2.setLong(2, adminId);
+                    stmt2.setString(3, comment);
+                    stmt2.setLong(4, certId);
+                    stmt2.setDate(5, Date.valueOf(dateFrom));
+                    stmt2.setDate(6, Date.valueOf(dateTo));
+                    stmt2.executeUpdate();
+                }
+
+                conn.commit();
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Обновляет посещаемость за период на основе справки
+     */
+    private void updateAttendanceForPeriod(Long certId, String status, LocalDate dateFrom, LocalDate dateTo, Long adminId) {
+        if (dateFrom == null || dateTo == null) return;
+
+        // Определяем статус для БД
+        String dbStatus = "APPROVED_SICK".equals(status) ? "SICK" : "EXCUSED";
+        String comment = "Подтверждено справкой ID=" + certId;
+
+        // SQL для обновления или создания записей attendance
+        // Мы находим все занятия ребенка в этот период и ставим соответствующий статус, если он еще не стоит
+        String sql = "INSERT INTO pool.attendance (lesson_id, child_id, status, marked_by, marked_at, comment) " +
+                "SELECT pl.id, cert.child_id, ?, ?, CURRENT_TIMESTAMP, ? " +
+                "FROM pool.certificates cert " +
+                "JOIN pool.pool_lessons pl ON pl.group_id = (SELECT group_id FROM pool.group_children WHERE child_id = cert.child_id LIMIT 1) " + // Упрощение: берем первую группу
+                "WHERE cert.id = ? " +
+                "AND pl.lesson_date BETWEEN ? AND ? " +
+                "AND NOT EXISTS (SELECT 1 FROM pool.attendance a WHERE a.lesson_id = pl.id AND a.child_id = cert.child_id) " +
+                "ON CONFLICT (lesson_id, child_id) DO UPDATE SET status = EXCLUDED.status, comment = EXCLUDED.comment";
+
+        // Примечание: Логика определения группы может быть сложнее, если ребенок в нескольких группах.
+        // Для простоты здесь предполагается, что справка действует на основную группу или мы обновляем все группы ребенка.
+        // Более надежный вариант - найти все группы ребенка и обновить их.
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, dbStatus);
+            stmt.setLong(2, adminId);
+            stmt.setString(3, comment);
+            stmt.setLong(4, certId);
+            stmt.setDate(5, Date.valueOf(dateFrom));
+            stmt.setDate(6, Date.valueOf(dateTo));
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private List<Map<String, Object>> executeQuery(String sql) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            ResultSetMetaData md = rs.getMetaData();
+            int columns = md.getColumnCount();
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+                for (int i = 1; i <= columns; i++) {
+                    row.put(md.getColumnName(i), rs.getObject(i));
+                }
+                result.add(row);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
 
 }

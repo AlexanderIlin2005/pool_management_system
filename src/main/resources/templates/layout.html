@@ -139,7 +139,16 @@
   <div th:if="${role != null and (role.name() == 'ADMIN' or role.name() == 'COACH')}">
     <a href="/schedule" th:classappend="${activePage == 'schedule'} ? 'active'">Расписание</a>
     <a href="/groups" th:classappend="${activePage == 'groups'} ? 'active'">Группы</a>
-    <a href="/broadcast" th:classappend="${activePage == 'broadcast'} ? 'active'">Рассылка</a> <!-- НОВОЕ -->
+
+    <!-- Ссылка на справки с красным бейджем -->
+    <a href="/certificates" th:classappend="${activePage == 'documents'} ? 'active'" style="position: relative;">
+      Справки
+      <span th:if="${unreadCertsCount != null and unreadCertsCount > 0}"
+            style="position: absolute; top: 5px; right: 10px; background: red; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;"
+            th:text="${unreadCertsCount}"></span>
+    </a>
+
+    <a href="/broadcast" th:classappend="${activePage == 'broadcast'} ? 'active'">Рассылка</a>
   </div>
 
   <!-- АДМИНСКИЕ ВКЛАДКИ: Видны ТОЛЬКО ADMIN -->

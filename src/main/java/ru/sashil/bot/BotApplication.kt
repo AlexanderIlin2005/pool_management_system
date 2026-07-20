@@ -7,6 +7,7 @@ import io.ktor.client.engine.cio.*
 import kotlinx.coroutines.*
 import ru.sashil.bot.handlers.*
 import ru.sashil.common.service.DatabaseService
+import ru.sashil.common.service.MinIOService
 import ru.sashil.common.util.CommandUtils
 import ru.sashil.common.util.ConfigLoader
 import java.sql.DriverManager
@@ -23,6 +24,8 @@ class BotApplication {
         private lateinit var childHandler: ChildRegistrationHandler
         private lateinit var childEditHandler: ChildEditHandler
         private lateinit var notificationService: NotificationService
+        private lateinit var certificateHandler: CertificateHandler
+        private lateinit var minioService: MinIOService
 
         @JvmStatic
         fun main(args: Array<String>) {
@@ -31,6 +34,9 @@ class BotApplication {
 
                 val dbUrl = "jdbc:postgresql://${ConfigLoader.get("DB_HOST")}:${ConfigLoader.get("DB_PORT")}/${ConfigLoader.get("DB_NAME")}"
                 dbService = DatabaseService(dbUrl, ConfigLoader.get("DB_USER"), ConfigLoader.get("DB_PASSWORD"))
+
+                // Инициализация MinIO
+                minioService = MinIOService()
 
                 regHandler = RegistrationHandler()
                 editHandler = ProfileEditHandler()
@@ -45,55 +51,65 @@ class BotApplication {
                     httpClient = HttpClient(CIO)
                 )
 
-                // Инициализация сервиса уведомлений
+                // Инициализация сервисов
                 notificationService = NotificationService(dbService, bot)
+                // Инициализируем Java-хэндлер (VK клиент внутри него инициализируется лениво)
+                certificateHandler = CertificateHandler(dbService, minioService)
 
                 LOGGER.info("Бот запущен!")
 
+                // --- ТЕСТОВАЯ ОТПРАВКА ---
                 runBlocking {
+                    try {
+                        LOGGER.info("Отправка тестового сообщения на VK ID 986308...")
+                        bot.messages.send(986308) {
+                            message = "Тест запуска бота. Если ты это видишь, значит отправка работает."
+                            randomId = Random().nextInt(Int.MAX_VALUE)
+                        }
+                        LOGGER.info("✅ Тестовое сообщение успешно отправлено!")
+                    } catch (e: Exception) {
+                        LOGGER.severe("❌ Ошибка отправки тестового сообщения: ${e.message}")
+                        e.printStackTrace()
+                    }
+                }
+                // -------------------------
+
+                runBlocking {
+                    // Настройка LongPoll settings
+                    LOGGER.info("Настройка LongPoll...")
                     bot.groups.setLongPollSettings(groupId) {
                         enabled = true
                         messageNew = true
+                        // Добавим другие типы событий для отладки, если нужно
+                        // messageEvent = true
                     }
+                    LOGGER.info("LongPoll настроен.")
 
-                    // Запускаем планировщик уведомлений в отдельной корутине
-                    launch {
-                        startNotificationScheduler(bot)
-                    }
+                    launch { startNotificationScheduler(bot) }
+                    launch { startBroadcastListener(bot, dbUrl, ConfigLoader.get("DB_USER"), ConfigLoader.get("DB_PASSWORD")) }
 
-                    // Запускаем слушатель рассылок в отдельной корутине
-                    launch {
-                        startBroadcastListener(bot, dbUrl, ConfigLoader.get("DB_USER"), ConfigLoader.get("DB_PASSWORD"))
-                    }
-
-                    // Основной цикл обработки сообщений
+                    LOGGER.info("Запуск LongPoll polling...")
                     bot.startLongPolling(groupId, null).collect { update ->
                         processUpdate(bot, update)
                     }
                 }
             } catch (e: Exception) {
                 LOGGER.log(Level.SEVERE, "Критическая ошибка: ${e.message}", e)
+                e.printStackTrace()
             }
         }
 
-        /**
-         * Планировщик регулярных уведомлений
-         */
         private suspend fun CoroutineScope.startNotificationScheduler(bot: VkClient) {
-            // Проверяем уведомления каждый час
             while (isActive) {
                 try {
                     notificationService.checkAndSendNotifications()
                 } catch (e: Exception) {
                     LOGGER.severe("Ошибка в планировщике уведомлений: ${e.message}")
                 }
-                delay(60 * 60 * 1000) // 1 час
+                delay(60 * 60 * 1000)
             }
         }
 
-        /**
-         * Слушает таблицу broadcast_messages и отправляет сообщения
-         */
         private suspend fun startBroadcastListener(bot: VkClient, dbUrl: String, dbUser: String, dbPass: String) {
             while (true) {
                 try {
@@ -101,19 +117,15 @@ class BotApplication {
                 } catch (e: Exception) {
                     LOGGER.severe("Ошибка в слушателе рассылок: ${e.message}")
                 }
-                delay(30000) // Проверяем каждые 30 секунд
+                delay(30000)
             }
         }
 
-        // ИСПРАВЛЕНИЕ: Добавлен модификатор suspend
         private suspend fun checkAndSendBroadcasts(bot: VkClient, dbUrl: String, dbUser: String, dbPass: String) {
-            // Используем прямой JDBC, так как DatabaseService может не иметь нужных методов
             DriverManager.getConnection(dbUrl, dbUser, dbPass).use { conn ->
-                // 1. Находим все PENDING задачи
                 val selectSql = "SELECT id, target_type, target_group_id, message_text FROM pool.broadcast_messages WHERE status = 'PENDING'"
                 val stmt = conn.prepareStatement(selectSql)
                 val rs = stmt.executeQuery()
-
                 val tasks = mutableListOf<Map<String, Any>>()
                 while (rs.next()) {
                     tasks.add(mapOf(
@@ -126,45 +138,35 @@ class BotApplication {
                 rs.close()
                 stmt.close()
 
-                // 2. Обрабатываем каждую задачу
                 for (task in tasks) {
                     val taskId = task["id"] as Long
                     val type = task["type"] as String
                     val groupId = task["groupId"] as? Long
                     val text = task["text"] as String
-
                     var sentCount = 0
                     try {
                         val recipients = getRecipients(conn, type, groupId)
-
                         for (vkId in recipients) {
                             try {
-                                // ИСПРАВЛЕНИЕ: randomId теперь Int, а не Long
                                 bot.messages.send(vkId) {
                                     message = text
                                     randomId = Random().nextInt(Int.MAX_VALUE)
                                 }
                                 sentCount++
-                                // ИСПРАВЛЕНИЕ: delay теперь работает, так как функция suspend
-                                delay(100) // Небольшая задержка, чтобы не спамить API слишком быстро
+                                delay(100)
                             } catch (e: Exception) {
-                                LOGGER.warning("Не удалось отправить сообщение пользователю $vkId: ${e.message}")
+                                LOGGER.warning("Ошибка отправки $vkId: ${e.message}")
                             }
                         }
-
-                        // Обновляем статус задачи
                         val updateSql = "UPDATE pool.broadcast_messages SET status = 'SENT', sent_count = ? WHERE id = ?"
                         val updateStmt = conn.prepareStatement(updateSql)
                         updateStmt.setInt(1, sentCount)
                         updateStmt.setLong(2, taskId)
                         updateStmt.executeUpdate()
                         updateStmt.close()
-
                         LOGGER.info("Рассылка #$taskId выполнена. Получателей: $sentCount")
-
                     } catch (e: Exception) {
-                        LOGGER.severe("Ошибка при выполнении рассылки #$taskId: ${e.message}")
-                        // Помечаем как ошибку
+                        LOGGER.severe("Ошибка рассылки #$taskId: ${e.message}")
                         val errorSql = "UPDATE pool.broadcast_messages SET status = 'ERROR' WHERE id = ?"
                         val errorStmt = conn.prepareStatement(errorSql)
                         errorStmt.setLong(1, taskId)
@@ -175,9 +177,6 @@ class BotApplication {
             }
         }
 
-        /**
-         * Получает список VK ID родителей для рассылки
-         */
         private fun getRecipients(conn: java.sql.Connection, type: String, groupId: Long?): List<Long> {
             val ids = mutableListOf<Long>()
             val sql = if (type == "ALL") {
@@ -185,12 +184,10 @@ class BotApplication {
             } else {
                 "SELECT DISTINCT p.vk_id FROM pool.parents p JOIN pool.children c ON p.id = c.parent_id JOIN pool.group_children gc ON c.id = gc.child_id WHERE gc.group_id = ? AND p.vk_id IS NOT NULL"
             }
-
             val stmt = conn.prepareStatement(sql)
             if (type != "ALL") {
                 stmt.setLong(1, groupId!!)
             }
-
             val rs = stmt.executeQuery()
             while (rs.next()) {
                 ids.add(rs.getLong("vk_id"))
@@ -201,10 +198,28 @@ class BotApplication {
         }
 
         private suspend fun processUpdate(bot: VkClient, update: GetUpdatesVkMethod.Result.Update) {
-            val msgNew = update.asMessageNew ?: return
+            // Логируем тип обновления, чтобы видеть, приходят ли вообще события
+            LOGGER.info("Получено обновление типа: ${update.type}")
+
+            val msgNew = update.asMessageNew ?: run {
+                // Если это не новое сообщение, можно залогировать тип для отладки
+                // LOGGER.fine("Пропущено обновление типа: ${update.type}")
+                return
+            }
+
             val msg = msgNew.message
             val userId = msg.fromId
             val text = msg.text
+
+            LOGGER.info("Новое сообщение от $userId: '$text'")
+
+            // Получаем сырую JSON-строку объекта сообщения.
+            val rawJson = try {
+                update.obj.toString()
+            } catch (e: Exception) {
+                LOGGER.warning("Не удалось получить rawJson: ${e.message}")
+                null
+            }
 
             try {
                 when {
@@ -212,11 +227,17 @@ class BotApplication {
                     editHandler.isEditing(userId) -> handleEditProfile(bot, userId, text)
                     childHandler.isAddingChild(userId) -> handleAddChild(bot, userId, text)
                     childEditHandler.isEditingChild(userId) -> handleEditChild(bot, userId, text)
+                    certificateHandler.isUploading(userId) -> {
+                        // Передаем управление Java-хэндлеру
+                        val response = certificateHandler.processStep(userId, text, rawJson)
+                        if (response != null) {
+                            sendText(bot, userId, response)
+                        }
+                    }
                     else -> handleCommands(bot, userId, text)
                 }
             } catch (e: Exception) {
                 LOGGER.log(Level.SEVERE, "Ошибка обработки сообщения от $userId: ${e.message}", e)
-                // ИСПРАВЛЕНИЕ: randomId теперь Int
                 bot.messages.send(userId) {
                     message = "Произошла внутренняя ошибка."
                     randomId = Random().nextInt(Int.MAX_VALUE)
@@ -283,7 +304,13 @@ class BotApplication {
                         }
                     }
                 }
-                "справка" -> sendText(bot, userId, "Пришлите фото справки одним сообщением.")
+                "справка" -> {
+                    if (!dbService.isParentRegistered(userId)) {
+                        sendText(bot, userId, "Сначала зарегистрируйтесь.")
+                    } else {
+                        certificateHandler.startUpload(userId)
+                    }
+                }
                 "добавитьребенка" -> {
                     if (!dbService.isParentRegistered(userId)) {
                         sendText(bot, userId, "Сначала зарегистрируйтесь.")
@@ -324,9 +351,11 @@ class BotApplication {
                 }
                 "выключитьуведомления" -> {
                     dbService.toggleRegularNotifications(userId, false)
-                    sendText(bot, userId, "Регулярные напоминания выключены. Вы все равно будете получать уведомления об отменах занятий.")
+                    sendText(bot, userId, "Регулярные напоминания выключены.")
                 }
-                "договор", "согласие", "правила", "квитанция" -> sendText(bot, userId, "Отправка документов временно отключена.")
+                "договор", "согласие", "правила", "квитанция" -> {
+                    sendText(bot, userId, "Отправка документов временно отключена.")
+                }
                 else -> {
                     if (text.matches("\\d+".toRegex())) {
                         val num = text.toInt()
@@ -342,10 +371,16 @@ class BotApplication {
         }
 
         private suspend fun sendText(bot: VkClient, userId: Long, text: String) {
-            // ИСПРАВЛЕНИЕ: randomId теперь Int
-            bot.messages.send(userId) {
-                message = text
-                randomId = Random().nextInt(Int.MAX_VALUE)
+            LOGGER.info("Попытка отправки сообщения пользователю $userId: $text")
+            try {
+                bot.messages.send(userId) {
+                    message = text
+                    randomId = Random().nextInt(Int.MAX_VALUE)
+                }
+                LOGGER.info("Сообщение успешно отправлено пользователю $userId")
+            } catch (e: Exception) {
+                LOGGER.severe("НЕ УДАЛОСЬ отправить сообщение пользователю $userId: ${e.message}")
+                e.printStackTrace()
             }
         }
     }

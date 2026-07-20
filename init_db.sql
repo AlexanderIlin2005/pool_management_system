@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS pool.attendance (
     comment TEXT,
     UNIQUE(lesson_id, child_id)
 );
-sele
+
 -- Государственные праздники РФ
 CREATE TABLE IF NOT EXISTS pool.holidays (
     id BIGSERIAL PRIMARY KEY,
@@ -159,6 +159,23 @@ CREATE TABLE IF NOT EXISTS pool.broadcast_messages (
     status VARCHAR(20) DEFAULT 'PENDING', -- PENDING, SENT, ERROR
     sent_count INT DEFAULT 0 -- Сколько родителей получили сообщение
 );
+
+-- Таблица для хранения справок от родителей
+CREATE TABLE IF NOT EXISTS pool.certificates (
+    id BIGSERIAL PRIMARY KEY,
+    parent_id BIGINT REFERENCES pool.parents(id) ON DELETE CASCADE,
+    child_id BIGINT REFERENCES pool.children(id) ON DELETE CASCADE,
+    file_url VARCHAR(500) NOT NULL, -- Ссылка на файл в MinIO
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_read BOOLEAN DEFAULT FALSE, -- Прочитана ли админом/тренером
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED_SICK', 'APPROVED_EXCUSED', 'REJECTED')),
+    date_from DATE, -- Дата начала действия справки
+    date_to DATE,   -- Дата окончания действия справки
+    processed_by BIGINT REFERENCES pool.admin_users(id) -- Кто обработал справку
+);
+
+-- Индекс для быстрого поиска непрочитанных
+CREATE INDEX idx_certificates_is_read ON pool.certificates(is_read);
 
 -- Индекс для быстрого поиска неотправленных сообщений
 CREATE INDEX IF NOT EXISTS idx_broadcast_status ON pool.broadcast_messages(status);
