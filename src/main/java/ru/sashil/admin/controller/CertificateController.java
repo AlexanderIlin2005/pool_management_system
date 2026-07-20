@@ -17,38 +17,42 @@ import java.util.Map;
 public class CertificateController {
 
     @Autowired
-    private DatabaseService databaseService; // Используем общий сервис
+    private DatabaseService databaseService;
 
     @GetMapping
-    public String certificatesPage(Model model, HttpSession session) {
+    public String certificatesPage(Model model, HttpSession session,
+                                   @RequestParam(required = false) String tab) { // Добавляем параметр tab
+
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
         List<Map<String, Object>> certificates;
+        boolean isNewTab = !"archive".equals(tab); // По умолчанию показываем новые
 
-        if (user.getRole() == AdminUser.Role.ADMIN) {
-            certificates = databaseService.getUnreadCertificates();
-        } else if (user.getRole() == AdminUser.Role.COACH) {
-            certificates = databaseService.getUnreadCertificatesForCoach(user.getId());
+        if (isNewTab) {
+            // Новые (непрочитанные)
+            if (user.getRole() == AdminUser.Role.COACH) {
+                certificates = databaseService.getUnreadCertificatesForCoach(user.getId());
+            } else {
+                certificates = databaseService.getUnreadCertificates();
+            }
         } else {
-            return "restricted";
+            // Архив (прочитанные)
+            certificates = databaseService.getReadCertificates();
         }
 
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
-        model.addAttribute("activePage", "documents"); // Или certs, если добавишь пункт меню
+        model.addAttribute("activePage", "documents");
         model.addAttribute("certificates", certificates);
-
-        // Подсчет непрочитанных для бейджа в меню
-        long unreadCount = certificates.size();
-        model.addAttribute("unreadCertsCount", unreadCount);
+        model.addAttribute("currentTab", isNewTab ? "new" : "archive");
 
         return "certificates";
     }
 
     @PostMapping("/process")
     public String processCertificate(@RequestParam Long certId,
-                                     @RequestParam String status, // APPROVED_SICK or APPROVED_EXCUSED or REJECTED
+                                     @RequestParam String status,
                                      @RequestParam(required = false) LocalDate dateFrom,
                                      @RequestParam(required = false) LocalDate dateTo,
                                      HttpSession session) {
@@ -56,6 +60,16 @@ public class CertificateController {
         if (user == null) return "redirect:/login";
 
         databaseService.processCertificate(certId, user.getId(), status, dateFrom, dateTo);
-        return "redirect:/certificates?processed=true";
+        return "redirect:/certificates?success=true";
+    }
+
+    // Новый метод для возврата справки в новые
+    @PostMapping("/reset")
+    public String resetCertificate(@RequestParam Long certId, HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return "redirect:/login";
+
+        databaseService.resetCertificateReadStatus(certId);
+        return "redirect:/certificates?tab=archive&reset=true";
     }
 }

@@ -3,10 +3,26 @@
 <body>
 <div th:fragment="content">
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto;">
-    <h1>Входящие справки</h1>
 
-    <div th:if="${param.processed}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+    <!-- Переключатель вкладок -->
+    <div style="margin-bottom: 20px; border-bottom: 1px solid #eee;">
+      <a th:href="@{/certificates(tab=new)}"
+         th:class="${currentTab == 'new' or currentTab == null} ? 'btn' : 'btn'"
+         th:style="${currentTab == 'new' or currentTab == null} ? 'background-color: #007bff;' : 'background-color: #f8f9fa; color: #333;'">
+        Новые
+      </a>
+      <a th:href="@{/certificates(tab=archive)}"
+         th:class="${currentTab == 'archive'} ? 'btn' : 'btn'"
+         th:style="${currentTab == 'archive'} ? 'background-color: #007bff;' : 'background-color: #f8f9fa; color: #333;'">
+        Архив
+      </a>
+    </div>
+
+    <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
       Справка успешно обработана! Посещаемость обновлена.
+    </div>
+    <div th:if="${param.reset}" style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+      Справка возвращена в новые.
     </div>
 
     <table style="width: 100%; border-collapse: collapse;">
@@ -15,6 +31,9 @@
         <th style="padding: 10px; border: 1px solid #ddd;">Дата загрузки</th>
         <th style="padding: 10px; border: 1px solid #ddd;">Родитель</th>
         <th style="padding: 10px; border: 1px solid #ddd;">Ребенок</th>
+        <th style="padding: 10px; border: 1px solid #ddd;">Статус</th>
+        <th style="padding: 10px; border: 1px solid #ddd;">Даты действия</th>
+        <th style="padding: 10px; border: 1px solid #ddd;">Кем подтверждено</th>
         <th style="padding: 10px; border: 1px solid #ddd;">Файл</th>
         <th style="padding: 10px; border: 1px solid #ddd;">Действия</th>
       </tr>
@@ -26,27 +45,46 @@
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${cert.parent_name}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${cert.child_name}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;">
+          <span th:if="${cert.status == 'PENDING'}" style="color: orange;">Новая</span>
+          <span th:if="${cert.status == 'APPROVED_SICK'}" style="color: green;">Больничный</span>
+          <span th:if="${cert.status == 'APPROVED_EXCUSED'}" style="color: blue;">Уважительная</span>
+          <span th:if="${cert.status == 'REJECTED'}" style="color: red;">Отклонена</span>
+        </td>
+        <td style="padding: 10px; border: 1px solid #ddd;">
+          <span th:if="${cert.date_from != null}" th:text="${#dates.format(cert.date_from, 'dd.MM')} + ' - ' + ${#dates.format(cert.date_to, 'dd.MM')}"></span>
+          <span th:unless="${cert.date_from != null}">-</span>
+        </td>
+        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${cert.processed_by_name != null ? cert.processed_by_name : '-'}"></td>
+        <td style="padding: 10px; border: 1px solid #ddd;">
           <a th:href="${cert.file_url}" target="_blank" class="btn" style="background-color: #17a2b8; font-size: 0.8em;">Открыть</a>
         </td>
         <td style="padding: 10px; border: 1px solid #ddd;">
-          <form th:action="@{/certificates/process}" method="post" style="display: flex; gap: 5px; align-items: center;">
-            <input type="hidden" name="certId" th:value="${cert.id}">
+          <!-- Если справка новая (PENDING), показываем форму подтверждения -->
+          <div th:if="${cert.status == 'PENDING'}">
+            <form th:action="@{/certificates/process}" method="post" style="display: flex; flex-direction: column; gap: 5px;">
+              <input type="hidden" name="certId" th:value="${cert.id}">
+              <select name="status" required style="padding: 5px;">
+                <option value="APPROVED_SICK">Больничный</option>
+                <option value="APPROVED_EXCUSED">Уважительная</option>
+                <option value="REJECTED">Отклонить</option>
+              </select>
+              <input type="date" name="dateFrom" required style="padding: 5px;">
+              <input type="date" name="dateTo" required style="padding: 5px;">
+              <button type="submit" class="btn" style="background-color: #28a745; font-size: 0.8em;">Подтвердить</button>
+            </form>
+          </div>
 
-            <select name="status" required style="padding: 5px;">
-              <option value="APPROVED_SICK">Больничный</option>
-              <option value="APPROVED_EXCUSED">Уважительная</option>
-              <option value="REJECTED">Отклонить</option>
-            </select>
-
-            <input type="date" name="dateFrom" placeholder="С" required style="padding: 5px;">
-            <input type="date" name="dateTo" placeholder="По" required style="padding: 5px;">
-
-            <button type="submit" class="btn" style="background-color: #28a745; font-size: 0.8em;">Применить</button>
-          </form>
+          <!-- Если справка обработана, показываем кнопку возврата -->
+          <div th:if="${cert.status != 'PENDING'}">
+            <form th:action="@{/certificates/reset}" method="post">
+              <input type="hidden" name="certId" th:value="${cert.id}">
+              <button type="submit" class="btn" style="background-color: #ffc107; color: black; font-size: 0.8em;">Вернуть в новые</button>
+            </form>
+          </div>
         </td>
       </tr>
       <tr th:if="${#lists.isEmpty(certificates)}">
-        <td colspan="5" style="padding: 20px; text-align: center; color: #999;">Нет новых справок</td>
+        <td colspan="8" style="padding: 20px; text-align: center; color: #999;">Нет справок в этой категории</td>
       </tr>
       </tbody>
     </table>
