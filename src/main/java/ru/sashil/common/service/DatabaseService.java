@@ -315,29 +315,37 @@ public class DatabaseService {
         return result;
     }
 
+    // ИСПРАВЛЕНО: Добавлены поля date_from, date_to, processed_by_name
     public List<Map<String, Object>> getUnreadCertificates() {
         String sql = "SELECT cert.id, cert.uploaded_at, cert.file_url, cert.status, " +
+                "cert.date_from, cert.date_to, " +
                 "p.last_name || ' ' || p.first_name as parent_name, " +
-                "c.last_name || ' ' || c.first_name as child_name " +
+                "c.last_name || ' ' || c.first_name as child_name, " +
+                "au.full_name as processed_by_name " +
                 "FROM pool.certificates cert " +
                 "JOIN pool.parents p ON cert.parent_id = p.id " +
                 "JOIN pool.children c ON cert.child_id = c.id " +
+                "LEFT JOIN pool.admin_users au ON cert.processed_by = au.id " +
                 "WHERE cert.is_read = FALSE " +
                 "ORDER BY cert.uploaded_at DESC";
         return executeQuery(sql);
     }
 
+    // ИСПРАВЛЕНО: Добавлены поля date_from, date_to, processed_by_name
     public List<Map<String, Object>> getUnreadCertificatesForCoach(Long coachId) {
         String sql = "SELECT cert.id, cert.uploaded_at, cert.file_url, cert.status, " +
+                "cert.date_from, cert.date_to, " +
                 "p.last_name || ' ' || p.first_name as parent_name, " +
-                "c.last_name || ' ' || c.first_name as child_name " +
+                "c.last_name || ' ' || c.first_name as child_name, " +
+                "au.full_name as processed_by_name " +
                 "FROM pool.certificates cert " +
                 "JOIN pool.parents p ON cert.parent_id = p.id " +
                 "JOIN pool.children c ON cert.child_id = c.id " +
+                "LEFT JOIN pool.admin_users au ON cert.processed_by = au.id " +
                 "JOIN pool.group_children gc ON c.id = gc.child_id " +
                 "JOIN pool.groups g ON gc.group_id = g.id " +
                 "WHERE cert.is_read = FALSE AND g.trainer_id = ? " +
-                "GROUP BY cert.id, p.last_name, p.first_name, c.last_name, c.first_name " +
+                "GROUP BY cert.id, p.last_name, p.first_name, c.last_name, c.first_name, au.full_name " +
                 "ORDER BY cert.uploaded_at DESC";
 
         List<Map<String, Object>> result = new ArrayList<>();
@@ -351,8 +359,11 @@ public class DatabaseService {
                 row.put("uploaded_at", rs.getTimestamp("uploaded_at"));
                 row.put("file_url", rs.getString("file_url"));
                 row.put("status", rs.getString("status"));
+                row.put("date_from", rs.getDate("date_from"));
+                row.put("date_to", rs.getDate("date_to"));
                 row.put("parent_name", rs.getString("parent_name"));
                 row.put("child_name", rs.getString("child_name"));
+                row.put("processed_by_name", rs.getString("processed_by_name"));
                 result.add(row);
             }
         } catch (SQLException e) {
