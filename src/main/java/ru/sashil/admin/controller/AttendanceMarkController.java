@@ -32,16 +32,25 @@ public class AttendanceMarkController {
 
         PoolLesson lesson = lessonOpt.get();
 
-        // Теперь здесь список ChildSimple, в котором нет поля skill
         List<ChildSimple> children = attendanceService.getEligibleChildren(lesson.getGroup().getId(), lesson.getLessonDate());
 
         List<Attendance> existing = attendanceService.getByLessonId(lessonId);
-        Map<Long, Attendance.Status> currentMarks = existing.stream()
-                .collect(Collectors.toMap(a -> a.getChild().getId(), Attendance::getStatus));
+
+        // Создаем мапы для статусов и комментариев
+        Map<Long, Attendance.Status> currentMarks = new HashMap<>();
+        Map<Long, String> currentComments = new HashMap<>();
+
+        for (Attendance att : existing) {
+            currentMarks.put(att.getChild().getId(), att.getStatus());
+            if (att.getComment() != null) {
+                currentComments.put(att.getChild().getId(), att.getComment());
+            }
+        }
 
         model.addAttribute("lesson", lesson);
-        model.addAttribute("children", children); // Передаем упрощенный список
+        model.addAttribute("children", children);
         model.addAttribute("currentMarks", currentMarks);
+        model.addAttribute("currentComments", currentComments); // Добавляем комментарии в модель
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "schedule");
@@ -58,9 +67,7 @@ public class AttendanceMarkController {
         Optional<PoolLesson> lessonOpt = lessonService.getLessonForAttendance(lessonId, user);
         if (lessonOpt.isEmpty()) return "redirect:/schedule?error=access_denied";
 
-        // 1. Разбираем статусы (ключи вида "marks[ID]")
         Map<Long, String> marks = new HashMap<>();
-        // 2. Разбираем комментарии (ключи вида "comments[ID]")
         Map<Long, String> comments = new HashMap<>();
 
         for (Map.Entry<String, String> entry : allParams.entrySet()) {
@@ -68,21 +75,21 @@ public class AttendanceMarkController {
             String value = entry.getValue();
 
             if (key.startsWith("marks[")) {
-                // Извлекаем ID: убираем "marks[" и "]"
                 try {
                     String idStr = key.substring(6, key.length() - 1);
                     Long childId = Long.parseLong(idStr);
                     marks.put(childId, value);
                 } catch (Exception e) {
-                    // Игнорируем некорректные ключи
+                    // Игнорируем
                 }
             } else if (key.startsWith("comments[")) {
                 try {
                     String idStr = key.substring(9, key.length() - 1);
                     Long childId = Long.parseLong(idStr);
-                    if (value != null && !value.isEmpty()) {
-                        comments.put(childId, value);
-                    }
+                    // Сохраняем комментарий, даже если он пустой (чтобы стереть старый, если пользователь очистил поле)
+                    // Но если поле вообще не пришло (не было в форме), то игнорируем.
+                    // Так как у нас input есть для каждого ребенка, value будет "" если пусто.
+                    comments.put(childId, value);
                 } catch (Exception e) {
                     // Игнорируем
                 }

@@ -24,10 +24,6 @@ public class AttendanceService {
     @Autowired
     private PoolLessonRepository lessonRepo;
 
-    /**
-     * Теперь возвращает список ChildSimple, где нет поля skill.
-     * Ошибка маппинга Enum больше невозможна.
-     */
     public List<ChildSimple> getEligibleChildren(Long groupId, LocalDate lessonDate) {
         return childRepository.findSimpleByGroupId(groupId);
     }
@@ -67,12 +63,16 @@ public class AttendanceService {
 
                 attendance.setStatus(status);
 
-                // Сохраняем комментарий, если он есть
+                // Обработка комментария
+                String commentText = null;
                 if (comments != null && comments.containsKey(childId)) {
-                    attendance.setComment(comments.get(childId));
-                } else {
-                    attendance.setComment(null);
+                    commentText = comments.get(childId);
+                    // Если пришла пустая строка, значит пользователь очистил поле -> сохраняем null
+                    if (commentText != null && commentText.trim().isEmpty()) {
+                        commentText = null;
+                    }
                 }
+                attendance.setComment(commentText);
 
                 attendance.setMarkedBy(marker);
                 attendance.setMarkedAt(LocalDateTime.now());

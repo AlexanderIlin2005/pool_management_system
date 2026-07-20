@@ -377,7 +377,7 @@ public class DatabaseService {
 
         String dbStatus = "APPROVED_SICK".equals(status) ? "SICK" : "EXCUSED";
 
-        String processorName = "Администратором";
+        String processorName = "Администратор";
         String sqlGetName = "SELECT full_name, role FROM pool.admin_users WHERE id = ?";
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sqlGetName)) {
@@ -390,14 +390,15 @@ public class DatabaseService {
                 if ("COACH".equals(role)) {
                     processorName = "Тренер " + NameUtils.toInitials(fullName);
                 } else {
-                    processorName = "Администратором";
+                    processorName = "Администратор";
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
 
-        String comment = "Подтверждено справкой ID=" + certId + ". " + processorName;
+        // Исправлено: убран ID справки, добавлено имя обработчика
+        String comment = "Справку подтвердил: " + processorName;
 
         String updateCertSql = "UPDATE pool.certificates SET is_read = TRUE, status = ?, date_from = ?, date_to = ?, processed_by = ? WHERE id = ?";
 
