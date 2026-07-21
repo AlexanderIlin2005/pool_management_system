@@ -40,7 +40,32 @@ class NotificationService(
                 logger.severe("Ошибка при обработке уведомлений для родителя $vkId: ${e.message}")
             }
         }
+
+        // Отправка уведомлений об изменении навыков
+        sendPendingSkillNotifications()
+
         logger.info("Проверка уведомлений завершена.")
+    }
+
+    private suspend fun sendPendingSkillNotifications() {
+        val notifications = dbService.getPendingSkillNotifications()
+        for (notif in notifications) {
+            val vkId = notif["vk_id"] as Long
+            val childName = notif["child_name"] as String
+            val oldSkill = notif["old_skill"] as String
+            val newSkill = notif["new_skill"] as String
+            val notifId = notif["id"] as Long
+
+            val text = "Уважаемый родитель! Навык плавания ребенка $childName был изменен с '$oldSkill' на '$newSkill'."
+
+            try {
+                sendMessage(vkId, text)
+                dbService.markSkillNotificationSent(notifId)
+                logger.info("Уведомление об изменении навыка отправлено родителю $vkId")
+            } catch (e: Exception) {
+                logger.severe("Не удалось отправить уведомление об изменении навыка пользователю $vkId: ${e.message}")
+            }
+        }
     }
 
     private suspend fun processRegularNotifications(vkId: Long, parentId: Long, today: LocalDate, tomorrow: LocalDate) {

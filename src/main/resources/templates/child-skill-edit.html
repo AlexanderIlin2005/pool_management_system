@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Изменение навыка', ~{::content})}">
+<body>
+<div th:fragment="content">
+  <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto;">
+    <h2>Изменение навыка плавания</h2>
+    <p>Ребенок: <strong th:text="${child['lastName']} + ' ' + ${child['firstName']}"></strong></p>
+
+    <form th:action="@{/children/skill/update}" method="post">
+      <input type="hidden" name="childId" th:value="${child['id']}">
+
+      <div style="margin-bottom: 15px;">
+        <label>Текущий навык:</label>
+        <input type="text" th:value="${child['skill']}" disabled style="width: 100%; padding: 8px; background: #eee; border: 1px solid #ccc; border-radius: 4px;">
+      </div>
+
+      <div style="margin-bottom: 15px;">
+        <label>Новый навык:</label>
+        <select name="newSkill" id="newSkillSelect" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          <option th:each="skill : ${availableSkills}"
+                  th:value="${skill}"
+                  th:text="${skill}"
+                  th:selected="${skill == child['skill']}">
+          </option>
+        </select>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button type="submit" id="saveBtn" class="btn">Сохранить</button>
+        <a href="/parents" class="btn" style="background-color: #6c757d;">Отмена</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const select = document.getElementById('newSkillSelect');
+        const saveBtn = document.getElementById('saveBtn');
+        const currentSkill = select.options[select.selectedIndex].value; // Изначально выбран текущий
+
+        // Функция проверки изменения
+        function checkChange() {
+            if (select.value === currentSkill) {
+                saveBtn.disabled = true;
+                saveBtn.style.opacity = '0.5';
+                saveBtn.style.cursor = 'not-allowed';
+            } else {
+                saveBtn.disabled = false;
+                saveBtn.style.opacity = '1';
+                saveBtn.style.cursor = 'pointer';
+            }
+        }
+
+        // Initial check
+        checkChange();
+
+        // Listen for changes
+        select.addEventListener('change', checkChange);
+
+        // Prevent form submission if not changed (double check)
+        document.querySelector('form').addEventListener('submit', function(e) {
+            if (select.value === currentSkill) {
+                e.preventDefault();
+                alert('Пожалуйста, выберите другой уровень навыка.');
+            }
+        });
+    });
+  </script>
+</div>
+</body>
+</html>

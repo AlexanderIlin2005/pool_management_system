@@ -23,12 +23,10 @@ public class AdminDashboardService {
             ParentWithChildren pwc = new ParentWithChildren();
             pwc.setId((Long) row.get("id"));
 
-            
             pwc.setLastName((String) row.get("last_name"));
             pwc.setFirstName((String) row.get("first_name"));
             pwc.setMiddleName((String) row.get("middle_name"));
 
-            
             StringBuilder fullName = new StringBuilder();
             fullName.append(row.get("last_name"));
             fullName.append(" ");
@@ -41,25 +39,39 @@ public class AdminDashboardService {
             pwc.setEmail((String) row.get("email"));
             pwc.setPhone((String) row.get("phone"));
 
-            
             Long parentId = (Long) row.get("id");
-            String childSql = "SELECT first_name, last_name FROM pool.children WHERE parent_id = ? LIMIT 3";
+            String childSql = "SELECT id, first_name, last_name FROM pool.children WHERE parent_id = ? LIMIT 3";
             List<Map<String, Object>> childrenRows = jdbcTemplate.queryForList(childSql, parentId);
 
+            // Списки для хранения имен и ID детей
             List<String> childNames = new ArrayList<>();
+            List<Long> childIds = new ArrayList<>();
+
             for (Map<String, Object> cRow : childrenRows) {
                 String cName = cRow.get("last_name") + " " + cRow.get("first_name");
                 childNames.add(cName.trim());
+                childIds.add(((Number) cRow.get("id")).longValue());
             }
 
-            while (childNames.size() < 3) childNames.add("");
+            // Заполняем пустыми значениями до 3 детей
+            while (childNames.size() < 3) {
+                childNames.add("");
+                childIds.add(null);
+            }
 
+            // Устанавливаем имена детей
             pwc.setChild1(childNames.get(0));
             pwc.setChild2(childNames.get(1));
             pwc.setChild3(childNames.get(2));
+
+            // Устанавливаем ID детей
+            pwc.setChild1Id(childIds.get(0));
+            pwc.setChild2Id(childIds.get(1));
+            pwc.setChild3Id(childIds.get(2));
 
             result.add(pwc);
         }
         return result;
     }
+
 }

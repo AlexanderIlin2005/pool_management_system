@@ -82,7 +82,11 @@
       </thead>
       <tbody>
       <tr th:each="member : ${members}">
-        <td style="padding: 12px; border: 1px solid #ddd;" th:text="${member.last_name} + ' ' + ${member.first_name}"></td>
+        <td style="padding: 12px; border: 1px solid #ddd;">
+          <a th:href="@{/children/skill/edit/{id}(id=${member.id})}"
+             th:text="${member.last_name} + ' ' + ${member.first_name}"
+             style="color: #007bff; text-decoration: none;"></a>
+        </td>
         <td style="padding: 12px; border: 1px solid #ddd;" th:text="${member.age}"></td>
         <td style="padding: 12px; border: 1px solid #ddd;" th:text="${member.grade_number}"></td>
         <td style="padding: 12px; border: 1px solid #ddd;" th:text="${member.skill}"></td>
@@ -196,7 +200,11 @@
       </thead>
       <tbody>
       <tr th:each="child : ${availableChildren}">
-        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${child.last_name} + ' ' + ${child.first_name}"></td>
+        <td style="padding: 10px; border: 1px solid #ddd;">
+          <a th:href="@{/children/skill/edit/{id}(id=${child.id})}"
+             th:text="${child.last_name} + ' ' + ${child.first_name}"
+             style="color: #007bff; text-decoration: none;"></a>
+        </td>
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${child.age}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${child.grade_number}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${child.skill}"></td>

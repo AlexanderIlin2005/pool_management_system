@@ -46,9 +46,30 @@
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${parent.firstName}">Иван</td>
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${parent.email != null ? parent.email : '-'}">email@example.com</td>
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${parent.phone != null ? parent.phone : '-'}">+7...</td>
-                <td style="padding: 12px; border: 1px solid #ddd;" th:text="${parent.child1 != null and !parent.child1.isEmpty() ? parent.child1 : '-'}">-</td>
-                <td style="padding: 12px; border: 1px solid #ddd;" th:text="${parent.child2 != null and !parent.child2.isEmpty() ? parent.child2 : '-'}">-</td>
-                <td style="padding: 12px; border: 1px solid #ddd;" th:text="${parent.child3 != null and !parent.child3.isEmpty() ? parent.child3 : '-'}">-</td>
+
+                <!-- Ребенок 1 -->
+                <td style="padding: 12px; border: 1px solid #ddd;">
+                    <span th:if="${parent.child1 != null and parent.child1 != '-' and parent.child1 != ''}">
+                        <a th:href="@{/children/skill/edit/{id}(id=${parent.child1Id})}" th:text="${parent.child1}" style="color: #007bff; text-decoration: none;"></a>
+                    </span>
+                    <span th:unless="${parent.child1 != null and parent.child1 != '-' and parent.child1 != ''}" th:text="'-'"></span>
+                </td>
+
+                <!-- Ребенок 2 -->
+                <td style="padding: 12px; border: 1px solid #ddd;">
+                    <span th:if="${parent.child2 != null and parent.child2 != '-' and parent.child2 != ''}">
+                        <a th:href="@{/children/skill/edit/{id}(id=${parent.child2Id})}" th:text="${parent.child2}" style="color: #007bff; text-decoration: none;"></a>
+                    </span>
+                    <span th:unless="${parent.child2 != null and parent.child2 != '-' and parent.child2 != ''}" th:text="'-'"></span>
+                </td>
+
+                <!-- Ребенок 3 -->
+                <td style="padding: 12px; border: 1px solid #ddd;">
+                    <span th:if="${parent.child3 != null and parent.child3 != '-' and parent.child3 != ''}">
+                        <a th:href="@{/children/skill/edit/{id}(id=${parent.child3Id})}" th:text="${parent.child3}" style="color: #007bff; text-decoration: none;"></a>
+                    </span>
+                    <span th:unless="${parent.child3 != null and parent.child3 != '-' and parent.child3 != ''}" th:text="'-'"></span>
+                </td>
             </tr>
             <tr th:if="${#lists.isEmpty(parents)}">
                 <td colspan="8" style="text-align: center; padding: 12px; border: 1px solid #ddd;">Ничего не найдено</td>

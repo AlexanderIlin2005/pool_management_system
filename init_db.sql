@@ -160,6 +160,17 @@ CREATE TABLE IF NOT EXISTS pool.broadcast_messages (
     sent_count INT DEFAULT 0 -- Сколько родителей получили сообщение
 );
 
+CREATE TABLE IF NOT EXISTS pool.skill_change_notifications (
+    id BIGSERIAL PRIMARY KEY,
+    parent_id BIGINT REFERENCES pool.parents(id) ON DELETE CASCADE,
+    child_id BIGINT REFERENCES pool.children(id) ON DELETE CASCADE,
+    old_skill VARCHAR(50) NOT NULL,
+    new_skill VARCHAR(50) NOT NULL,
+    status VARCHAR(20) DEFAULT 'PENDING', -- PENDING, SENT
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    sent_at TIMESTAMP
+);
+
 -- Таблица для хранения справок от родителей
 CREATE TABLE IF NOT EXISTS pool.certificates (
     id BIGSERIAL PRIMARY KEY,

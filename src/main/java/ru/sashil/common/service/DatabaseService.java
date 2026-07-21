@@ -517,6 +517,116 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
+
+
+
+    /**
+     * Обновляет навык плавания ребенка.
+     * Если навык изменился, создает запись в таблице skill_change_notifications со статусом PENDING.
+     */
+    /**
+     * Обновляет навык плавания ребенка.
+     * Если навык изменился, создает запись в таблице skill_change_notifications со статусом PENDING.
+     */
+    public void updateChildSkill(long childId, String newSkill) {
+        // 1. Получаем текущий навык и ID родителя
+        String selectSql = "SELECT c.skill, p.id as parent_id FROM pool.children c " +
+                "JOIN pool.parents p ON c.parent_id = p.id WHERE c.id = ?";
+
+        String oldSkill = null;
+        Long parentId = null;
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(selectSql)) {
+            stmt.setLong(1, childId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                oldSkill = rs.getString("skill");
+                parentId = rs.getLong("parent_id");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        // Если навык не изменился, ничего не делаем
+        if (newSkill.equals(oldSkill)) {
+            return;
+        }
+
+        // 2. Обновляем навык в таблице children с приведением типа
+        String updateSql = "UPDATE pool.children SET skill = CAST(? AS pool.swimming_skill) WHERE id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(updateSql)) {
+            stmt.setString(1, newSkill);
+            stmt.setLong(2, childId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        // 3. Создаем запись в очереди уведомлений
+        String insertNotifySql = "INSERT INTO pool.skill_change_notifications (parent_id, child_id, old_skill, new_skill) VALUES (?, ?, ?, ?)";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(insertNotifySql)) {
+            stmt.setLong(1, parentId);
+            stmt.setLong(2, childId);
+            stmt.setString(3, oldSkill);
+            stmt.setString(4, newSkill);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Получает список.pending уведомлений об изменении навыков.
+     */
+    public List<Map<String, Object>> getPendingSkillNotifications() {
+        String sql = "SELECT scn.id, scn.parent_id, scn.child_id, scn.old_skill, scn.new_skill, " +
+                "p.vk_id, c.first_name as child_name " +
+                "FROM pool.skill_change_notifications scn " +
+                "JOIN pool.parents p ON scn.parent_id = p.id " +
+                "JOIN pool.children c ON scn.child_id = c.id " +
+                "WHERE scn.status = 'PENDING'";
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("id", rs.getLong("id"));
+                row.put("parent_id", rs.getLong("parent_id"));
+                row.put("vk_id", rs.getLong("vk_id"));
+                row.put("child_name", rs.getString("child_name"));
+                row.put("old_skill", rs.getString("old_skill"));
+                row.put("new_skill", rs.getString("new_skill"));
+                result.add(row);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    /**
+     * Помечает уведомление как отправленное.
+     */
+    public void markSkillNotificationSent(long notificationId) {
+        String sql = "UPDATE pool.skill_change_notifications SET status = 'SENT', sent_at = CURRENT_TIMESTAMP WHERE id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, notificationId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
     private List<Map<String, Object>> executeQuery(String sql) {
         List<Map<String, Object>> result = new ArrayList<>();
         try (Connection conn = getConnection();

@@ -29,6 +29,12 @@ public class ParentController {
         return user != null && user.getRole() == ru.sashil.admin.model.AdminUser.Role.ADMIN;
     }
 
+    // Проверка доступа для ADMIN и COACH
+    private boolean hasAccess(HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        return user != null && (user.getRole() == AdminUser.Role.ADMIN || user.getRole() == AdminUser.Role.COACH);
+    }
+
     @GetMapping
     public String parentsPage(HttpSession session, Model model,
                               @RequestParam(required = false) String search,
@@ -41,7 +47,7 @@ public class ParentController {
         model.addAttribute("role", currentUser.getRole());
         model.addAttribute("activePage", "parents");
 
-        if (!isAdmin(session)) return "restricted";
+        if (!hasAccess(session)) return "restricted";
 
         List<ParentWithChildren> allParents = dashboardService.getAllParents();
         List<ParentWithChildren> filteredParents = new ArrayList<>();
