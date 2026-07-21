@@ -8,6 +8,7 @@
 
     <form th:action="@{/children/skill/update}" method="post">
       <input type="hidden" name="childId" th:value="${child['id']}">
+      <input type="hidden" name="returnUrl" th:value="${returnUrl}">
 
       <div style="margin-bottom: 15px;">
         <label>Текущий навык:</label>
@@ -27,7 +28,7 @@
 
       <div style="display: flex; gap: 10px;">
         <button type="submit" id="saveBtn" class="btn">Сохранить</button>
-        <a href="/parents" class="btn" style="background-color: #6c757d;">Отмена</a>
+        <a th:href="${returnUrl != null ? returnUrl : '/parents'}" class="btn" style="background-color: #6c757d;">Отмена</a>
       </div>
     </form>
   </div>
@@ -36,9 +37,8 @@
     document.addEventListener('DOMContentLoaded', function() {
         const select = document.getElementById('newSkillSelect');
         const saveBtn = document.getElementById('saveBtn');
-        const currentSkill = select.options[select.selectedIndex].value; // Изначально выбран текущий
+        const currentSkill = select.options[select.selectedIndex].value;
 
-        // Функция проверки изменения
         function checkChange() {
             if (select.value === currentSkill) {
                 saveBtn.disabled = true;
@@ -51,13 +51,9 @@
             }
         }
 
-        // Initial check
         checkChange();
-
-        // Listen for changes
         select.addEventListener('change', checkChange);
 
-        // Prevent form submission if not changed (double check)
         document.querySelector('form').addEventListener('submit', function(e) {
             if (select.value === currentSkill) {
                 e.preventDefault();

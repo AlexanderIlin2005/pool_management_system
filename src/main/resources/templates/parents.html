@@ -17,21 +17,9 @@
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
             <thead>
             <tr style="background: #007bff; color: white; text-align: left;">
-                <th style="padding: 12px; border: 1px solid #ddd;">
-                    <a th:href="@{/parents(search=${currentSearch}, sortField='id', sortOrder=${currentSortField == 'id' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}" style="color: white; text-decoration: none;">
-                        № п/п <span th:if="${currentSortField == 'id'}" class="sort-icon" th:text="${currentSortOrder == 'asc' ? '▲' : '▼'}"></span>
-                    </a>
-                </th>
-                <th style="padding: 12px; border: 1px solid #ddd;">
-                    <a th:href="@{/parents(search=${currentSearch}, sortField='lastName', sortOrder=${currentSortField == 'lastName' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}" style="color: white; text-decoration: none;">
-                        Фамилия <span th:if="${currentSortField == 'lastName'}" class="sort-icon" th:text="${currentSortOrder == 'asc' ? '▲' : '▼'}"></span>
-                    </a>
-                </th>
-                <th style="padding: 12px; border: 1px solid #ddd;">
-                    <a th:href="@{/parents(search=${currentSearch}, sortField='firstName', sortOrder=${currentSortField == 'firstName' and currentSortOrder == 'asc' ? 'desc' : 'asc'})}" style="color: white; text-decoration: none;">
-                        Имя <span th:if="${currentSortField == 'firstName'}" class="sort-icon" th:text="${currentSortOrder == 'asc' ? '▲' : '▼'}"></span>
-                    </a>
-                </th>
+                <th style="padding: 12px; border: 1px solid #ddd;">№ п/п</th>
+                <th style="padding: 12px; border: 1px solid #ddd;">Фамилия</th>
+                <th style="padding: 12px; border: 1px solid #ddd;">Имя</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Email</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Телефон</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Ребенок 1</th>
@@ -50,7 +38,9 @@
                 <!-- Ребенок 1 -->
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <span th:if="${parent.child1 != null and parent.child1 != '-' and parent.child1 != ''}">
-                        <a th:href="@{/children/skill/edit/{id}(id=${parent.child1Id})}" th:text="${parent.child1}" style="color: #007bff; text-decoration: none;"></a>
+                        <a th:href="@{/children/skill/edit/{id}(id=${parent.child1Id}, returnUrl=${currentUri})}"
+                           th:text="${parent.child1}"
+                           style="color: #007bff; text-decoration: none;"></a>
                     </span>
                     <span th:unless="${parent.child1 != null and parent.child1 != '-' and parent.child1 != ''}" th:text="'-'"></span>
                 </td>
@@ -58,7 +48,9 @@
                 <!-- Ребенок 2 -->
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <span th:if="${parent.child2 != null and parent.child2 != '-' and parent.child2 != ''}">
-                        <a th:href="@{/children/skill/edit/{id}(id=${parent.child2Id})}" th:text="${parent.child2}" style="color: #007bff; text-decoration: none;"></a>
+                        <a th:href="@{/children/skill/edit/{id}(id=${parent.child2Id}, returnUrl=${currentUri})}"
+                           th:text="${parent.child2}"
+                           style="color: #007bff; text-decoration: none;"></a>
                     </span>
                     <span th:unless="${parent.child2 != null and parent.child2 != '-' and parent.child2 != ''}" th:text="'-'"></span>
                 </td>
@@ -66,7 +58,9 @@
                 <!-- Ребенок 3 -->
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <span th:if="${parent.child3 != null and parent.child3 != '-' and parent.child3 != ''}">
-                        <a th:href="@{/children/skill/edit/{id}(id=${parent.child3Id})}" th:text="${parent.child3}" style="color: #007bff; text-decoration: none;"></a>
+                        <a th:href="@{/children/skill/edit/{id}(id=${parent.child3Id}, returnUrl=${currentUri})}"
+                           th:text="${parent.child3}"
+                           style="color: #007bff; text-decoration: none;"></a>
                     </span>
                     <span th:unless="${parent.child3 != null and parent.child3 != '-' and parent.child3 != ''}" th:text="'-'"></span>
                 </td>

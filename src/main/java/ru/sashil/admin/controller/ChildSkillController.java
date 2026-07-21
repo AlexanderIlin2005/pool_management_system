@@ -1,5 +1,6 @@
 package ru.sashil.admin.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -18,12 +19,14 @@ public class ChildSkillController {
     private DatabaseService databaseService;
 
     @GetMapping("/edit/{childId}")
-    public String editSkillPage(@PathVariable Long childId, Model model, HttpSession session) {
+    public String editSkillPage(@PathVariable Long childId,
+                                Model model,
+                                HttpSession session,
+                                HttpServletRequest request) { // Добавляем request для получения Referer
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
         // Получаем данные ребенка
-        // Используем прямой SQL запрос для получения всех необходимых данных одним запросом
         String sql = "SELECT c.id, c.first_name, c.last_name, c.skill, p.id as parent_id " +
                 "FROM pool.children c JOIN pool.parents p ON c.parent_id = p.id WHERE c.id = ?";
 
@@ -46,7 +49,6 @@ public class ChildSkillController {
                 if (user.getRole() == AdminUser.Role.ADMIN) {
                     hasAccess = true;
                 } else if (user.getRole() == AdminUser.Role.COACH) {
-                    // Проверяем, есть ли ребенок в группах этого тренера
                     String checkSql = "SELECT COUNT(*) FROM pool.group_children gc " +
                             "JOIN pool.groups g ON gc.group_id = g.id " +
                             "WHERE gc.child_id = ? AND g.trainer_id = ?";
@@ -71,12 +73,20 @@ public class ChildSkillController {
 
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
-        model.addAttribute("activePage", "parents"); // Или создать новую activePage
+        model.addAttribute("activePage", "parents");
         model.addAttribute("child", childData);
 
         // Список возможных навыков
         String[] skills = {"не умеет", "держится на воде", "уверенно плавает"};
         model.addAttribute("availableSkills", skills);
+
+        // Сохраняем Referer (страницу, с которой пришли) в модель, чтобы передать в форму
+        String referer = request.getHeader("Referer");
+        // Если реферер пуст или ведет на эту же страницу, ставим дефолт /parents
+        if (referer == null || referer.contains("/children/skill/")) {
+            referer = "/parents";
+        }
+        model.addAttribute("returnUrl", referer);
 
         return "child-skill-edit";
     }
@@ -84,16 +94,17 @@ public class ChildSkillController {
     @PostMapping("/update")
     public String updateSkill(@RequestParam Long childId,
                               @RequestParam String newSkill,
+                              @RequestParam(required = false) String returnUrl, // Получаем URL возврата из формы
                               HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
-        // Здесь можно добавить повторную проверку прав, но для простоты опустим
-
         databaseService.updateChildSkill(childId, newSkill);
 
-        // Возвращаемся туда, откуда пришли (обычно это список родителей или участников группы)
-        // Для простоты редиректим на страницу родителей, можно добавить параметр success
+        // Редиректим туда, откуда пришли. Если пусто - на /parents
+        if (returnUrl != null && !returnUrl.isEmpty()) {
+            return "redirect:" + returnUrl;
+        }
         return "redirect:/parents?success=skill_updated";
     }
 }

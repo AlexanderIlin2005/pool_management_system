@@ -8,6 +8,7 @@ import ru.sashil.admin.model.*;
 import ru.sashil.admin.service.*;
 import ru.sashil.admin.repository.*;
 import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -179,13 +180,15 @@ public class GroupController {
                                    @RequestParam(required = false) Integer ageFrom,
                                    @RequestParam(required = false) Integer ageTo,
                                    @RequestParam(required = false) Integer gradeFrom,
-                                   @RequestParam(required = false) Integer gradeTo) {
+                                   @RequestParam(required = false) Integer gradeTo,
+                                   HttpServletRequest request) {
         if (!isAdmin(session)) return "redirect:/parents";
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
 
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "groups");
+        model.addAttribute("currentUri", request.getRequestURI()); // Добавлен URI
 
         Optional<Group> groupOpt = groupService.getGroupById(id);
         if (groupOpt.isEmpty()) return "redirect:/groups";

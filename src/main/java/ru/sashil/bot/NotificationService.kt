@@ -56,7 +56,7 @@ class NotificationService(
             val newSkill = notif["new_skill"] as String
             val notifId = notif["id"] as Long
 
-            val text = "Уважаемый родитель! Навык плавания ребенка $childName был изменен с '$oldSkill' на '$newSkill'."
+            val text = "Навык плавания ребенка $childName был изменен с '$oldSkill' на '$newSkill'."
 
             try {
                 sendMessage(vkId, text)

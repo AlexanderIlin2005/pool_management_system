@@ -9,6 +9,7 @@ import ru.sashil.admin.model.ParentWithChildren;
 import ru.sashil.admin.service.AdminDashboardService;
 import ru.sashil.admin.service.StringSimilarityService;
 import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -39,13 +40,15 @@ public class ParentController {
     public String parentsPage(HttpSession session, Model model,
                               @RequestParam(required = false) String search,
                               @RequestParam(required = false) String sortField,
-                              @RequestParam(required = false) String sortOrder) {
+                              @RequestParam(required = false) String sortOrder,
+                              HttpServletRequest request) {
         AdminUser currentUser = (AdminUser) session.getAttribute("currentUser");
         if (currentUser == null) return "redirect:/login";
 
         model.addAttribute("fullName", currentUser.getFullName());
         model.addAttribute("role", currentUser.getRole());
         model.addAttribute("activePage", "parents");
+        model.addAttribute("currentUri", request.getRequestURI()); // Добавлен URI
 
         if (!hasAccess(session)) return "restricted";
 
