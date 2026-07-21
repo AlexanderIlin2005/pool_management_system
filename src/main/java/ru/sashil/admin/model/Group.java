@@ -2,7 +2,7 @@ package ru.sashil.admin.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import org.hibernate.annotations.CreationTimestamp; // <-- Добавь этот импорт
+import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
 
@@ -45,7 +45,7 @@ public class Group {
     @Column(name = "day_7_start") private LocalTime day7Start;
     @Column(name = "day_7_end")   private LocalTime day7End;
 
-    // ИСПРАВЛЕНИЕ: Используем CreationTimestamp для автоматической установки даты создания
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, insertable = false)
     private LocalDateTime createdAt;

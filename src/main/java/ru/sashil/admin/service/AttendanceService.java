@@ -63,11 +63,11 @@ public class AttendanceService {
 
                 attendance.setStatus(status);
 
-                // Обработка комментария
+                
                 String commentText = null;
                 if (comments != null && comments.containsKey(childId)) {
                     commentText = comments.get(childId);
-                    // Если пришла пустая строка, значит пользователь очистил поле -> сохраняем null
+                    
                     if (commentText != null && commentText.trim().isEmpty()) {
                         commentText = null;
                     }

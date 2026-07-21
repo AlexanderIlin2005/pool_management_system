@@ -7,5 +7,5 @@ import java.util.List;
 
 public interface HolidayRepository extends JpaRepository<Holiday, Long> {
     boolean existsByHolidayDate(LocalDate date);
-    List<Holiday> findAllByOrderByHolidayDateAsc(); // Добавлено
+    List<Holiday> findAllByOrderByHolidayDateAsc(); 
 }

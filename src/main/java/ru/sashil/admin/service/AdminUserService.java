@@ -27,9 +27,9 @@ public class AdminUserService {
     }
 
     public void saveUser(AdminUser user) {
-        // Если пароль не пустой, шифруем его перед сохранением
+        
         if (user.getPasswordHash() != null && !user.getPasswordHash().isEmpty()) {
-            // Проверяем, не зашифрован ли он уже (простая проверка на длину bcrypt хеша)
+            
             if (!user.getPasswordHash().startsWith("$2a$") && !user.getPasswordHash().startsWith("$2b$")) {
                 user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash()));
             }

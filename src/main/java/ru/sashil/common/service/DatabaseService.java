@@ -315,7 +315,7 @@ public class DatabaseService {
         return result;
     }
 
-    // ИСПРАВЛЕНО: Добавлены поля date_from, date_to, processed_by_name
+    
     public List<Map<String, Object>> getUnreadCertificates() {
         String sql = "SELECT cert.id, cert.uploaded_at, cert.file_url, cert.status, " +
                 "cert.date_from, cert.date_to, " +
@@ -331,7 +331,7 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
-    // ИСПРАВЛЕНО: Добавлены поля date_from, date_to, processed_by_name
+    
     public List<Map<String, Object>> getUnreadCertificatesForCoach(Long coachId) {
         String sql = "SELECT cert.id, cert.uploaded_at, cert.file_url, cert.status, " +
                 "cert.date_from, cert.date_to, " +
@@ -397,7 +397,7 @@ public class DatabaseService {
             e.printStackTrace();
         }
 
-        // Исправлено: убран ID справки, добавлено имя обработчика
+        
         String comment = "Справку подтвердил: " + processorName;
 
         String updateCertSql = "UPDATE pool.certificates SET is_read = TRUE, status = ?, date_from = ?, date_to = ?, processed_by = ? WHERE id = ?";
@@ -445,7 +445,7 @@ public class DatabaseService {
     }
 
     public void resetCertificateReadStatus(Long certId) {
-        // Сначала получаем данные справки, чтобы знать диапазон дат и child_id для очистки комментариев
+        
         String selectSql = "SELECT child_id, date_from, date_to FROM pool.certificates WHERE id = ?";
         Long childId = null;
         LocalDate dateFrom = null;
@@ -457,7 +457,7 @@ public class DatabaseService {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 childId = rs.getLong("child_id");
-                // Получаем даты как java.sql.Date и конвертируем в LocalDate
+                
                 java.sql.Date sqlDateFrom = rs.getDate("date_from");
                 java.sql.Date sqlDateTo = rs.getDate("date_to");
                 if (sqlDateFrom != null) dateFrom = sqlDateFrom.toLocalDate();
@@ -467,9 +467,9 @@ public class DatabaseService {
             e.printStackTrace();
         }
 
-        // Если данные есть, очищаем комментарии в посещаемости за этот период
+        
         if (childId != null && dateFrom != null && dateTo != null) {
-            // ИСПРАВЛЕНО: Используем JOIN с pool_lessons для доступа к lesson_date
+            
             String clearCommentSql = "UPDATE pool.attendance a SET comment = NULL " +
                     "FROM pool.pool_lessons pl " +
                     "WHERE a.lesson_id = pl.id " +
@@ -490,7 +490,7 @@ public class DatabaseService {
             }
         }
 
-        // Сбрасываем статус самой справки
+        
         String resetSql = "UPDATE pool.certificates SET is_read = FALSE, status = 'PENDING', date_from = NULL, date_to = NULL, processed_by = NULL WHERE id = ?";
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(resetSql)) {

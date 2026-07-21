@@ -11,11 +11,11 @@ import java.nio.file.Files;
 import java.util.UUID;
 import java.util.logging.Logger;
 
-@Service // <-- ВАЖНО: Делаем этот класс видимым для Spring
+@Service 
 public class MinIOService {
     private static final Logger LOGGER = Logger.getLogger(MinIOService.class.getName());
 
-    // Вспомогательный метод для определения типа
+    
     private String getContentType(String fileName) {
         if (fileName == null) return "application/octet-stream";
         String lowerName = fileName.toLowerCase();

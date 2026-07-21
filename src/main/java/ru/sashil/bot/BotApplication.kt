@@ -35,7 +35,7 @@ class BotApplication {
                 val dbUrl = "jdbc:postgresql://${ConfigLoader.get("DB_HOST")}:${ConfigLoader.get("DB_PORT")}/${ConfigLoader.get("DB_NAME")}"
                 dbService = DatabaseService(dbUrl, ConfigLoader.get("DB_USER"), ConfigLoader.get("DB_PASSWORD"))
 
-                // Инициализация MinIO
+                
                 minioService = MinIOService()
 
                 regHandler = RegistrationHandler()
@@ -51,9 +51,9 @@ class BotApplication {
                     httpClient = HttpClient(CIO)
                 )
 
-                // Инициализация сервисов
+                
                 notificationService = NotificationService(dbService, bot)
-                // Инициализируем Java-хэндлер (VK клиент внутри него инициализируется лениво)
+                
                 certificateHandler = CertificateHandler(dbService, minioService)
 
                 LOGGER.info("Бот запущен!")
@@ -61,13 +61,13 @@ class BotApplication {
 
 
                 runBlocking {
-                    // Настройка LongPoll settings
+                    
                     LOGGER.info("Настройка LongPoll...")
                     bot.groups.setLongPollSettings(groupId) {
                         enabled = true
                         messageNew = true
-                        // Добавим другие типы событий для отладки, если нужно
-                        // messageEvent = true
+                        
+                        
                     }
                     LOGGER.info("LongPoll настроен.")
 
@@ -184,12 +184,12 @@ class BotApplication {
         }
 
         private suspend fun processUpdate(bot: VkClient, update: GetUpdatesVkMethod.Result.Update) {
-            // Логируем тип обновления, чтобы видеть, приходят ли вообще события
+            
             LOGGER.info("Получено обновление типа: ${update.type}")
 
             val msgNew = update.asMessageNew ?: run {
-                // Если это не новое сообщение, можно залогировать тип для отладки
-                // LOGGER.fine("Пропущено обновление типа: ${update.type}")
+                
+                
                 return
             }
 
@@ -199,7 +199,7 @@ class BotApplication {
 
             LOGGER.info("Новое сообщение от $userId: '$text'")
 
-            // Получаем сырую JSON-строку объекта сообщения.
+            
             val rawJson = try {
                 update.obj.toString()
             } catch (e: Exception) {
@@ -214,7 +214,7 @@ class BotApplication {
                     childHandler.isAddingChild(userId) -> handleAddChild(bot, userId, text)
                     childEditHandler.isEditingChild(userId) -> handleEditChild(bot, userId, text)
                     certificateHandler.isUploading(userId) -> {
-                        // Передаем управление Java-хэндлеру
+                        
                         val response = certificateHandler.processStep(userId, text, rawJson)
                         if (response != null) {
                             sendText(bot, userId, response)

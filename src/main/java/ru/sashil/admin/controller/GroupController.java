@@ -57,7 +57,7 @@ public class GroupController {
 
         List<Group> allGroups;
 
-        // РАЗДЕЛЕНИЕ ПРАВ ДОСТУПА
+
         if (user.getRole() == AdminUser.Role.ADMIN) {
             allGroups = groupService.getAllGroups();
         } else if (user.getRole() == AdminUser.Role.COACH) {
@@ -253,11 +253,11 @@ public class GroupController {
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "groups");
 
-        // Получаем все группы для выбора в выпадающих списках
+
         List<Group> allGroups = groupService.getAllGroups();
         model.addAttribute("allGroups", allGroups);
 
-        // Если группы выбраны, загружаем их участников
+
         if (group1Id != null) {
             Optional<Group> g1 = groupService.getGroupById(group1Id);
             if (g1.isPresent()) {
@@ -280,26 +280,23 @@ public class GroupController {
     @PostMapping("/transfer/save")
     public String saveTransfer(@RequestParam Long group1Id,
                                @RequestParam Long group2Id,
-                               @RequestParam(required = false) List<Long> toGroup2, // ID детей, которых перемещаем из 1 во 2
-                               @RequestParam(required = false) List<Long> toGroup1, // ID детей, которых перемещаем из 2 в 1
+                               @RequestParam(required = false) List<Long> toGroup2, 
+                               @RequestParam(required = false) List<Long> toGroup1, 
                                HttpSession session) {
         if (!isAdmin(session)) return "redirect:/parents";
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
 
-        // Перемещение из Группы 1 в Группу 2
+
         if (toGroup2 != null) {
             for (Long childId : toGroup2) {
-                // Сначала удаляем из старой группы
                 memberService.removeChildFromGroup(group1Id, childId, user);
-                // Добавляем в новую (с новой датой created_at, так как это изменение)
                 memberService.addChildToGroup(group2Id, childId, user);
-
                 auditLogService.log("CHILD_TRANSFERRED", user,
                         "Ребенок ID=" + childId + " перемещен из группы ID=" + group1Id + " в группу ID=" + group2Id);
             }
         }
 
-        // Перемещение из Группы 2 в Группу 1
+        
         if (toGroup1 != null) {
             for (Long childId : toGroup1) {
                 memberService.removeChildFromGroup(group2Id, childId, user);
@@ -328,7 +325,7 @@ public class GroupController {
 
         Group group = groupOpt.get();
 
-        // Проверка прав
+
         if (user.getRole() == AdminUser.Role.COACH) {
             if (group.getTrainer() == null || !group.getTrainer().getId().equals(user.getId())) {
                 return "redirect:/schedule?error=access_denied";
@@ -341,7 +338,7 @@ public class GroupController {
         int currentYear = year != null ? year : today.getYear();
         int currentMonth = month != null ? month : today.getMonthValue();
 
-        // Получаем сырые данные из сервиса
+
         Map<String, Object> attendanceData = scheduleService.getMonthlyAttendance(group, currentYear, currentMonth);
 
         List<LocalDate> days = (List<LocalDate>) attendanceData.get("days");
@@ -349,7 +346,7 @@ public class GroupController {
         Map<Long, Map<LocalDate, Attendance.Status>> rawAttendanceMap =
                 (Map<Long, Map<LocalDate, Attendance.Status>>) attendanceData.get("attendanceMap");
 
-        // ПОДГОТОВКА ДАННЫХ ДЛЯ ШАБЛОНА
+
         List<Holiday> holidays = calendarService.getAllHolidays();
         List<SchoolVacation> vacations = calendarService.getAllVacations();
 
@@ -363,18 +360,18 @@ public class GroupController {
             }
         }
 
-        // Создаем список строк для таблицы
+
         List<Map<String, Object>> tableRows = new ArrayList<>();
 
         if (children != null) {
             for (ChildSimple child : children) {
                 Map<String, Object> row = new HashMap<>();
 
-                // ИСПРАВЛЕНИЕ 1: Добавляем отчество, если оно есть
+
                 String middleName = child.getMiddleName() != null ? " " + child.getMiddleName() : "";
                 row.put("fullName", child.getLastName() + " " + child.getFirstName() + middleName);
 
-                // ВАЖНО: Создаем СПИСОК символов вместо карты
+
                 List<String> statusSymbols = new ArrayList<>();
                 Map<LocalDate, Attendance.Status> childMap = rawAttendanceMap.getOrDefault(child.getId(), Collections.emptyMap());
 
@@ -383,7 +380,7 @@ public class GroupController {
                     if (status != null) {
                         statusSymbols.add(status.getLabel().substring(0, 1));
                     } else {
-                        statusSymbols.add(""); // Пустая строка вместо null
+                        statusSymbols.add("");
                     }
                 }
 
@@ -404,11 +401,11 @@ public class GroupController {
         model.addAttribute("holidayDates", holidayDates);
         model.addAttribute("vacationDates", vacationDates);
 
-        // Навигация
+
         model.addAttribute("prevMonthDate", LocalDate.of(currentYear, currentMonth, 1).minusMonths(1));
         model.addAttribute("nextMonthDate", LocalDate.of(currentYear, currentMonth, 1).plusMonths(1));
 
-        // ИСПРАВЛЕНИЕ 2: Определяем минимальную дату для навигации (дата создания группы)
+
         LocalDate minNavigationDate = null;
         if (group.getCreatedAt() != null) {
             minNavigationDate = group.getCreatedAt().toLocalDate();

@@ -44,7 +44,7 @@ public class PoolController {
         return "pools";
     }
 
-    // Страница добавления нового бассейна
+
     @GetMapping("/new")
     public String newPoolPage(Model model, HttpSession session) {
         if (!isAdmin(session)) return "redirect:/login";
@@ -57,7 +57,7 @@ public class PoolController {
         return "edit-pool";
     }
 
-    // Страница редактирования существующего бассейна
+
     @GetMapping("/edit/{id}")
     public String editPoolPage(@PathVariable Long id, Model model, HttpSession session) {
         if (!isAdmin(session)) return "redirect:/login";

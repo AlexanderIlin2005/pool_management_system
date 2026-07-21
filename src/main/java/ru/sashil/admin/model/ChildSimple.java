@@ -4,9 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Упрощенная модель ребенка только для списков (без Enum полей, чтобы избежать ошибок маппинга)
- */
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

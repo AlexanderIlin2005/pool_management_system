@@ -111,7 +111,7 @@ public class CertificateHandler {
                     return "Я не вижу вложения. Пришлите файл.";
                 }
                 try {
-                    // Получаем URL и расширение файла
+                    
                     String[] fileInfo = getFileUrlAndExt(rawJsonMessage);
                     if (fileInfo == null) {
                         cancel(userId);
@@ -119,7 +119,7 @@ public class CertificateHandler {
                     }
 
                     String fileUrl = fileInfo[0];
-                    String extension = fileInfo[1]; // .pdf, .jpg, .png
+                    String extension = fileInfo[1]; 
 
                     LOGGER.info("Найден файл URL: " + fileUrl + " (Расширение: " + extension + ")");
 
@@ -167,18 +167,18 @@ public class CertificateHandler {
                     JSONArray sizes = photoObj.getJSONArray("sizes");
                     if (sizes.length() > 0) {
                         String url = sizes.getJSONObject(sizes.length() - 1).getString("url");
-                        return new String[]{url, ".jpg"}; // Фото всегда сохраняем как jpg для единообразия
+                        return new String[]{url, ".jpg"}; 
                     }
                 } else if ("doc".equals(type)) {
                     JSONObject docObj = attachment.getJSONObject("doc");
                     if (docObj.has("url")) {
                         String url = docObj.getString("url");
-                        // Берем расширение из поля ext, добавляем точку если её нет
+                        
                         String ext = docObj.optString("ext", "");
                         if (!ext.startsWith(".") && !ext.isEmpty()) {
                             ext = "." + ext;
                         }
-                        if (ext.isEmpty()) ext = ".doc"; // Дефолт
+                        if (ext.isEmpty()) ext = ".doc"; 
                         return new String[]{url, ext};
                     }
                 }

@@ -44,7 +44,7 @@ public class CalendarService {
             holiday.setName(name);
             holidayRepo.save(holiday);
 
-            // Перегенерируем расписание для всех групп
+            
             regenerateAllSchedules();
         }
     }
@@ -53,7 +53,7 @@ public class CalendarService {
     public void deleteHoliday(Long id) {
         holidayRepo.deleteById(id);
 
-        // Перегенерируем расписание для всех групп
+        
         regenerateAllSchedules();
     }
 
@@ -67,7 +67,7 @@ public class CalendarService {
         vacation.setName(name);
         vacationRepo.save(vacation);
 
-        // Перегенерируем расписание для всех групп
+        
         regenerateAllSchedules();
     }
 
@@ -75,7 +75,7 @@ public class CalendarService {
     public void deleteVacation(Long id) {
         vacationRepo.deleteById(id);
 
-        // Перегенерируем расписание для всех групп
+        
         regenerateAllSchedules();
     }
 
@@ -88,7 +88,7 @@ public class CalendarService {
             try {
                 lessonService.regenerateFutureLessons(group);
             } catch (Exception e) {
-                // Логируем ошибку, но не прерываем процесс для остальных групп
+                
                 System.err.println("Ошибка при перегенерации расписания для группы " + group.getId() + ": " + e.getMessage());
             }
         }

@@ -12,7 +12,7 @@ public class NameUtils {
         String[] parts = fullName.trim().split("\\s+");
         if (parts.length == 0) return fullName;
 
-        StringBuilder sb = new StringBuilder(parts[0]); // Фамилия
+        StringBuilder sb = new StringBuilder(parts[0]); 
 
         for (int i = 1; i < parts.length && i <= 2; i++) {
             char initial = Character.toUpperCase(parts[i].charAt(0));

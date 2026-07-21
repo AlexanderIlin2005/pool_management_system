@@ -13,10 +13,10 @@ public class DocumentVersion {
     private Long id;
 
     @Column(name = "doc_type", nullable = false)
-    private String docType; // CONTRACT, CONSENT, RULES, RECEIPT
+    private String docType;
 
     @Column(name = "file_name", nullable = false)
-    private String fileName; // UUID.pdf in MinIO
+    private String fileName;
 
     @Column(name = "original_name")
     private String originalName;

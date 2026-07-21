@@ -30,18 +30,18 @@ public class Main {
                 case 3 -> {
                     System.out.println("🚀 Запуск полной системы (Бот + Web)...");
 
-                    // Поток для Spring Boot
+                    
                     Thread springThread = new Thread(() -> {
                         System.out.println("[Spring] Инициализация Web-сервера...");
                         AdminApplication.run(args);
                     }, "Spring-Boot-Thread");
-                    springThread.setDaemon(false); // Не демон, чтобы JVM не закрылась, пока Spring жив
+                    springThread.setDaemon(false); 
                     springThread.start();
 
-                    // Небольшая пауза, чтобы Spring успел поднять контекст (опционально)
+                    
                     try { Thread.sleep(2000); } catch (InterruptedException e) {}
 
-                    // Поток для VK Бота
+                    
                     Thread botThread = new Thread(() -> {
                         System.out.println("[Bot] Инициализация VK LongPoll...");
                         BotApplication.main(args);

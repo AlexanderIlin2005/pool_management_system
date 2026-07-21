@@ -23,7 +23,7 @@ public class ParentController {
     @Autowired
     private StringSimilarityService similarityService;
 
-    // Проверка роли (вспомогательный метод)
+
     private boolean isAdmin(HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         return user != null && user.getRole() == ru.sashil.admin.model.AdminUser.Role.ADMIN;

@@ -8,7 +8,7 @@ import java.io.Serializable;
 
 @Data
 @NoArgsConstructor
-@AllArgsConstructor // <-- Добавь эту аннотацию
+@AllArgsConstructor
 public class GroupChildId implements Serializable {
     private Long groupId;
     private Long childId;

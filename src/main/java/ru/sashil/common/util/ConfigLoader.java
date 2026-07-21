@@ -20,7 +20,7 @@ public class ConfigLoader {
 
         config = new HashMap<>();
 
-        // 1. Пробуем загрузить из resources (application.properties)
+        
         try (InputStream input = ConfigLoader.class.getClassLoader().getResourceAsStream("application.properties")) {
             if (input != null) {
                 LOGGER.info("Загружаем application.properties из resources...");
@@ -36,7 +36,7 @@ public class ConfigLoader {
             LOGGER.warning("Не удалось загрузить application.properties из resources: " + e.getMessage());
         }
 
-        // 2. Пробуем из корня проекта (dev режим)
+        
         try {
             Path path = Paths.get("application.properties");
             if (Files.exists(path)) {

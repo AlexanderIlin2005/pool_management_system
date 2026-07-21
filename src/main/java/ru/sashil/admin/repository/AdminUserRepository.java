@@ -8,6 +8,6 @@ import java.util.Optional;
 public interface AdminUserRepository extends JpaRepository<AdminUser, Long> {
     Optional<AdminUser> findByLogin(String login);
 
-    // Получаем только пользователей с ролью COACH
+    
     List<AdminUser> findByRole(AdminUser.Role role);
 }

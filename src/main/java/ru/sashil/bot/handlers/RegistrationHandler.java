@@ -20,7 +20,7 @@ public class RegistrationHandler {
         int step = steps.getOrDefault(userId, 0);
         Map<String, String> data = tempData.computeIfAbsent(userId, k -> new HashMap<>());
 
-        // Нормализуем команду для проверки
+        
         String cmd = CommandUtils.normalize(text);
 
         if (cmd.equals("начать") || cmd.equals("старт") || cmd.equals("справка")) {
@@ -33,20 +33,20 @@ public class RegistrationHandler {
         }
 
         switch (step) {
-            case 1: // Фамилия
+            case 1: 
                 data.put("lastName", text);
                 steps.put(userId, 2);
                 return "Введите ваше имя:";
-            case 2: // Имя
+            case 2: 
                 data.put("firstName", text);
                 steps.put(userId, 3);
                 return "Введите отчество (или напишите 'нет', если нет):";
-            case 3: // Отчество
+            case 3: 
                 String middleName = cmd.equals("нет") ? null : text;
                 data.put("middleName", middleName);
                 steps.put(userId, 4);
                 return "Введите email (или напишите 'пропустить'):";
-            case 4: // Email
+            case 4: 
                 if (!cmd.equals("пропустить")) {
                     if (!EMAIL_PATTERN.matcher(text).matches()) {
                         return "Неверный формат email. Попробуйте снова или напишите 'пропустить'.";

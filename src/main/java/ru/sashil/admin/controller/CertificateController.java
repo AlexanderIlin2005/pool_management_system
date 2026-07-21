@@ -21,23 +21,22 @@ public class CertificateController {
 
     @GetMapping
     public String certificatesPage(Model model, HttpSession session,
-                                   @RequestParam(required = false) String tab) { // Добавляем параметр tab
+                                   @RequestParam(required = false) String tab) {
 
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
         List<Map<String, Object>> certificates;
-        boolean isNewTab = !"archive".equals(tab); // По умолчанию показываем новые
+        boolean isNewTab = !"archive".equals(tab);
 
         if (isNewTab) {
-            // Новые (непрочитанные)
+
             if (user.getRole() == AdminUser.Role.COACH) {
                 certificates = databaseService.getUnreadCertificatesForCoach(user.getId());
             } else {
                 certificates = databaseService.getUnreadCertificates();
             }
         } else {
-            // Архив (прочитанные)
             certificates = databaseService.getReadCertificates();
         }
 
@@ -63,7 +62,7 @@ public class CertificateController {
         return "redirect:/certificates?success=true";
     }
 
-    // Новый метод для возврата справки в новые
+
     @PostMapping("/reset")
     public String resetCertificate(@RequestParam Long certId, HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");

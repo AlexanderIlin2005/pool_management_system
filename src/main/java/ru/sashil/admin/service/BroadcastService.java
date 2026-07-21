@@ -22,7 +22,7 @@ public class BroadcastService {
     public void createBroadcast(AdminUser sender, String targetType, Long groupId, String text) {
         String sql = "INSERT INTO pool.broadcast_messages (sender_id, target_type, target_group_id, message_text, created_at, status) VALUES (?, ?, ?, ?, ?, 'PENDING')";
 
-        // Формируем подпись, если отправитель - тренер
+        
         String finalText = text;
         if (sender.getRole() == ru.sashil.admin.model.AdminUser.Role.COACH) {
             String initials = NameUtils.toInitials(sender.getFullName());
@@ -31,21 +31,21 @@ public class BroadcastService {
             finalText += "\n\nС уважением, Администрация бассейна";
         }
 
-        // Добавляем информацию о получателях
+        
         String recipientInfo = "";
         if ("ALL".equals(targetType)) {
             recipientInfo = "\n[Рассылка всем родителям]";
         } else if (groupId != null) {
-            // ИСПРАВЛЕНИЕ: Достаем номер группы вместо ID
+            
             Integer groupNumber = getGroupNumberById(groupId);
             if (groupNumber != null) {
                 recipientInfo = "\n[Рассылка группе №" + groupNumber + "]";
             } else {
-                recipientInfo = "\n[Рассылка группе ID=" + groupId + "]"; // Fallback на случай ошибки
+                recipientInfo = "\n[Рассылка группе ID=" + groupId + "]"; 
             }
         }
 
-        // Вставляем инфо о получателях перед подписью
+        
         finalText = text + recipientInfo + (finalText.equals(text) ? "" : finalText.substring(text.length()));
 
         jdbcTemplate.update(sql, sender.getId(), targetType, groupId, finalText, LocalDateTime.now());

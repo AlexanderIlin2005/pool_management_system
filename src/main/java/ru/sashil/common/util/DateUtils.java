@@ -12,10 +12,10 @@ public class DateUtils {
     public static String normalizeDate(String input) {
         if (input == null || input.isEmpty()) return null;
 
-        // Очищаем от лишних пробелов
+        
         String cleaned = input.trim().replaceAll("\\s+", " ");
 
-        // Заменяем разделители (точки, тире, слэши) на единый пробел для унификации
+        
         String normalized = cleaned.replaceAll("[./\\-]", " ");
 
         String[] parts = normalized.split(" ");
@@ -26,11 +26,11 @@ public class DateUtils {
             int month = Integer.parseInt(parts[1]);
             int year = Integer.parseInt(parts[2]);
 
-            // Простая проверка на адекватность года
+            
             if (year < 1900 || year > LocalDate.now().getYear()) return null;
 
             LocalDate date = LocalDate.of(year, month, day);
-            return date.toString(); // Вернет YYYY-MM-DD
+            return date.toString(); 
         } catch (Exception e) {
             return null;
         }

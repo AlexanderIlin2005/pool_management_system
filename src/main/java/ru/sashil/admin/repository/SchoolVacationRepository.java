@@ -5,5 +5,5 @@ import ru.sashil.admin.model.SchoolVacation;
 import java.util.List;
 
 public interface SchoolVacationRepository extends JpaRepository<SchoolVacation, Long> {
-    List<SchoolVacation> findAllByOrderByStartDateAsc(); // Добавлено
+    List<SchoolVacation> findAllByOrderByStartDateAsc(); 
 }

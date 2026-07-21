@@ -18,7 +18,7 @@ public enum SwimmingSkill {
         return dbValue;
     }
 
-    // Убираем autoApply = true, чтобы контролировать использование вручную через @Convert
+
     @Converter
     public static class SwimmingSkillConverter implements AttributeConverter<SwimmingSkill, String> {
         @Override

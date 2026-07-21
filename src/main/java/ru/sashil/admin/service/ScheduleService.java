@@ -24,7 +24,7 @@ public class ScheduleService {
     @Autowired private AttendanceRepository attendanceRepository;
     @Autowired private ChildRepository childRepository;
 
-    // Добавляем репозитории календаря
+    
     @Autowired private HolidayRepository holidayRepository;
     @Autowired private SchoolVacationRepository vacationRepository;
 
@@ -56,7 +56,7 @@ public class ScheduleService {
         boolean showPoolSelector = false;
         List<Group> groups;
 
-        // 1. Определяем доступные пулы и выбираем текущий
+        
         if (user.getRole() == AdminUser.Role.ADMIN) {
             availablePools = poolRepository.findAll();
             showPoolSelector = availablePools.size() > 1;
@@ -67,26 +67,26 @@ public class ScheduleService {
                 selectedPoolId = availablePools.isEmpty() ? null : availablePools.get(0).getId();
             }
 
-            // Получаем группы ИМЕННО выбранного бассейна
+            
             groups = selectedPoolId != null ? groupRepository.findByPool_Id(selectedPoolId) : Collections.emptyList();
         } else {
-            // Тренер видит все свои группы, селектор скрыт
+            
             availablePools = Collections.emptyList();
             selectedPoolId = null;
             groups = groupRepository.findByTrainer_Id(user.getId());
         }
 
-        // 2. Вычисляем диапазон дат для запроса к БД
+        
         LocalDate weekEnd = weekStart.plusDays(6);
 
-        // 3. Запрашиваем занятия ИЗ БД строго за эту неделю для этих групп
+        
         List<Long> groupIds = groups.stream().map(Group::getId).collect(Collectors.toList());
         List<PoolLesson> lessons = new ArrayList<>();
         if (!groupIds.isEmpty()) {
             lessons = poolLessonRepository.findByGroupIdInAndLessonDateBetweenOrderByStartTime(groupIds, weekStart, weekEnd);
         }
 
-        // 4. Создаем карту: "ДеньНедели_ВремяНачала" -> ID занятия
+        
         Map<String, Long> lessonMap = new HashMap<>();
         for (PoolLesson l : lessons) {
             int dayIdx = l.getLessonDate().getDayOfWeek().getValue();
@@ -94,7 +94,7 @@ public class ScheduleService {
             lessonMap.put(key, l.getId());
         }
 
-        // 5. Формируем слоты расписания на основе данных из БД
+        
         Map<Integer, List<ScheduleSlot>> weekSchedule = new LinkedHashMap<>();
         for (int i = 1; i <= 7; i++) weekSchedule.put(i, new ArrayList<>());
 
@@ -112,7 +112,7 @@ public class ScheduleService {
             calculateColumnSplits(weekSchedule);
         }
 
-        // Линия текущего времени только для текущей недели
+        
         LocalDate today = LocalDate.now();
         LocalDateTime nowMoscow = LocalDateTime.now(ZoneId.of("Europe/Moscow"));
         double currentTimePercent = 0;
@@ -123,12 +123,12 @@ public class ScheduleService {
             }
         }
 
-        // ПОДГОТОВКА ДАННЫХ КАЛЕНДАРЯ ДЛЯ ШАБЛОНА
-        // Получаем все праздники и каникулы (их немного, можно грузить все)
+        
+        
         List<Holiday> holidays = holidayRepository.findAll();
         List<SchoolVacation> vacations = vacationRepository.findAll();
 
-        // Преобразуем в множества дат для быстрой проверки в шаблоне
+        
         Set<LocalDate> holidayDates = holidays.stream().map(Holiday::getHolidayDate).collect(Collectors.toSet());
 
         Set<LocalDate> vacationDates = new HashSet<>();
@@ -148,7 +148,7 @@ public class ScheduleService {
         result.put("selectedPoolId", selectedPoolId);
         result.put("showPoolSelector", showPoolSelector);
 
-        // Добавляем данные календаря
+        
         result.put("holidayDates", holidayDates);
         result.put("vacationDates", vacationDates);
 
@@ -163,9 +163,9 @@ public class ScheduleService {
             ScheduleSlot slot = new ScheduleSlot();
             slot.setGroupId(g.getId());
 
-            // Привязываем к реальному занятию из БД, если оно есть на этой неделе
+            
             String key = dayIndex + "_" + start;
-            slot.setLessonId(lessonMap.get(key)); // Может быть null, если занятие еще не сгенерировано
+            slot.setLessonId(lessonMap.get(key)); 
 
             slot.setGroupName(g.getName());
             slot.setGroupNumber(g.getNumber());
@@ -259,21 +259,21 @@ public class ScheduleService {
         LocalDate startDate = LocalDate.of(year, month, 1);
         LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
 
-        // 1. Получаем всех детей группы
+        
         List<ChildSimple> children = childRepository.findSimpleByGroupId(group.getId());
 
-        // 2. Получаем все занятия группы за этот месяц
+        
         List<PoolLesson> lessons = poolLessonRepository.findByGroupIdAndLessonDateBetweenOrderByStartTime(
                 group.getId(), startDate, endDate);
 
-        // 3. Получаем все отметки посещаемости за эти занятия
+        
         List<Long> lessonIds = lessons.stream().map(PoolLesson::getId).collect(Collectors.toList());
         List<Attendance> attendances = new ArrayList<>();
         if (!lessonIds.isEmpty()) {
             attendances = attendanceRepository.findByLessonIdIn(lessonIds);
         }
 
-        // 4. Формируем карту: ChildId -> (Date -> Status)
+        
         Map<Long, Map<LocalDate, Attendance.Status>> attendanceMap = new HashMap<>();
         for (Attendance a : attendances) {
             Long childId = a.getChild().getId();
@@ -283,7 +283,7 @@ public class ScheduleService {
                     .put(date, a.getStatus());
         }
 
-        // 5. Формируем список дней месяца, которые являются днями занятий этой группы
+        
         List<LocalDate> activeDays = new ArrayList<>();
         Set<LocalDate> lessonDates = lessons.stream().map(PoolLesson::getLessonDate).collect(Collectors.toSet());
 

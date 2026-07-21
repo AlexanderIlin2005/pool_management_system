@@ -21,7 +21,7 @@ public class DataInitializer {
     @Bean
     public CommandLineRunner initData(AdminUserRepository repository, BCryptPasswordEncoder encoder) {
         return args -> {
-            // Инициализация администраторов
+
             if (repository.count() == 0) {
                 createAdmin(repository, encoder, "admin", "admin123", "Главный Администратор");
                 createAdmin(repository, encoder, "buh", "buh123", "Иванова Мария Ивановна");
@@ -29,7 +29,7 @@ public class DataInitializer {
                 System.out.println("Тестовые администраторы созданы.");
             }
 
-            // Инициализация бассейнов
+
             if (poolRepository.count() == 0) {
                 Pool p1 = new Pool();
                 p1.setName("Бассейн 1");
@@ -52,7 +52,7 @@ public class DataInitializer {
     private void createAdmin(AdminUserRepository repo, BCryptPasswordEncoder encoder, String login, String pass, String name) {
         AdminUser user = new AdminUser();
         user.setLogin(login);
-        user.setPasswordHash(encoder.encode(pass)); // Шифруем пароль
+        user.setPasswordHash(encoder.encode(pass));
         user.setFullName(name);
 
         if (login.equals("admin")) user.setRole(AdminUser.Role.ADMIN);

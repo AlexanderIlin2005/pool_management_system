@@ -6,9 +6,9 @@ import lombok.Data;
 public class ParentWithChildren {
     private Long id;
     private String fullName;
-    private String lastName;   // Новое поле
-    private String firstName;  // Новое поле
-    private String middleName; // Новое поле
+    private String lastName;
+    private String firstName;
+    private String middleName;
     private String email;
     private String phone;
     private String child1;

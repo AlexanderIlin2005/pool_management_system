@@ -36,7 +36,7 @@ public class AttendanceMarkController {
 
         List<Attendance> existing = attendanceService.getByLessonId(lessonId);
 
-        // Создаем мапы для статусов и комментариев
+
         Map<Long, Attendance.Status> currentMarks = new HashMap<>();
         Map<Long, String> currentComments = new HashMap<>();
 
@@ -50,7 +50,7 @@ public class AttendanceMarkController {
         model.addAttribute("lesson", lesson);
         model.addAttribute("children", children);
         model.addAttribute("currentMarks", currentMarks);
-        model.addAttribute("currentComments", currentComments); // Добавляем комментарии в модель
+        model.addAttribute("currentComments", currentComments);
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "schedule");
@@ -80,18 +80,13 @@ public class AttendanceMarkController {
                     Long childId = Long.parseLong(idStr);
                     marks.put(childId, value);
                 } catch (Exception e) {
-                    // Игнорируем
                 }
             } else if (key.startsWith("comments[")) {
                 try {
                     String idStr = key.substring(9, key.length() - 1);
                     Long childId = Long.parseLong(idStr);
-                    // Сохраняем комментарий, даже если он пустой (чтобы стереть старый, если пользователь очистил поле)
-                    // Но если поле вообще не пришло (не было в форме), то игнорируем.
-                    // Так как у нас input есть для каждого ребенка, value будет "" если пусто.
                     comments.put(childId, value);
                 } catch (Exception e) {
-                    // Игнорируем
                 }
             }
         }

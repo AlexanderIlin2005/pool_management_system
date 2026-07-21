@@ -10,7 +10,7 @@ public class CommandUtils {
         if (input == null || input.isEmpty()) {
             return "";
         }
-        // Оставляем только буквы (\\p{L} поддерживает Unicode, включая кириллицу)
+        
         String cleaned = input.replaceAll("[^\\p{L}]", "");
         return cleaned.toLowerCase();
     }

@@ -30,10 +30,10 @@ public class ScheduleController {
             return "restricted";
         }
 
-        // Вычисляем дату начала запрашиваемой недели
+
         LocalDate currentWeekStart = LocalDate.now().with(DayOfWeek.MONDAY).plusWeeks(weekOffset);
 
-        // Запрашиваем данные у сервиса СТРОГО для этой недели и выбранного бассейна
+
         Map<String, Object> scheduleData = scheduleService.getWeeklySchedule(user, poolId, currentWeekStart);
 
         model.addAttribute("fullName", user.getFullName());
@@ -45,16 +45,10 @@ public class ScheduleController {
         model.addAttribute("schedule", scheduleData.get("schedule"));
         model.addAttribute("currentDayIndex", scheduleData.get("currentDayIndex"));
         model.addAttribute("currentTimePercent", scheduleData.get("currentTimePercent"));
-
-        // Передаем параметры навигации
         model.addAttribute("weekOffset", weekOffset);
         model.addAttribute("weekStart", currentWeekStart);
         model.addAttribute("weekEnd", currentWeekStart.plusDays(6));
-
-        // ДОБАВЛЯЕМ ЭТУ СТРОКУ:
         model.addAttribute("today", LocalDate.now());
-
-        // ПЕРЕДАЕМ ДАННЫЕ КАЛЕНДАРЯ В ШАБЛОН
         model.addAttribute("holidayDates", scheduleData.get("holidayDates"));
         model.addAttribute("vacationDates", scheduleData.get("vacationDates"));
 

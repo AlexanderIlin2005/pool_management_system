@@ -20,7 +20,7 @@ class NotificationService(
         val today = LocalDate.now()
         val tomorrow = today.plusDays(1)
 
-        // Получаем всех родителей из БД
+        
         val parents = getAllParents()
 
         for (parent in parents) {
@@ -28,13 +28,13 @@ class NotificationService(
             val vkId = parent["vk_id"] as Long
 
             try {
-                // 1. Проверка регулярных уведомлений (если включены)
+                
                 if (dbService.isRegularNotificationsEnabled(vkId)) {
                     processRegularNotifications(vkId, parentId, today, tomorrow)
                 }
 
-                // 2. Проверка отмен занятий (на ближайшую неделю) - отправляется всегда
-                // (Логика проверок отмен пока упрощена, но место под нее есть)
+                
+                
 
             } catch (e: Exception) {
                 logger.severe("Ошибка при обработке уведомлений для родителя $vkId: ${e.message}")
@@ -44,10 +44,10 @@ class NotificationService(
     }
 
     private suspend fun processRegularNotifications(vkId: Long, parentId: Long, today: LocalDate, tomorrow: LocalDate) {
-        // Уведомление о занятии ЗАВТРА (отправляем сегодня)
+        
         val tomorrowLessons = dbService.getChildrenScheduleForDate(parentId, tomorrow)
         for (lesson in tomorrowLessons) {
-            // Если занятие есть (не отменено/удалено)
+            
             if (lesson["startTime"] != null) {
                 if (!dbService.hasNotificationBeenSent(parentId, lesson["childId"] as Long, "TOMORROW", tomorrow)) {
                     sendTomorrowReminder(vkId, lesson, tomorrow)
@@ -56,7 +56,7 @@ class NotificationService(
             }
         }
 
-        // Уведомление о занятии СЕГОДНЯ (отправляем утром)
+        
         val todayLessons = dbService.getChildrenScheduleForDate(parentId, today)
         for (lesson in todayLessons) {
             if (lesson["startTime"] != null) {
@@ -71,7 +71,7 @@ class NotificationService(
     private suspend fun sendTomorrowReminder(vkId: Long, lesson: Map<String, Any>, date: LocalDate) {
         val time = lesson["startTime"].toString().substring(0, 5)
 
-        // ИСПРАВЛЕНИЕ: Берем номер и приводим к строке. Если номера нет (редкий случай), берем имя.
+        
         val groupNumber = lesson["groupNumber"]?.toString() ?: lesson["groupName"].toString()
 
         val childName = getChildName(lesson["childId"] as Long)
@@ -83,7 +83,7 @@ class NotificationService(
     private suspend fun sendTodayReminder(vkId: Long, lesson: Map<String, Any>, date: LocalDate) {
         val time = lesson["startTime"].toString().substring(0, 5)
 
-        // ИСПРАВЛЕНИЕ: Аналогично для сегодня
+        
         val groupNumber = lesson["groupNumber"]?.toString() ?: lesson["groupName"].toString()
 
         val childName = getChildName(lesson["childId"] as Long)

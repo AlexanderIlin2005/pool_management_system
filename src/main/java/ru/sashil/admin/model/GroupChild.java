@@ -17,7 +17,7 @@ public class GroupChild {
     @Column(name = "child_id")
     private Long childId;
 
-    // ДОБАВЛЕНО: Поле для даты добавления ребенка в группу (соответствует БД)
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 }

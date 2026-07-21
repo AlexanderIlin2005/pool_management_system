@@ -12,7 +12,7 @@ public interface DocumentRepository extends JpaRepository<DocumentVersion, Long>
     Optional<DocumentVersion> findByDocTypeAndIsActiveTrue(String docType);
     List<DocumentVersion> findByDocTypeOrderByUploadedAtDesc(String docType);
 
-    // Метод для принудительного сброса всех активных документов определенного типа
+    
     @Modifying
     @Transactional
     @Query("UPDATE DocumentVersion d SET d.isActive = false WHERE d.docType = :docType")

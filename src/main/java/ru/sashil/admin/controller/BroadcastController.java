@@ -27,7 +27,7 @@ public class BroadcastController {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
-        // Доступно Админу и Тренеру
+
         if (user.getRole() != AdminUser.Role.ADMIN && user.getRole() != AdminUser.Role.COACH) {
             return "restricted";
         }
@@ -36,14 +36,14 @@ public class BroadcastController {
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "broadcast");
 
-        // Флаг: является ли пользователь тренером (для скрытия опции "Всем")
+
         model.addAttribute("isCoach", user.getRole() == AdminUser.Role.COACH);
 
-        // Список групп для выбора
+
         List<Map<String, Object>> groups = broadcastService.getAvailableGroups(user.getId(), user.getRole().name());
         model.addAttribute("groups", groups);
 
-        // История
+
         model.addAttribute("history", broadcastService.getBroadcastHistory());
 
         return "broadcast";
@@ -57,7 +57,7 @@ public class BroadcastController {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
-        // Дополнительная защита: если тренер пытается отправить всем, блокируем или меняем на группу по умолчанию
+
         if (user.getRole() == AdminUser.Role.COACH && "ALL".equals(targetType)) {
             return "redirect:/broadcast?error=coach_cannot_send_all";
         }

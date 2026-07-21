@@ -17,7 +17,7 @@ public class AuditLogService {
 
     private static final String LOG_DIR = "./data/logs";
     private static final String LOG_FILE = "audit.log";
-    // ИСПРАВЛЕНИЕ: Формат даты изменен на dd-MM-yyyy
+    
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
     private final ObjectMapper mapper = new ObjectMapper();
 

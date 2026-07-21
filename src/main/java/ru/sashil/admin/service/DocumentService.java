@@ -57,16 +57,16 @@ public class DocumentService {
         DocumentVersion doc = documentRepository.findById(versionId)
                 .orElseThrow(() -> new RuntimeException("Версия не найдена"));
 
-        // Если этот документ уже активен, ничего не делаем
+        
         if (Boolean.TRUE.equals(doc.getIsActive())) {
             return;
         }
 
-        // 1. Сначала гарантированно сбрасываем все остальные документы этого типа
-        // Это безопасно обходит проблему порядка flush в Hibernate
+        
+        
         documentRepository.deactivateAllByDocType(doc.getDocType());
 
-        // 2. Активируем новую версию
+        
         doc.setIsActive(true);
         documentRepository.save(doc);
     }

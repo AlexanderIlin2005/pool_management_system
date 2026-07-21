@@ -23,12 +23,12 @@ public class AdminDashboardService {
             ParentWithChildren pwc = new ParentWithChildren();
             pwc.setId((Long) row.get("id"));
 
-            // Сохраняем части ФИО отдельно для поиска и сортировки
+            
             pwc.setLastName((String) row.get("last_name"));
             pwc.setFirstName((String) row.get("first_name"));
             pwc.setMiddleName((String) row.get("middle_name"));
 
-            // Полное ФИО для отображения
+            
             StringBuilder fullName = new StringBuilder();
             fullName.append(row.get("last_name"));
             fullName.append(" ");
@@ -41,7 +41,7 @@ public class AdminDashboardService {
             pwc.setEmail((String) row.get("email"));
             pwc.setPhone((String) row.get("phone"));
 
-            // Получаем детей
+            
             Long parentId = (Long) row.get("id");
             String childSql = "SELECT first_name, last_name FROM pool.children WHERE parent_id = ? LIMIT 3";
             List<Map<String, Object>> childrenRows = jdbcTemplate.queryForList(childSql, parentId);

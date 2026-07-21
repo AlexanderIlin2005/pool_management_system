@@ -29,18 +29,18 @@ public class LessonService {
     public void generateLessonsForGroup(Group group) {
         final Long groupId = group.getId();
 
-        // Определяем дату начала генерации: дата создания группы или сегодня (что позже)
+        
         LocalDate creationDate = group.getCreatedAt() != null ?
                 group.getCreatedAt().toLocalDate() : LocalDate.now();
         LocalDate today = LocalDate.now();
         LocalDate startDate = creationDate.isAfter(today) ? creationDate : today;
 
-        // Приводим к понедельнику текущей недели, чтобы не было дыр в расписании
+        
         if (startDate.getDayOfWeek() != DayOfWeek.MONDAY) {
             startDate = startDate.with(DayOfWeek.MONDAY);
         }
 
-        // Определяем конечную дату: 31 мая текущего года, или следующего, если май прошел
+        
         LocalDate endDate = LocalDate.of(today.getYear(), 5, 31);
         if (endDate.isBefore(today)) {
             endDate = endDate.plusYears(1);
@@ -73,7 +73,7 @@ public class LessonService {
                 if (!lessonRepo.existsByGroupIdAndLessonDateAndStartTime(groupId, currentDate, currentStart)) {
                     PoolLesson lesson = new PoolLesson();
 
-                    // Важно: используем прокси-объект группы, чтобы избежать LazyInitializationException
+                    
                     Group g = new Group();
                     g.setId(groupId);
                     lesson.setGroup(g);
@@ -98,12 +98,12 @@ public class LessonService {
 
         PoolLesson lesson = lessonOpt.get();
 
-        // Админ имеет доступ ко всем занятиям
+        
         if (user.getRole() == AdminUser.Role.ADMIN) {
             return lessonOpt;
         }
 
-        // Тренер имеет доступ только к своим занятиям
+        
         if (user.getRole() == AdminUser.Role.COACH && lesson.getGroup().getTrainer() != null) {
             if (lesson.getGroup().getTrainer().getId().equals(user.getId())) {
                 return lessonOpt;
