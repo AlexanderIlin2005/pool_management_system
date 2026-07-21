@@ -445,12 +445,60 @@ public class DatabaseService {
     }
 
     public void resetCertificateReadStatus(Long certId) {
-        String sql = "UPDATE pool.certificates SET is_read = FALSE, status = 'PENDING', date_from = NULL, date_to = NULL, processed_by = NULL WHERE id = ?";
+        // Сначала получаем данные справки, чтобы знать диапазон дат и child_id для очистки комментариев
+        String selectSql = "SELECT child_id, date_from, date_to FROM pool.certificates WHERE id = ?";
+        Long childId = null;
+        LocalDate dateFrom = null;
+        LocalDate dateTo = null;
+
         try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+             PreparedStatement stmt = conn.prepareStatement(selectSql)) {
+            stmt.setLong(1, certId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                childId = rs.getLong("child_id");
+                // Получаем даты как java.sql.Date и конвертируем в LocalDate
+                java.sql.Date sqlDateFrom = rs.getDate("date_from");
+                java.sql.Date sqlDateTo = rs.getDate("date_to");
+                if (sqlDateFrom != null) dateFrom = sqlDateFrom.toLocalDate();
+                if (sqlDateTo != null) dateTo = sqlDateTo.toLocalDate();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        // Если данные есть, очищаем комментарии в посещаемости за этот период
+        if (childId != null && dateFrom != null && dateTo != null) {
+            // ИСПРАВЛЕНО: Используем JOIN с pool_lessons для доступа к lesson_date
+            String clearCommentSql = "UPDATE pool.attendance a SET comment = NULL " +
+                    "FROM pool.pool_lessons pl " +
+                    "WHERE a.lesson_id = pl.id " +
+                    "AND a.child_id = ? " +
+                    "AND pl.lesson_date BETWEEN ? AND ? " +
+                    "AND a.comment LIKE 'Справку подтвердил:%'";
+
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(clearCommentSql)) {
+                stmt.setLong(1, childId);
+                stmt.setDate(2, Date.valueOf(dateFrom));
+                stmt.setDate(3, Date.valueOf(dateTo));
+                int updatedRows = stmt.executeUpdate();
+                LOGGER.info("✅ Очищено комментариев в посещаемости: " + updatedRows);
+            } catch (SQLException e) {
+                LOGGER.severe("❌ Ошибка очистки комментариев: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+
+        // Сбрасываем статус самой справки
+        String resetSql = "UPDATE pool.certificates SET is_read = FALSE, status = 'PENDING', date_from = NULL, date_to = NULL, processed_by = NULL WHERE id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(resetSql)) {
             stmt.setLong(1, certId);
             stmt.executeUpdate();
+            LOGGER.info("✅ Справка ID=" + certId + " возвращена в новые.");
         } catch (SQLException e) {
+            LOGGER.severe("❌ Ошибка сброса статуса справки: " + e.getMessage());
             e.printStackTrace();
         }
     }
