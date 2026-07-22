@@ -25,6 +25,8 @@ public class DatabaseService {
         return DriverManager.getConnection(url, user, password);
     }
 
+    // === СУЩЕСТВУЮЩИЕ МЕТОДЫ (сохраняем все) ===
+
     public void saveParent(long vkId, String firstName, String lastName, String middleName, String email) throws SQLException {
         String sql = "INSERT INTO pool.parents (vk_id, first_name, last_name, middle_name, email) VALUES (?, ?, ?, ?, ?) ON CONFLICT (vk_id) DO UPDATE SET first_name=EXCLUDED.first_name, last_name=EXCLUDED.last_name, email=EXCLUDED.email";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -76,6 +78,20 @@ public class DatabaseService {
                 data.put("phone", rs.getString("phone"));
                 return data;
             }
+        }
+        return null;
+    }
+
+    public Long getParentIdByVkId(long vkId) {
+        String sql = "SELECT id FROM pool.parents WHERE vk_id = ?";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, vkId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getLong("id");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
         return null;
     }
@@ -260,21 +276,6 @@ public class DatabaseService {
         }
     }
 
-    public Long getParentIdByVkId(long vkId) {
-        String sql = "SELECT id FROM pool.parents WHERE vk_id = ?";
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setLong(1, vkId);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getLong("id");
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
     public void saveCertificate(Long parentVkId, Long childId, String fileUrl) {
         Long parentId = getParentIdByVkId(parentVkId);
         if (parentId == null) {
@@ -315,7 +316,6 @@ public class DatabaseService {
         return result;
     }
 
-    
     public List<Map<String, Object>> getUnreadCertificates() {
         String sql = "SELECT cert.id, cert.uploaded_at, cert.file_url, cert.status, " +
                 "cert.date_from, cert.date_to, " +
@@ -331,7 +331,6 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
-    
     public List<Map<String, Object>> getUnreadCertificatesForCoach(Long coachId) {
         String sql = "SELECT cert.id, cert.uploaded_at, cert.file_url, cert.status, " +
                 "cert.date_from, cert.date_to, " +
@@ -397,7 +396,6 @@ public class DatabaseService {
             e.printStackTrace();
         }
 
-        
         String comment = "Справку подтвердил: " + processorName;
 
         String updateCertSql = "UPDATE pool.certificates SET is_read = TRUE, status = ?, date_from = ?, date_to = ?, processed_by = ? WHERE id = ?";
@@ -445,7 +443,6 @@ public class DatabaseService {
     }
 
     public void resetCertificateReadStatus(Long certId) {
-        
         String selectSql = "SELECT child_id, date_from, date_to FROM pool.certificates WHERE id = ?";
         Long childId = null;
         LocalDate dateFrom = null;
@@ -457,7 +454,6 @@ public class DatabaseService {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 childId = rs.getLong("child_id");
-                
                 java.sql.Date sqlDateFrom = rs.getDate("date_from");
                 java.sql.Date sqlDateTo = rs.getDate("date_to");
                 if (sqlDateFrom != null) dateFrom = sqlDateFrom.toLocalDate();
@@ -467,9 +463,7 @@ public class DatabaseService {
             e.printStackTrace();
         }
 
-        
         if (childId != null && dateFrom != null && dateTo != null) {
-            
             String clearCommentSql = "UPDATE pool.attendance a SET comment = NULL " +
                     "FROM pool.pool_lessons pl " +
                     "WHERE a.lesson_id = pl.id " +
@@ -490,7 +484,6 @@ public class DatabaseService {
             }
         }
 
-        
         String resetSql = "UPDATE pool.certificates SET is_read = FALSE, status = 'PENDING', date_from = NULL, date_to = NULL, processed_by = NULL WHERE id = ?";
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(resetSql)) {
@@ -517,19 +510,7 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
-
-
-
-    /**
-     * Обновляет навык плавания ребенка.
-     * Если навык изменился, создает запись в таблице skill_change_notifications со статусом PENDING.
-     */
-    /**
-     * Обновляет навык плавания ребенка.
-     * Если навык изменился, создает запись в таблице skill_change_notifications со статусом PENDING.
-     */
     public void updateChildSkill(long childId, String newSkill) {
-        // 1. Получаем текущий навык и ID родителя
         String selectSql = "SELECT c.skill, p.id as parent_id FROM pool.children c " +
                 "JOIN pool.parents p ON c.parent_id = p.id WHERE c.id = ?";
 
@@ -549,12 +530,10 @@ public class DatabaseService {
             return;
         }
 
-        // Если навык не изменился, ничего не делаем
         if (newSkill.equals(oldSkill)) {
             return;
         }
 
-        // 2. Обновляем навык в таблице children с приведением типа
         String updateSql = "UPDATE pool.children SET skill = CAST(? AS pool.swimming_skill) WHERE id = ?";
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(updateSql)) {
@@ -566,7 +545,6 @@ public class DatabaseService {
             return;
         }
 
-        // 3. Создаем запись в очереди уведомлений
         String insertNotifySql = "INSERT INTO pool.skill_change_notifications (parent_id, child_id, old_skill, new_skill) VALUES (?, ?, ?, ?)";
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(insertNotifySql)) {
@@ -580,9 +558,6 @@ public class DatabaseService {
         }
     }
 
-    /**
-     * Получает список.pending уведомлений об изменении навыков.
-     */
     public List<Map<String, Object>> getPendingSkillNotifications() {
         String sql = "SELECT scn.id, scn.parent_id, scn.child_id, scn.old_skill, scn.new_skill, " +
                 "p.vk_id, c.first_name as child_name " +
@@ -612,9 +587,6 @@ public class DatabaseService {
         return result;
     }
 
-    /**
-     * Помечает уведомление как отправленное.
-     */
     public void markSkillNotificationSent(long notificationId) {
         String sql = "UPDATE pool.skill_change_notifications SET status = 'SENT', sent_at = CURRENT_TIMESTAMP WHERE id = ?";
         try (Connection conn = getConnection();
@@ -626,6 +598,149 @@ public class DatabaseService {
         }
     }
 
+    // === НОВЫЕ МЕТОДЫ ДЛЯ ЗАПИСИ В ГРУППУ ===
+
+    /**
+     * Находит подходящие группы для ребенка по возрасту и навыку.
+     * Возвращает список групп, отсортированный по приоритету совпадения.
+     */
+
+    public List<Map<String, Object>> findSuitableGroupsForChild(long childId) {
+        String sql = "SELECT c.age, c.skill::text as skill FROM pool.children c WHERE c.id = ?";
+        int age = 0;
+        String skill = null;
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, childId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                age = rs.getInt("age");
+                skill = rs.getString("skill");
+            } else {
+                return java.util.Collections.emptyList();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return java.util.Collections.emptyList();
+        }
+
+        String groupsSql = "SELECT g.id, g.name, g.number, g.min_age, g.max_age, g.skill_1, g.skill_2, " +
+                "g.day_1_start, g.day_1_end, g.day_2_start, g.day_2_end, " +
+                "g.day_3_start, g.day_3_end, g.day_4_start, g.day_4_end, " +
+                "g.day_5_start, g.day_5_end " +
+                "FROM pool.groups g ORDER BY g.number";
+
+        List<Map<String, Object>> allGroups = executeQuery(groupsSql);
+
+        List<Map<String, Object>> fullMatch = new ArrayList<>();
+        List<Map<String, Object>> skillMatch = new ArrayList<>();
+        List<Map<String, Object>> ageMatch = new ArrayList<>();
+
+        for (Map<String, Object> g : allGroups) {
+            Integer minAge = (Integer) g.get("min_age");
+            Integer maxAge = (Integer) g.get("max_age");
+            String s1 = (String) g.get("skill_1");
+            String s2 = (String) g.get("skill_2");
+
+            boolean ageOk = (minAge == null || age >= minAge) && (maxAge == null || age <= maxAge);
+            boolean skillOk = (s1 == null && s2 == null) ||
+                    (skill != null && (skill.equals(s1) || skill.equals(s2)));
+
+            if (ageOk && skillOk) fullMatch.add(g);
+            else if (skillOk) skillMatch.add(g);
+            else if (ageOk) ageMatch.add(g);
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        result.addAll(fullMatch);
+        result.addAll(skillMatch);
+        result.addAll(ageMatch);
+        return result;
+    }
+
+
+
+    /**
+     * Создает заявку на вступление в группу и уведомление для администратора.
+     */
+    public void createJoinRequest(long parentVkId, long childId, long groupId) throws SQLException {
+        // Сначала получаем parent_id по vk_id
+        Long parentId = getParentIdByVkId(parentVkId);
+        if (parentId == null) {
+            throw new SQLException("Родитель с VK ID " + parentVkId + " не найден");
+        }
+
+        // Создаем заявку с parent_id
+        String sql = "INSERT INTO pool.group_join_requests (parent_id, child_id, group_id, status, created_at) " +
+                "VALUES (?, ?, ?, 'PENDING', CURRENT_TIMESTAMP)";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, parentId);
+            stmt.setLong(2, childId);
+            stmt.setLong(3, groupId);
+            stmt.executeUpdate();
+        }
+
+        // Создаем уведомление для администраторов
+        String insertNotifSql = "INSERT INTO pool.join_request_notifications (parent_vk_id, message_text) " +
+                "VALUES (?, ?)";
+
+        String groupName = "";
+        String childName = "";
+
+        // Получаем данные для уведомления
+        String getDataSql = "SELECT g.name as group_name, c.first_name, c.last_name " +
+                "FROM pool.groups g, pool.children c " +
+                "WHERE g.id = ? AND c.id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(getDataSql)) {
+            stmt.setLong(1, groupId);
+            stmt.setLong(2, childId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                groupName = rs.getString("group_name");
+                childName = rs.getString("first_name") + " " + rs.getString("last_name");
+            }
+        }
+
+        String message = "Новая заявка на запись!\n\n" +
+                "Ребенок: " + childName + "\n" +
+                "Группа: " + groupName;
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(insertNotifSql)) {
+            stmt.setLong(1, parentVkId);
+            stmt.setString(2, message);
+            stmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Получает нерассыланные уведомления о заявках.
+     */
+    public List<Map<String, Object>> getPendingJoinRequestNotifications() {
+        String sql = "SELECT jrn.id, jrn.parent_vk_id, jrn.message_text " +
+                "FROM pool.join_request_notifications jrn " +
+                "WHERE jrn.is_sent = FALSE ORDER BY jrn.created_at ASC";
+        return executeQuery(sql);
+    }
+
+    /**
+     * Помечает уведомление о заявке как отправленное.
+     */
+    public void markJoinRequestNotificationSent(long notifId) {
+        String sql = "UPDATE pool.join_request_notifications SET is_sent = TRUE, sent_at = CURRENT_TIMESTAMP WHERE id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, notifId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // === ВСПОМОГАТЕЛЬНЫЙ МЕТОД ===
 
     private List<Map<String, Object>> executeQuery(String sql) {
         List<Map<String, Object>> result = new ArrayList<>();

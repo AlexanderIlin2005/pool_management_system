@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Заявки в группы', ~{::content})}">
+<body>
+<div th:fragment="content">
+  <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto;">
+    <h1>Заявки на вступление в группы</h1>
+    <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+      Заявка успешно обработана!
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+      <tr style="background: #f8f9fa; text-align: left;">
+        <th style="padding: 10px; border: 1px solid #ddd;">Дата</th>
+        <th style="padding: 10px; border: 1px solid #ddd;">Родитель</th>
+        <th style="padding: 10px; border: 1px solid #ddd;">Ребенок</th>
+        <th style="padding: 10px; border: 1px solid #ddd;">Группа</th>
+        <th style="padding: 10px; border: 1px solid #ddd;">Действие</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="req : ${requests}">
+        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${#temporals.format(req.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
+        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${req.parent.lastName} + ' ' + ${req.parent.firstName}"></td>
+        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${req.child.lastName} + ' ' + ${req.child.firstName}"></td>
+        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${req.group.name}"></td>
+        <td style="padding: 10px; border: 1px solid #ddd;">
+          <a th:href="@{/groups/join-requests/{id}(id=${req.id})}" class="btn" style="background-color: #007bff; font-size: 0.8em;">Просмотреть</a>
+        </td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(requests)}">
+        <td colspan="5" style="padding: 20px; text-align: center; color: #999;">Нет новых заявок</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>

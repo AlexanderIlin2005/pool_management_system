@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Обработка заявки', ~{::content})}">
+<body>
+<div th:fragment="content">
+  <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto;">
+    <h1>Заявка на вступление</h1>
+
+    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px;">
+      <p><strong>Родитель:</strong> <span th:text="${request.parent.lastName} + ' ' + ${request.parent.firstName}"></span></p>
+      <p><strong>Ребенок:</strong> <span th:text="${request.child.lastName} + ' ' + ${request.child.firstName}"></span>
+        (<span th:text="${request.child.age}"></span> лет, навык: <span th:text="${request.child.skill?.dbValue ?: 'не указан'}"></span>)</p>
+      <p><strong>Желаемая группа:</strong> <span th:text="${request.group.name}"></span></p>
+      <p><strong>Вместимость группы:</strong> <span th:text="${memberCount}"></span> / <span th:text="${request.group.capacity}"></span></p>
+    </div>
+
+    <form th:action="@{/groups/join-requests/{id}/process(id=${request.id})}" method="post">
+      <div style="margin-bottom: 15px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Решение:</label>
+        <select name="status" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          <option value="APPROVED">Подтвердить (зачислить в группу)</option>
+          <option value="REJECTED">Отклонить</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Комментарий (будет отправлен родителю):</label>
+        <textarea name="comment" rows="4" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button type="submit" class="btn" style="background-color: #28a745;">Применить решение</button>
+        <a href="/groups/join-requests" class="btn" style="background-color: #6c757d;">Назад к списку</a>
+      </div>
+    </form>
+  </div>
+</div>
+</body>
+</html>

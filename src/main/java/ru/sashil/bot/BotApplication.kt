@@ -12,6 +12,7 @@ import ru.sashil.common.util.CommandUtils
 import ru.sashil.common.util.ConfigLoader
 import java.sql.DriverManager
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Level
 import java.util.logging.Logger
 
@@ -27,6 +28,10 @@ class BotApplication {
         private lateinit var certificateHandler: CertificateHandler
         private lateinit var minioService: MinIOService
 
+        // Хранилище для потока записи в группу
+        private val joinRequestSteps = ConcurrentHashMap<Long, Int>() // 1: выбор ребенка, 2: выбор группы
+        private val joinRequestTempData = ConcurrentHashMap<Long, MutableMap<String, Any>>() // временные данные
+
         @JvmStatic
         fun main(args: Array<String>) {
             try {
@@ -35,7 +40,6 @@ class BotApplication {
                 val dbUrl = "jdbc:postgresql://${ConfigLoader.get("DB_HOST")}:${ConfigLoader.get("DB_PORT")}/${ConfigLoader.get("DB_NAME")}"
                 dbService = DatabaseService(dbUrl, ConfigLoader.get("DB_USER"), ConfigLoader.get("DB_PASSWORD"))
 
-                
                 minioService = MinIOService()
 
                 regHandler = RegistrationHandler()
@@ -51,28 +55,22 @@ class BotApplication {
                     httpClient = HttpClient(CIO)
                 )
 
-                
                 notificationService = NotificationService(dbService, bot)
-                
                 certificateHandler = CertificateHandler(dbService, minioService)
 
                 LOGGER.info("Бот запущен!")
 
-
-
                 runBlocking {
-                    
                     LOGGER.info("Настройка LongPoll...")
                     bot.groups.setLongPollSettings(groupId) {
                         enabled = true
                         messageNew = true
-                        
-                        
                     }
                     LOGGER.info("LongPoll настроен.")
 
                     launch { startNotificationScheduler(bot) }
                     launch { startBroadcastListener(bot, dbUrl, ConfigLoader.get("DB_USER"), ConfigLoader.get("DB_PASSWORD")) }
+                    launch { startJoinRequestNotificationSender(bot) } // Новый планировщик
 
                     LOGGER.info("Запуск LongPoll polling...")
                     bot.startLongPolling(groupId, null).collect { update ->
@@ -92,7 +90,7 @@ class BotApplication {
                 } catch (e: Exception) {
                     LOGGER.severe("Ошибка в планировщике уведомлений: ${e.message}")
                 }
-                delay(60 * 60 * 1000)
+                delay(60 * 60 * 1000) // Раз в час для обычных уведомлений
             }
         }
 
@@ -183,13 +181,34 @@ class BotApplication {
             return ids
         }
 
+        // Планировщик отправки уведомлений о заявках (раз в минуту)
+        private suspend fun CoroutineScope.startJoinRequestNotificationSender(bot: VkClient) {
+            while (isActive) {
+                try {
+                    val notifications = dbService.getPendingJoinRequestNotifications()
+                    for (notif in notifications) {
+                        val vkId = notif["parent_vk_id"] as Long
+                        val message = notif["message_text"] as String
+                        val notifId = notif["id"] as Long
+
+                        try {
+                            sendText(bot, vkId, message)
+                            dbService.markJoinRequestNotificationSent(notifId)
+                        } catch (e: Exception) {
+                            LOGGER.severe("Ошибка отправки уведомления о заявке: ${e.message}")
+                        }
+                    }
+                } catch (e: Exception) {
+                    LOGGER.severe("Ошибка в планировщике уведомлений о заявках: ${e.message}")
+                }
+                delay(60 * 1000) // Раз в минуту
+            }
+        }
+
         private suspend fun processUpdate(bot: VkClient, update: GetUpdatesVkMethod.Result.Update) {
-            
             LOGGER.info("Получено обновление типа: ${update.type}")
 
             val msgNew = update.asMessageNew ?: run {
-                
-                
                 return
             }
 
@@ -199,7 +218,6 @@ class BotApplication {
 
             LOGGER.info("Новое сообщение от $userId: '$text'")
 
-            
             val rawJson = try {
                 update.obj.toString()
             } catch (e: Exception) {
@@ -214,12 +232,10 @@ class BotApplication {
                     childHandler.isAddingChild(userId) -> handleAddChild(bot, userId, text)
                     childEditHandler.isEditingChild(userId) -> handleEditChild(bot, userId, text)
                     certificateHandler.isUploading(userId) -> {
-                        
                         val response = certificateHandler.processStep(userId, text, rawJson)
-                        if (response != null) {
-                            sendText(bot, userId, response)
-                        }
+                        if (response != null) sendText(bot, userId, response)
                     }
+                    joinRequestSteps.containsKey(userId) -> handleJoinRequestFlow(bot, userId, text)
                     else -> handleCommands(bot, userId, text)
                 }
             } catch (e: Exception) {
@@ -227,6 +243,121 @@ class BotApplication {
                 bot.messages.send(userId) {
                     message = "Произошла внутренняя ошибка."
                     randomId = Random().nextInt(Int.MAX_VALUE)
+                }
+            }
+        }
+
+        // Обработчик потока записи в группу
+        // Обработчик потока записи в группу
+        // Обработчик потока записи в группу
+        private suspend fun handleJoinRequestFlow(bot: VkClient, userId: Long, text: String) {
+            val step = joinRequestSteps[userId] ?: return
+
+            when (step) {
+                1 -> {
+                    // Выбор ребенка
+                    try {
+                        val trimmed = text.trim()
+                        val num = trimmed.toInt()
+                        val children = dbService.getChildrenByParentVkId(userId)
+                        if (num < 1 || num > children.size) {
+                            sendText(bot, userId, "Неверный номер. Попробуйте снова.")
+                            return
+                        }
+
+                        val child = children[num - 1]
+                        val childId = (child["id"] as Number).toLong()
+
+                        // Ищем подходящие группы
+                        val suitableGroups = dbService.findSuitableGroupsForChild(childId)
+
+                        if (suitableGroups.isEmpty()) {
+                            sendText(bot, userId, "К сожалению, сейчас нет подходящих групп для вашего ребенка.")
+                            joinRequestSteps.remove(userId)
+                            joinRequestTempData.remove(userId)
+                            return
+                        }
+
+                        // Формируем сообщение со списком групп и их расписанием
+                        val sb = StringBuilder("Вот подходящие группы:\n\n")
+                        suitableGroups.forEachIndexed { index, group ->
+                            sb.append("${index + 1}. Группа №${group["number"]} \"${group["name"]}\"\n")
+
+                            // Добавляем расписание (Пн-Пт)
+                            val days = listOf(
+                                "Пн" to Pair(group["day_1_start"], group["day_1_end"]),
+                                "Вт" to Pair(group["day_2_start"], group["day_2_end"]),
+                                "Ср" to Pair(group["day_3_start"], group["day_3_end"]),
+                                "Чт" to Pair(group["day_4_start"], group["day_4_end"]),
+                                "Пт" to Pair(group["day_5_start"], group["day_5_end"])
+                            )
+
+                            days.forEach { (dayName, times) ->
+                                if (times.first != null && times.second != null) {
+                                    sb.append("   $dayName: ${times.first}-${times.second}\n")
+                                }
+                            }
+                            sb.append("\n")
+                        }
+
+                        sb.append("Напишите номер группы (1 или 2), в которую хотите записаться:")
+                        sendText(bot, userId, sb.toString())
+
+                        // Сохраняем ID ребенка и список групп для следующего шага
+                        val tempData = mutableMapOf<String, Any>()
+                        tempData["childId"] = childId
+                        tempData["groups"] = suitableGroups
+                        joinRequestTempData[userId] = tempData
+
+                        joinRequestSteps[userId] = 2
+
+                    } catch (e: NumberFormatException) {
+                        sendText(bot, userId, "Пожалуйста, введите номер ребенка цифрой (например, 1, 2 или 3).")
+                    } catch (e: Exception) {
+                        sendText(bot, userId, "Произошла ошибка. Попробуйте еще раз.")
+                        LOGGER.severe("Ошибка в шаге 1 handleJoinRequestFlow: ${e.message}")
+                    }
+                }
+
+                2 -> {
+                    // Выбор группы и создание заявки
+                    try {
+                        val trimmed = text.trim()
+                        val num = trimmed.toInt()
+                        val tempData = joinRequestTempData[userId]
+                        if (tempData == null) {
+                            sendText(bot, userId, "Произошла ошибка. Попробуйте начать заново командой 'записаться'.")
+                            joinRequestSteps.remove(userId)
+                            joinRequestTempData.remove(userId)
+                            return
+                        }
+
+                        val groups = tempData["groups"] as? List<Map<String, Object>>
+                        if (groups == null || num < 1 || num > groups.size) {
+                            sendText(bot, userId, "Неверный номер группы. Попробуйте снова (введите 1 или 2).")
+                            return
+                        }
+
+                        val childId = tempData["childId"] as Long
+                        val group = groups[num - 1] // Берем группу по индексу в списке
+                        val groupId = (group["id"] as Number).toLong() // Берем реальный ID группы из базы
+
+                        // Создаем заявку с реальным ID группы
+                        dbService.createJoinRequest(userId, childId, groupId)
+
+                        sendText(bot, userId, "✅ Заявка на запись создана! Администратор рассмотрит её в ближайшее время.")
+
+                        // Очищаем состояние
+                        joinRequestSteps.remove(userId)
+                        joinRequestTempData.remove(userId)
+
+                    } catch (e: NumberFormatException) {
+                        sendText(bot, userId, "Пожалуйста, введите номер группы цифрой (1 или 2).")
+                    } catch (e: Exception) {
+                        sendText(bot, userId, "Произошла ошибка. Попробуйте еще раз.")
+                        LOGGER.severe("Ошибка в шаге 2 handleJoinRequestFlow: ${e.message}")
+                        e.printStackTrace()
+                    }
                 }
             }
         }
@@ -319,6 +450,8 @@ class BotApplication {
                             }
                             sb.append("\nНапишите номер для редактирования.")
                             sendText(bot, userId, sb.toString())
+                            // Запускаем редактирование ребенка
+                            childEditHandler.startEditingChild(userId, (children[0]["id"] as Long), children[0])
                         }
                     }
                 }
@@ -339,17 +472,34 @@ class BotApplication {
                     dbService.toggleRegularNotifications(userId, false)
                     sendText(bot, userId, "Регулярные напоминания выключены.")
                 }
+                "записаться" -> {
+                    if (!dbService.isParentRegistered(userId)) {
+                        sendText(bot, userId, "Сначала зарегистрируйтесь.")
+                        return
+                    }
+                    val children = dbService.getChildrenByParentVkId(userId)
+                    if (children.isEmpty()) {
+                        sendText(bot, userId, "У вас пока нет детей. Добавьте ребенка командой 'добавитьребенка'.")
+                        return
+                    }
+                    val sb = StringBuilder("Для какого ребенка ищем группу?\n")
+                    children.forEachIndexed { i, c ->
+                        sb.append("${i + 1}. ${c["lastName"]} ${c["firstName"]} (${c["age"]} лет, навык: ${c["skill"]})\n")
+                    }
+                    sendText(bot, userId, sb.toString())
+                    joinRequestSteps[userId] = 1
+                }
                 "договор", "согласие", "правила", "квитанция" -> {
                     sendText(bot, userId, "Отправка документов временно отключена.")
                 }
                 else -> {
-                    if (text.matches("\\d+".toRegex())) {
+                    if (text.matches(Regex("\\d+"))) {
                         val num = text.toInt()
                         val children = dbService.getChildrenByParentVkId(userId)
                         if (num > 0 && num <= children.size) {
                             val child = children[num - 1]
-                            childEditHandler.startEditingChild(userId, (child["id"] as Long), child)
-                            sendText(bot, userId, "Редактирование: ${child["lastName"]}. Введите новую фамилию:")
+                            childEditHandler.startEditingChild(userId, (child["id"] as Number).toLong(), child)
+                            sendText(bot, userId, "Редактирование: ${child["lastName"]} ${child["firstName"]}.\nВведите новую фамилию:")
                         }
                     }
                 }

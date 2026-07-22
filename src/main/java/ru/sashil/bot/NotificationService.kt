@@ -3,7 +3,6 @@ package ru.sashil.bot
 import io.github.blackbaroness.vk.VkClient
 import ru.sashil.common.service.DatabaseService
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.logging.Logger
 
 class NotificationService(
@@ -13,14 +12,13 @@ class NotificationService(
     private val logger = Logger.getLogger(NotificationService::class.java.name)
 
     /**
-     * Основной метод, который нужно вызывать по расписанию (например, раз в час).
+     * Основной метод проверки всех типов уведомлений.
      */
     suspend fun checkAndSendNotifications() {
         logger.info("Запуск проверки уведомлений...")
         val today = LocalDate.now()
         val tomorrow = today.plusDays(1)
 
-        
         val parents = getAllParents()
 
         for (parent in parents) {
@@ -28,14 +26,9 @@ class NotificationService(
             val vkId = parent["vk_id"] as Long
 
             try {
-                
                 if (dbService.isRegularNotificationsEnabled(vkId)) {
                     processRegularNotifications(vkId, parentId, today, tomorrow)
                 }
-
-                
-                
-
             } catch (e: Exception) {
                 logger.severe("Ошибка при обработке уведомлений для родителя $vkId: ${e.message}")
             }
@@ -44,7 +37,31 @@ class NotificationService(
         // Отправка уведомлений об изменении навыков
         sendPendingSkillNotifications()
 
+        // Отправка уведомлений о статусе заявки на запись
+        sendPendingJoinRequestNotifications()
+
         logger.info("Проверка уведомлений завершена.")
+    }
+
+    /**
+     * Отправляет уведомления о статусе заявок на запись в группу.
+     * Использует таблицу join_request_notifications.
+     */
+    private suspend fun sendPendingJoinRequestNotifications() {
+        val notifications = dbService.getPendingJoinRequestNotifications()
+        for (notif in notifications) {
+            val id = notif["id"] as Long
+            val parentVkId = notif["parent_vk_id"] as Long
+            val messageText = notif["message_text"] as String
+
+            try {
+                sendMessage(parentVkId, messageText)
+                dbService.markJoinRequestNotificationSent(id)
+                logger.info("Уведомление о заявке #$id отправлено родителю $parentVkId")
+            } catch (e: Exception) {
+                logger.severe("Не удалось отправить уведомление о заявке #$id пользователю $parentVkId: ${e.message}")
+            }
+        }
     }
 
     private suspend fun sendPendingSkillNotifications() {
@@ -69,10 +86,8 @@ class NotificationService(
     }
 
     private suspend fun processRegularNotifications(vkId: Long, parentId: Long, today: LocalDate, tomorrow: LocalDate) {
-        
         val tomorrowLessons = dbService.getChildrenScheduleForDate(parentId, tomorrow)
         for (lesson in tomorrowLessons) {
-            
             if (lesson["startTime"] != null) {
                 if (!dbService.hasNotificationBeenSent(parentId, lesson["childId"] as Long, "TOMORROW", tomorrow)) {
                     sendTomorrowReminder(vkId, lesson, tomorrow)
@@ -81,7 +96,6 @@ class NotificationService(
             }
         }
 
-        
         val todayLessons = dbService.getChildrenScheduleForDate(parentId, today)
         for (lesson in todayLessons) {
             if (lesson["startTime"] != null) {
@@ -95,24 +109,16 @@ class NotificationService(
 
     private suspend fun sendTomorrowReminder(vkId: Long, lesson: Map<String, Any>, date: LocalDate) {
         val time = lesson["startTime"].toString().substring(0, 5)
-
-        
         val groupNumber = lesson["groupNumber"]?.toString() ?: lesson["groupName"].toString()
-
         val childName = getChildName(lesson["childId"] as Long)
-
         val text = "Добрый день! Напоминаем, что завтра у $childName занятие в бассейне. Группа $groupNumber в $time.\nЖдем на занятии!"
         sendMessage(vkId, text)
     }
 
     private suspend fun sendTodayReminder(vkId: Long, lesson: Map<String, Any>, date: LocalDate) {
         val time = lesson["startTime"].toString().substring(0, 5)
-
-        
         val groupNumber = lesson["groupNumber"]?.toString() ?: lesson["groupName"].toString()
-
         val childName = getChildName(lesson["childId"] as Long)
-
         val text = "Добрый день! Напоминаем, что сегодня у $childName занятие в бассейне. Группа $groupNumber в $time.\nЖдем на занятии!"
         sendMessage(vkId, text)
     }

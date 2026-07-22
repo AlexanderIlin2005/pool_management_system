@@ -196,6 +196,34 @@ ADD CONSTRAINT chk_skills_valid CHECK (
     (skill_1 != skill_2 AND NOT (skill_1 = 'не умеет' AND skill_2 = 'уверенно плавает') AND NOT (skill_1 = 'уверенно плавает' AND skill_2 = 'не умеет'))
 );
 
+-- Таблица заявок на вступление в группу
+CREATE TABLE IF NOT EXISTS pool.group_join_requests (
+    id BIGSERIAL PRIMARY KEY,
+    parent_id BIGINT REFERENCES pool.parents(id) ON DELETE CASCADE,
+    child_id BIGINT REFERENCES pool.children(id) ON DELETE CASCADE,
+    group_id BIGINT REFERENCES pool.groups(id) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    admin_comment TEXT, -- Комментарий админа при отклонении или подтверждении
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP
+);
+
+-- Индекс для быстрого поиска непрочитанных/необработанных заявок
+CREATE INDEX idx_group_requests_status ON pool.group_join_requests(status);
+
+-- Таблица уведомлений о статусе заявки (для отправки через бота)
+CREATE TABLE IF NOT EXISTS pool.join_request_notifications (
+    id BIGSERIAL PRIMARY KEY,
+    request_id BIGINT REFERENCES pool.group_join_requests(id) ON DELETE CASCADE,
+    parent_vk_id BIGINT NOT NULL,
+    message_text TEXT NOT NULL,
+    is_sent BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    sent_at TIMESTAMP
+);
+
+CREATE INDEX idx_join_notif_pending ON pool.join_request_notifications(is_sent);
+
 -- Индекс для быстрого поиска непрочитанных
 CREATE INDEX idx_certificates_is_read ON pool.certificates(is_read);
 
