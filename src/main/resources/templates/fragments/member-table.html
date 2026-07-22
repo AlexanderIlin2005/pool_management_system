@@ -26,7 +26,6 @@
             <td style="padding: 10px; border: 1px solid #ddd;">
                 <form th:action="@{/groups/{id}/members/add(id=${group.id})}" method="post" class="add-member-form">
                     <input type="hidden" name="childId" th:value="${child.id}">
-                    <!-- Сохраняем фильтры в скрытых полях -->
                     <input type="hidden" name="search" th:value="${currentSearch}">
                     <input type="hidden" name="ageFrom" th:value="${currentAgeFrom}">
                     <input type="hidden" name="ageTo" th:value="${currentAgeTo}">

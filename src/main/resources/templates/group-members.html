@@ -11,23 +11,23 @@
         border-radius: 4px;
         border: none;
         box-shadow: none;
-        height: 6px !important; /* Делаем трек тоньше */
+        height: 6px !important;
     }
 
     /* Полоса соединения (между ползунками) */
     .noUi-connect {
-        background: #007bff; /* Наш синий цвет */
+        background: #007bff;
     }
 
     /* Сам ползунок (кружок) */
     .noUi-handle {
         width: 16px !important;
         height: 16px !important;
-        right: -8px !important; /* Центрируем относительно трека */
+        right: -8px !important;
         top: -5px !important;
         border-radius: 50%;
-        background: #007bff; /* Синий фон */
-        border: 2px solid #fff; /* Белая обводка для контраста */
+        background: #007bff;
+        border: 2px solid #fff;
         box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         cursor: pointer;
     }
@@ -39,7 +39,7 @@
 
     /* Стиль при наведении/активности */
     .noUi-handle:hover, .noUi-active {
-        background: #0056b3; /* Темнее при наведении */
+        background: #0056b3;
         transform: scale(1.1);
         transition: transform 0.1s;
     }
@@ -88,7 +88,6 @@
           <form th:action="@{/groups/{id}/members/remove(id=${group.id})}" method="post" class="remove-member-form">
             <input type="hidden" name="childId" th:value="${member.id}">
             <input type="hidden" name="childName" th:value="${member.first_name} + ' ' + ${member.last_name}">
-            <!-- Сохраняем фильтры -->
             <input type="hidden" name="search" th:value="${currentSearch}">
             <input type="hidden" name="ageFrom" th:value="${currentAgeFrom}">
             <input type="hidden" name="ageTo" th:value="${currentAgeTo}">
@@ -192,32 +191,87 @@
 
   </div>
 
-  <script src="/js/confirm-delete-from-group.js"></script>
+  <!-- Подключаем noUiSlider -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.css">
 
+  <!-- ВЕСЬ JS В ОДНОМ МЕСТЕ - НЕТ ВНЕШНЕГО СКРИПТА -->
   <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Получаем ID группы из URL
         const pathParts = window.location.pathname.split('/');
         const groupId = pathParts[2];
 
-        // Функция получения параметров фильтров из URL
-        function getFilterParamsFromURL() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const params = new URLSearchParams();
-
-            if (urlParams.has('search')) params.append('search', urlParams.get('search'));
-            if (urlParams.has('ageFrom')) params.append('ageFrom', urlParams.get('ageFrom'));
-            if (urlParams.has('ageTo')) params.append('ageTo', urlParams.get('ageTo'));
-            if (urlParams.has('gradeFrom')) params.append('gradeFrom', urlParams.get('gradeFrom'));
-            if (urlParams.has('gradeTo')) params.append('gradeTo', urlParams.get('gradeTo'));
-            urlParams.getAll('skills').forEach(s => params.append('skills', s));
-
-            return params;
+        // === ФУНКЦИЯ ДЛЯ ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ ===
+        function attachRemoveHandlers() {
+            document.querySelectorAll('.remove-member-form').forEach(function(form) {
+                // Убираем старые обработчики, чтобы избежать дублирования
+                form.removeEventListener('submit', handleRemoveSubmit);
+                // Добавляем новый обработчик
+                form.addEventListener('submit', handleRemoveSubmit);
+            });
         }
 
-        // Функция получения параметров фильтров из формы
+        // Обработчик для формы удаления
+        function handleRemoveSubmit(e) {
+            const form = e.currentTarget;
+            const childNameInput = form.querySelector('input[name="childName"]');
+            const childName = childNameInput ? childNameInput.value : 'этого участника';
+
+            if (!confirm('Вы точно хотите исключить ' + childName + ' из группы?')) {
+                e.preventDefault();
+                return;
+            }
+
+            e.preventDefault();
+            const formData = new FormData(form);
+            const params = new URLSearchParams(formData);
+
+            fetch(`/groups/${groupId}/members/remove?${params.toString()}`, {
+                method: 'POST'
+            }).then(response => {
+                if (response.ok) {
+                    window.location.href = window.location.pathname + '?' + getFilterParamsFromForm().toString();
+                }
+            });
+        }
+
+        // === ФУНКЦИЯ ДЛЯ ОБРАБОТКИ ДОБАВЛЕНИЯ ===
+        function attachAddHandlers() {
+            document.querySelectorAll('.add-member-form').forEach(function(form) {
+                form.removeEventListener('submit', handleAddSubmit);
+                form.addEventListener('submit', handleAddSubmit);
+            });
+
+            document.querySelectorAll('.add-member-btn').forEach(function(btn) {
+                btn.removeEventListener('click', handleAddClick);
+                btn.addEventListener('click', handleAddClick);
+            });
+        }
+
+        function handleAddSubmit(e) {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const formData = new FormData(form);
+            const params = new URLSearchParams(formData);
+
+            fetch(`/groups/${groupId}/members/add?${params.toString()}`, {
+                method: 'POST'
+            }).then(response => {
+                if (response.ok) {
+                    window.location.href = window.location.pathname + '?' + getFilterParamsFromForm().toString();
+                }
+            });
+        }
+
+        function handleAddClick(e) {
+            const form = e.currentTarget.closest('form');
+            if (form) {
+                form.dispatchEvent(new Event('submit'));
+            }
+        }
+
+        // === ФУНКЦИЯ ПОЛУЧЕНИЯ ПАРАМЕТРОВ ФИЛЬТРОВ ===
         function getFilterParamsFromForm() {
             const params = new URLSearchParams();
 
@@ -241,53 +295,28 @@
             return params;
         }
 
-        // Функция обновления URL с параметрами фильтров
+        // === ФУНКЦИЯ ОБНОВЛЕНИЯ URL ===
         function updateURLWithFilters() {
             const params = getFilterParamsFromForm();
             const newUrl = window.location.pathname + '?' + params.toString();
             window.history.replaceState({}, '', newUrl);
         }
 
-        // Функция обновления таблицы через AJAX
+        // === ФУНКЦИЯ ОБНОВЛЕНИЯ ТАБЛИЦЫ ===
         function updateTable() {
             const params = getFilterParamsFromForm();
             fetch(`/groups/${groupId}/members/filter?${params.toString()}`)
                 .then(response => response.text())
                 .then(html => {
                     document.getElementById('resultsContainer').innerHTML = html;
-                    // Перепривязываем обработчики к новым формам добавления
-                    document.querySelectorAll('.add-member-form').forEach(form => {
-                        form.addEventListener('submit', function(e) {
-                            e.preventDefault();
-                            const formData = new FormData(this);
-                            const params = new URLSearchParams(formData);
-
-                            fetch(`/groups/${groupId}/members/add?${params.toString()}`, {
-                                method: 'POST'
-                            }).then(response => {
-                                if (response.ok) {
-                                    // После успешного добавления обновляем страницу с сохранением фильтров
-                                    window.location.href = window.location.pathname + '?' + getFilterParamsFromForm().toString();
-                                }
-                            });
-                        });
-                    });
-
-                    // Перепривязываем обработчики к кнопкам добавления (на случай если они есть)
-                    document.querySelectorAll('.add-member-btn').forEach(btn => {
-                        btn.addEventListener('click', function(e) {
-                            // Находим родительскую форму и отправляем её
-                            const form = this.closest('form');
-                            if (form) {
-                                form.dispatchEvent(new Event('submit'));
-                            }
-                        });
-                    });
+                    // После обновления контента перепривязываем обработчики
+                    attachRemoveHandlers();
+                    attachAddHandlers();
                 })
                 .catch(error => console.error('Error:', error));
         }
 
-        // Debounce функция
+        // === DEBOUNCE ===
         function debounce(func, wait) {
             let timeout;
             return function(...args) {
@@ -296,7 +325,7 @@
             };
         }
 
-        // Инициализация слайдеров
+        // === ИНИЦИАЛИЗАЦИЯ СЛАЙДЕРОВ ===
         function initSliders() {
             // Слайдер возраста
             const ageSlider = document.getElementById('age-slider');
@@ -351,7 +380,7 @@
             }
         }
 
-        // Настройка обработчиков
+        // === НАСТРОЙКА ОБРАБОТЧИКОВ ===
         function setupHandlers() {
             // Поиск
             document.getElementById('searchInput').addEventListener('input', debounce(function() {
@@ -412,7 +441,6 @@
                         if (cb) cb.checked = true;
                     }
 
-                    // Обновляем слайдеры
                     const ageSlider = document.getElementById('age-slider');
                     if (ageSlider && ageSlider.noUiSlider) {
                         ageSlider.noUiSlider.set([
@@ -425,84 +453,47 @@
                     updateTable();
                 });
             }
-
-            // Обработчики для форм удаления
-            document.querySelectorAll('.remove-member-form').forEach(form => {
-                form.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    const formData = new FormData(this);
-                    const childName = this.querySelector('input[name="childName"]')?.value || 'участника';
-                    if (confirm(`Вы уверены, что хотите исключить ${childName} из группы?`)) {
-                        const params = new URLSearchParams(formData);
-                        fetch(`/groups/${groupId}/members/remove?${params.toString()}`, {
-                            method: 'POST'
-                        }).then(response => {
-                            if (response.ok) {
-                                // После успешного удаления обновляем страницу с сохранением фильтров
-                                window.location.href = window.location.pathname + '?' + getFilterParamsFromForm().toString();
-                            }
-                        });
-                    }
-                });
-            });
-
-            // Обработчики для форм добавления (первоначальная привязка)
-            document.querySelectorAll('.add-member-form').forEach(form => {
-                form.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    const formData = new FormData(this);
-                    const params = new URLSearchParams(formData);
-
-                    fetch(`/groups/${groupId}/members/add?${params.toString()}`, {
-                        method: 'POST'
-                    }).then(response => {
-                        if (response.ok) {
-                            // После успешного добавления обновляем страницу с сохранением фильтров
-                            window.location.href = window.location.pathname + '?' + getFilterParamsFromForm().toString();
-                        }
-                    });
-                });
-            });
-
-            // Обработчики для кнопок добавления
-            document.querySelectorAll('.add-member-btn').forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    const form = this.closest('form');
-                    if (form) {
-                        form.dispatchEvent(new Event('submit'));
-                    }
-                });
-            });
         }
 
-        // Запускаем все
-        initSliders();
-        setupHandlers();
+        // === ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ ===
+        function init() {
+            // Привязываем обработчики для существующих форм
+            attachRemoveHandlers();
+            attachAddHandlers();
 
-        // При загрузке страницы синхронизируем URL с формой
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.toString()) {
-            // Если есть параметры в URL, обновляем форму
-            const search = document.getElementById('searchInput');
-            if (search && urlParams.has('search')) search.value = urlParams.get('search');
+            // Инициализируем слайдеры
+            initSliders();
 
-            const ageFrom = document.getElementById('ageFromInput');
-            const ageTo = document.getElementById('ageToInput');
-            if (ageFrom && urlParams.has('ageFrom')) ageFrom.value = urlParams.get('ageFrom');
-            if (ageTo && urlParams.has('ageTo')) ageTo.value = urlParams.get('ageTo');
+            // Настраиваем обработчики
+            setupHandlers();
 
-            const gradeFrom = document.getElementById('gradeFromInput');
-            const gradeTo = document.getElementById('gradeToInput');
-            if (gradeFrom && urlParams.has('gradeFrom')) gradeFrom.value = urlParams.get('gradeFrom');
-            if (gradeTo && urlParams.has('gradeTo')) gradeTo.value = urlParams.get('gradeTo');
+            // Синхронизируем URL с формой
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.toString()) {
+                const search = document.getElementById('searchInput');
+                if (search && urlParams.has('search')) search.value = urlParams.get('search');
 
-            const skills = urlParams.getAll('skills');
-            if (skills.length > 0) {
-                document.querySelectorAll('#skillBlock input[type="checkbox"]').forEach(cb => {
-                    cb.checked = skills.includes(cb.value);
-                });
+                const ageFrom = document.getElementById('ageFromInput');
+                const ageTo = document.getElementById('ageToInput');
+                if (ageFrom && urlParams.has('ageFrom')) ageFrom.value = urlParams.get('ageFrom');
+                if (ageTo && urlParams.has('ageTo')) ageTo.value = urlParams.get('ageTo');
+
+                const gradeFrom = document.getElementById('gradeFromInput');
+                const gradeTo = document.getElementById('gradeToInput');
+                if (gradeFrom && urlParams.has('gradeFrom')) gradeFrom.value = urlParams.get('gradeFrom');
+                if (gradeTo && urlParams.has('gradeTo')) gradeTo.value = urlParams.get('gradeTo');
+
+                const skills = urlParams.getAll('skills');
+                if (skills.length > 0) {
+                    document.querySelectorAll('#skillBlock input[type="checkbox"]').forEach(cb => {
+                        cb.checked = skills.includes(cb.value);
+                    });
+                }
             }
         }
+
+        // Запускаем инициализацию
+        init();
     });
   </script>
 </div>
