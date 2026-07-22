@@ -285,7 +285,38 @@ public class GroupController {
         memberService.addChildToGroup(id, childId, user);
         wsNotificationService.sendUpdateNotification("CHILD_ADDED_TO_GROUP");
 
-        return "redirect:/groups/" + id + "/members";
+        // Формируем URL с сохранением фильтров
+        StringBuilder redirectUrl = new StringBuilder("redirect:/groups/" + id + "/members");
+        boolean hasParams = false;
+
+        if (search != null && !search.isEmpty()) {
+            redirectUrl.append(hasParams ? "&" : "?").append("search=").append(search);
+            hasParams = true;
+        }
+        if (ageFrom != null) {
+            redirectUrl.append(hasParams ? "&" : "?").append("ageFrom=").append(ageFrom);
+            hasParams = true;
+        }
+        if (ageTo != null) {
+            redirectUrl.append(hasParams ? "&" : "?").append("ageTo=").append(ageTo);
+            hasParams = true;
+        }
+        if (gradeFrom != null) {
+            redirectUrl.append(hasParams ? "&" : "?").append("gradeFrom=").append(gradeFrom);
+            hasParams = true;
+        }
+        if (gradeTo != null) {
+            redirectUrl.append(hasParams ? "&" : "?").append("gradeTo=").append(gradeTo);
+            hasParams = true;
+        }
+        if (skills != null) {
+            for (String skill : skills) {
+                redirectUrl.append(hasParams ? "&" : "?").append("skills=").append(skill);
+                hasParams = true;
+            }
+        }
+
+        return redirectUrl.toString();
     }
 
     @PostMapping("/{id}/members/remove")
@@ -311,7 +342,38 @@ public class GroupController {
         memberService.removeChildFromGroup(id, childId, user);
         wsNotificationService.sendUpdateNotification("CHILD_REMOVED_FROM_GROUP");
 
-        return "redirect:/groups/" + id + "/members";
+        // Формируем URL с сохранением фильтров
+        StringBuilder redirectUrl = new StringBuilder("redirect:/groups/" + id + "/members");
+        boolean hasParams = false;
+
+        if (search != null && !search.isEmpty()) {
+            redirectUrl.append(hasParams ? "&" : "?").append("search=").append(search);
+            hasParams = true;
+        }
+        if (ageFrom != null) {
+            redirectUrl.append(hasParams ? "&" : "?").append("ageFrom=").append(ageFrom);
+            hasParams = true;
+        }
+        if (ageTo != null) {
+            redirectUrl.append(hasParams ? "&" : "?").append("ageTo=").append(ageTo);
+            hasParams = true;
+        }
+        if (gradeFrom != null) {
+            redirectUrl.append(hasParams ? "&" : "?").append("gradeFrom=").append(gradeFrom);
+            hasParams = true;
+        }
+        if (gradeTo != null) {
+            redirectUrl.append(hasParams ? "&" : "?").append("gradeTo=").append(gradeTo);
+            hasParams = true;
+        }
+        if (skills != null) {
+            for (String skill : skills) {
+                redirectUrl.append(hasParams ? "&" : "?").append("skills=").append(skill);
+                hasParams = true;
+            }
+        }
+
+        return redirectUrl.toString();
     }
 
 

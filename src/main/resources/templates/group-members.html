@@ -3,16 +3,46 @@
 <body>
 <div th:fragment="content">
 
-  <!-- Стили для кастомизации noUiSlider -->
+  <!-- Стили для кастомизации noUiSlider под наш дизайн -->
   <style>
-    .noUi-target { background: #eee; border-radius: 4px; border: none; box-shadow: none; height: 6px !important; }
-    .noUi-connect { background: #007bff; }
-    .noUi-handle {
-        width: 16px !important; height: 16px !important; right: -8px !important; top: -5px !important;
-        border-radius: 50%; background: #007bff; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer;
+    /* Трек слайдера */
+    .noUi-target {
+        background: #eee;
+        border-radius: 4px;
+        border: none;
+        box-shadow: none;
+        height: 6px !important; /* Делаем трек тоньше */
     }
-    .noUi-handle:before, .noUi-handle:after { display: none; }
-    .noUi-handle:hover, .noUi-active { background: #0056b3; transform: scale(1.1); transition: transform 0.1s; }
+
+    /* Полоса соединения (между ползунками) */
+    .noUi-connect {
+        background: #007bff; /* Наш синий цвет */
+    }
+
+    /* Сам ползунок (кружок) */
+    .noUi-handle {
+        width: 16px !important;
+        height: 16px !important;
+        right: -8px !important; /* Центрируем относительно трека */
+        top: -5px !important;
+        border-radius: 50%;
+        background: #007bff; /* Синий фон */
+        border: 2px solid #fff; /* Белая обводка для контраста */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        cursor: pointer;
+    }
+
+    /* Убираем лишние линии внутри ползунка */
+    .noUi-handle:before, .noUi-handle:after {
+        display: none;
+    }
+
+    /* Стиль при наведении/активности */
+    .noUi-handle:hover, .noUi-active {
+        background: #0056b3; /* Темнее при наведении */
+        transform: scale(1.1);
+        transition: transform 0.1s;
+    }
   </style>
 
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1400px; margin: 0 auto;">
@@ -57,6 +87,7 @@
         <td style="padding: 12px; border: 1px solid #ddd;">
           <form th:action="@{/groups/{id}/members/remove(id=${group.id})}" method="post" class="remove-member-form">
             <input type="hidden" name="childId" th:value="${member.id}">
+            <input type="hidden" name="childName" th:value="${member.first_name} + ' ' + ${member.last_name}">
             <!-- Сохраняем фильтры -->
             <input type="hidden" name="search" th:value="${currentSearch}">
             <input type="hidden" name="ageFrom" th:value="${currentAgeFrom}">
@@ -66,7 +97,7 @@
             <th:block th:each="skill : ${currentSkills}">
               <input type="hidden" name="skills" th:value="${skill}">
             </th:block>
-            <button type="submit" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.8em;">Исключить</button>
+            <button type="submit" class="btn btn-danger remove-member-btn" style="padding: 4px 8px; font-size: 0.8em;">Исключить</button>
           </form>
         </td>
       </tr>
@@ -171,8 +202,23 @@
         const pathParts = window.location.pathname.split('/');
         const groupId = pathParts[2];
 
-        // Функция получения параметров фильтров
-        function getFilterParams() {
+        // Функция получения параметров фильтров из URL
+        function getFilterParamsFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const params = new URLSearchParams();
+
+            if (urlParams.has('search')) params.append('search', urlParams.get('search'));
+            if (urlParams.has('ageFrom')) params.append('ageFrom', urlParams.get('ageFrom'));
+            if (urlParams.has('ageTo')) params.append('ageTo', urlParams.get('ageTo'));
+            if (urlParams.has('gradeFrom')) params.append('gradeFrom', urlParams.get('gradeFrom'));
+            if (urlParams.has('gradeTo')) params.append('gradeTo', urlParams.get('gradeTo'));
+            urlParams.getAll('skills').forEach(s => params.append('skills', s));
+
+            return params;
+        }
+
+        // Функция получения параметров фильтров из формы
+        function getFilterParamsFromForm() {
             const params = new URLSearchParams();
 
             const search = document.getElementById('searchInput');
@@ -195,18 +241,46 @@
             return params;
         }
 
+        // Функция обновления URL с параметрами фильтров
+        function updateURLWithFilters() {
+            const params = getFilterParamsFromForm();
+            const newUrl = window.location.pathname + '?' + params.toString();
+            window.history.replaceState({}, '', newUrl);
+        }
+
         // Функция обновления таблицы через AJAX
         function updateTable() {
-            const params = getFilterParams();
+            const params = getFilterParamsFromForm();
             fetch(`/groups/${groupId}/members/filter?${params.toString()}`)
                 .then(response => response.text())
                 .then(html => {
                     document.getElementById('resultsContainer').innerHTML = html;
-                    // Перепривязываем обработчики к новым формам
+                    // Перепривязываем обработчики к новым формам добавления
                     document.querySelectorAll('.add-member-form').forEach(form => {
                         form.addEventListener('submit', function(e) {
-                            // Форма уже содержит все скрытые поля с фильтрами
-                            // Просто отправляем
+                            e.preventDefault();
+                            const formData = new FormData(this);
+                            const params = new URLSearchParams(formData);
+
+                            fetch(`/groups/${groupId}/members/add?${params.toString()}`, {
+                                method: 'POST'
+                            }).then(response => {
+                                if (response.ok) {
+                                    // После успешного добавления обновляем страницу с сохранением фильтров
+                                    window.location.href = window.location.pathname + '?' + getFilterParamsFromForm().toString();
+                                }
+                            });
+                        });
+                    });
+
+                    // Перепривязываем обработчики к кнопкам добавления (на случай если они есть)
+                    document.querySelectorAll('.add-member-btn').forEach(btn => {
+                        btn.addEventListener('click', function(e) {
+                            // Находим родительскую форму и отправляем её
+                            const form = this.closest('form');
+                            if (form) {
+                                form.dispatchEvent(new Event('submit'));
+                            }
                         });
                     });
                 })
@@ -244,7 +318,10 @@
                     document.getElementById('ageToInput').value = Math.round(values[1]);
                 });
 
-                ageSlider.noUiSlider.on('change', debounce(updateTable, 300));
+                ageSlider.noUiSlider.on('change', function() {
+                    updateURLWithFilters();
+                    updateTable();
+                });
             }
 
             // Слайдер класса
@@ -267,23 +344,35 @@
                     document.getElementById('gradeToInput').value = Math.round(values[1]);
                 });
 
-                gradeSlider.noUiSlider.on('change', debounce(updateTable, 300));
+                gradeSlider.noUiSlider.on('change', function() {
+                    updateURLWithFilters();
+                    updateTable();
+                });
             }
         }
 
         // Настройка обработчиков
         function setupHandlers() {
             // Поиск
-            document.getElementById('searchInput').addEventListener('input', debounce(updateTable, 300));
+            document.getElementById('searchInput').addEventListener('input', debounce(function() {
+                updateURLWithFilters();
+                updateTable();
+            }, 300));
 
             // Инпуты
             document.querySelectorAll('#ageFromInput, #ageToInput, #gradeFromInput, #gradeToInput').forEach(input => {
-                input.addEventListener('change', updateTable);
+                input.addEventListener('change', function() {
+                    updateURLWithFilters();
+                    updateTable();
+                });
             });
 
             // Чекбоксы навыков
             document.querySelectorAll('#skillBlock input[type="checkbox"]').forEach(cb => {
-                cb.addEventListener('change', updateTable);
+                cb.addEventListener('change', function() {
+                    updateURLWithFilters();
+                    updateTable();
+                });
             });
 
             // Чекбоксы фильтров
@@ -291,6 +380,7 @@
                 toggle.addEventListener('change', function() {
                     const target = document.getElementById(this.dataset.target);
                     if (target) target.style.display = this.checked ? 'block' : 'none';
+                    updateURLWithFilters();
                     updateTable();
                 });
             });
@@ -331,27 +421,10 @@
                         ]);
                     }
 
+                    updateURLWithFilters();
                     updateTable();
                 });
             }
-
-            // Обработчики для форм добавления
-            document.querySelectorAll('.add-member-form').forEach(form => {
-                form.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    const formData = new FormData(this);
-                    const params = new URLSearchParams(formData);
-
-                    fetch(`/groups/${groupId}/members/add?${params.toString()}`, {
-                        method: 'POST'
-                    }).then(response => {
-                        if (response.ok) {
-                            // Обновляем страницу с сохранением фильтров
-                            window.location.href = window.location.pathname + '?' + getFilterParams().toString();
-                        }
-                    });
-                });
-            });
 
             // Обработчики для форм удаления
             document.querySelectorAll('.remove-member-form').forEach(form => {
@@ -365,9 +438,38 @@
                             method: 'POST'
                         }).then(response => {
                             if (response.ok) {
-                                window.location.href = window.location.pathname + '?' + getFilterParams().toString();
+                                // После успешного удаления обновляем страницу с сохранением фильтров
+                                window.location.href = window.location.pathname + '?' + getFilterParamsFromForm().toString();
                             }
                         });
+                    }
+                });
+            });
+
+            // Обработчики для форм добавления (первоначальная привязка)
+            document.querySelectorAll('.add-member-form').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const formData = new FormData(this);
+                    const params = new URLSearchParams(formData);
+
+                    fetch(`/groups/${groupId}/members/add?${params.toString()}`, {
+                        method: 'POST'
+                    }).then(response => {
+                        if (response.ok) {
+                            // После успешного добавления обновляем страницу с сохранением фильтров
+                            window.location.href = window.location.pathname + '?' + getFilterParamsFromForm().toString();
+                        }
+                    });
+                });
+            });
+
+            // Обработчики для кнопок добавления
+            document.querySelectorAll('.add-member-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    const form = this.closest('form');
+                    if (form) {
+                        form.dispatchEvent(new Event('submit'));
                     }
                 });
             });
@@ -376,6 +478,31 @@
         // Запускаем все
         initSliders();
         setupHandlers();
+
+        // При загрузке страницы синхронизируем URL с формой
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.toString()) {
+            // Если есть параметры в URL, обновляем форму
+            const search = document.getElementById('searchInput');
+            if (search && urlParams.has('search')) search.value = urlParams.get('search');
+
+            const ageFrom = document.getElementById('ageFromInput');
+            const ageTo = document.getElementById('ageToInput');
+            if (ageFrom && urlParams.has('ageFrom')) ageFrom.value = urlParams.get('ageFrom');
+            if (ageTo && urlParams.has('ageTo')) ageTo.value = urlParams.get('ageTo');
+
+            const gradeFrom = document.getElementById('gradeFromInput');
+            const gradeTo = document.getElementById('gradeToInput');
+            if (gradeFrom && urlParams.has('gradeFrom')) gradeFrom.value = urlParams.get('gradeFrom');
+            if (gradeTo && urlParams.has('gradeTo')) gradeTo.value = urlParams.get('gradeTo');
+
+            const skills = urlParams.getAll('skills');
+            if (skills.length > 0) {
+                document.querySelectorAll('#skillBlock input[type="checkbox"]').forEach(cb => {
+                    cb.checked = skills.includes(cb.value);
+                });
+            }
+        }
     });
   </script>
 </div>
