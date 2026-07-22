@@ -3,46 +3,16 @@
 <body>
 <div th:fragment="content">
 
-  <!-- Стили для кастомизации noUiSlider под наш дизайн -->
+  <!-- Стили для кастомизации noUiSlider -->
   <style>
-    /* Трек слайдера */
-    .noUi-target {
-        background: #eee;
-        border-radius: 4px;
-        border: none;
-        box-shadow: none;
-        height: 6px !important; /* Делаем трек тоньше */
-    }
-
-    /* Полоса соединения (между ползунками) */
-    .noUi-connect {
-        background: #007bff; /* Наш синий цвет */
-    }
-
-    /* Сам ползунок (кружок) */
+    .noUi-target { background: #eee; border-radius: 4px; border: none; box-shadow: none; height: 6px !important; }
+    .noUi-connect { background: #007bff; }
     .noUi-handle {
-        width: 16px !important;
-        height: 16px !important;
-        right: -8px !important; /* Центрируем относительно трека */
-        top: -5px !important;
-        border-radius: 50%;
-        background: #007bff; /* Синий фон */
-        border: 2px solid #fff; /* Белая обводка для контраста */
-        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-        cursor: pointer;
+        width: 16px !important; height: 16px !important; right: -8px !important; top: -5px !important;
+        border-radius: 50%; background: #007bff; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer;
     }
-
-    /* Убираем лишние линии внутри ползунка */
-    .noUi-handle:before, .noUi-handle:after {
-        display: none;
-    }
-
-    /* Стиль при наведении/активности */
-    .noUi-handle:hover, .noUi-active {
-        background: #0056b3; /* Темнее при наведении */
-        transform: scale(1.1);
-        transition: transform 0.1s;
-    }
+    .noUi-handle:before, .noUi-handle:after { display: none; }
+    .noUi-handle:hover, .noUi-active { background: #0056b3; transform: scale(1.1); transition: transform 0.1s; }
   </style>
 
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1400px; margin: 0 auto;">
@@ -50,13 +20,8 @@
     <div class="header">
       <div>
         <h1 style="margin-bottom: 5px;">Группа: <span th:text="${group.name}"></span> (№ <span th:text="${group.number}"></span>)</h1>
-
-        <!-- ИНДИКАТОР ЗАПОЛНЕННОСТИ -->
-        <div th:with="cap=${group.capacity}, percent=${cap != null and cap > 0 ? (currentCount * 100 / cap) : 0}"
-             style="font-size: 0.9em; margin-top: 5px;">
-
+        <div th:with="cap=${group.capacity}, percent=${cap != null and cap > 0 ? (currentCount * 100 / cap) : 0}" style="font-size: 0.9em; margin-top: 5px;">
           <strong th:text="${currentCount} + ' / ' + ${cap}"></strong>
-
           <span th:if="${percent < 90}" style="color: #28a745; margin-left: 10px;">Есть свободные места</span>
           <span th:if="${percent >= 90 and percent < 100}" style="color: #fd7e14; margin-left: 10px;">Почти заполнена</span>
           <span th:if="${percent == 100}" style="color: #dc3545; margin-left: 10px;">Заполнена</span>
@@ -64,7 +29,6 @@
           <span th:if="${percent > 125}" style="color: #721c24; margin-left: 10px; font-weight: bold;">Значительно переполнена!</span>
         </div>
       </div>
-
       <a href="/groups" class="btn" style="background-color: #6c757d;">Назад к группам</a>
     </div>
 
@@ -91,9 +55,17 @@
         <td style="padding: 12px; border: 1px solid #ddd;" th:text="${member.grade_number}"></td>
         <td style="padding: 12px; border: 1px solid #ddd;" th:text="${member.skill}"></td>
         <td style="padding: 12px; border: 1px solid #ddd;">
+          <!-- Форма исключения передает текущие параметры фильтров через скрытые поля -->
           <form th:action="@{/groups/{id}/members/remove(id=${group.id})}" method="post" class="remove-member-form">
             <input type="hidden" name="childId" th:value="${member.id}">
-            <input type="hidden" name="childName" th:value="${member.first_name} + ' ' + ${member.last_name}">
+            <input type="hidden" name="search" th:value="${currentSearch}">
+            <input type="hidden" name="ageFrom" th:value="${currentAgeFrom}">
+            <input type="hidden" name="ageTo" th:value="${currentAgeTo}">
+            <input type="hidden" name="gradeFrom" th:value="${currentGradeFrom}">
+            <input type="hidden" name="gradeTo" th:value="${currentGradeTo}">
+            <th:block th:each="skill : ${currentSkills}">
+              <input type="hidden" name="skills" th:value="${skill}">
+            </th:block>
             <button type="submit" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.8em;">Исключить</button>
           </form>
         </td>
@@ -117,45 +89,28 @@
         <li th:if="${group.minAge != null and group.maxAge != null}">Возраст: от <span th:text="${group.minAge}"></span> до <span th:text="${group.maxAge}"></span> лет</li>
         <li th:if="${group.minAge != null and group.maxAge == null}">Возраст: от <span th:text="${group.minAge}"></span> лет</li>
         <li th:if="${group.minAge == null and group.maxAge != null}">Возраст: до <span th:text="${group.maxAge}"></span> лет</li>
-
-        <li th:if="${group.skill1 != null and group.skill2 != null}">
-          Навыки: <span th:text="${group.skill1}"></span> или <span th:text="${group.skill2}"></span>
-        </li>
-        <li th:if="${group.skill1 != null and group.skill2 == null}">
-          Навык: <span th:text="${group.skill1}"></span>
-        </li>
+        <li th:if="${group.skill1 != null and group.skill2 != null}">Навыки: <span th:text="${group.skill1}"></span> или <span th:text="${group.skill2}"></span></li>
+        <li th:if="${group.skill1 != null and group.skill2 == null}">Навык: <span th:text="${group.skill1}"></span></li>
       </ul>
+      <!-- Кнопка теперь просто применяет критерии к инпутам, не отправляя форму -->
       <button type="button" id="applyGroupCriteriaBtn" class="btn" style="margin-top: 10px; background-color: #0d6efd; font-size: 0.9em;">Применить эти критерии к фильтрам</button>
     </div>
 
+    <!-- Форма фильтров и поиска (GET запрос) -->
     <form method="get" th:action="@{/groups/{id}/members(id=${group.id})}" id="filterForm">
-
-      <!-- Левое меню управления фильтрами -->
       <div style="display: flex; gap: 20px;">
-
         <div style="width: 250px; background: #f8f9fa; padding: 15px; border-radius: 8px; height: fit-content;">
           <label style="font-weight: bold; display: block; margin-bottom: 10px;">Фильтры:</label>
-
           <div style="margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
             <label><input type="checkbox" id="checkAllFilters"> Все фильтры</label><br>
             <label><input type="checkbox" id="uncheckAllFilters"> Снять все</label>
           </div>
-
-          <div style="margin-bottom: 5px;">
-            <label><input type="checkbox" class="filter-toggle" data-target="ageBlock" checked> Возраст</label>
-          </div>
-          <div style="margin-bottom: 5px;">
-            <label><input type="checkbox" class="filter-toggle" data-target="gradeBlock" checked> Класс</label>
-          </div>
-          <div style="margin-bottom: 5px;">
-            <label><input type="checkbox" class="filter-toggle" data-target="skillBlock" checked> Навык</label>
-          </div>
+          <div style="margin-bottom: 5px;"><label><input type="checkbox" class="filter-toggle" data-target="ageBlock" checked> Возраст</label></div>
+          <div style="margin-bottom: 5px;"><label><input type="checkbox" class="filter-toggle" data-target="gradeBlock" checked> Класс</label></div>
+          <div style="margin-bottom: 5px;"><label><input type="checkbox" class="filter-toggle" data-target="skillBlock" checked> Навык</label></div>
         </div>
 
-        <!-- Область самих фильтров -->
         <div style="flex-grow: 1;">
-
-          <!-- Фильтр Возраста -->
           <div id="ageBlock" style="margin-bottom: 20px; padding: 15px; background: #fff; border: 1px solid #eee; border-radius: 4px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <label style="font-weight: bold;">Возраст:</label>
@@ -166,11 +121,9 @@
                 <input type="number" id="ageToInput" name="ageTo" th:value="${currentAgeTo}" style="width: 60px; padding: 2px; border: 1px solid #ccc; border-radius: 4px;">
               </div>
             </div>
-            <!-- Контейнер для noUiSlider -->
             <div id="age-slider" style="height: 10px; margin: 10px 0;"></div>
           </div>
 
-          <!-- Фильтр Класса -->
           <div id="gradeBlock" style="margin-bottom: 20px; padding: 15px; background: #fff; border: 1px solid #eee; border-radius: 4px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <label style="font-weight: bold;">Класс:</label>
@@ -181,11 +134,9 @@
                 <input type="number" id="gradeToInput" name="gradeTo" th:value="${currentGradeTo}" style="width: 60px; padding: 2px; border: 1px solid #ccc; border-radius: 4px;">
               </div>
             </div>
-            <!-- Контейнер для noUiSlider -->
             <div id="grade-slider" style="height: 10px; margin: 10px 0;"></div>
           </div>
 
-          <!-- Фильтр Навыка -->
           <div id="skillBlock" style="margin-bottom: 20px; padding: 15px; background: #fff; border: 1px solid #eee; border-radius: 4px;">
             <label style="font-weight: bold; display: block; margin-bottom: 10px;">Навык плавания:</label>
             <div style="display: flex; gap: 15px;">
@@ -194,14 +145,13 @@
               <label><input type="checkbox" name="skills" value="уверенно плавает" th:checked="${currentSkills != null and currentSkills.contains('уверенно плавает')}"> Уверенно плавает</label>
             </div>
           </div>
-
         </div>
       </div>
 
       <!-- Поиск и Кнопки -->
       <div style="display: flex; gap: 10px; align-items: center; margin-top: 20px;">
         <input type="text" name="search" placeholder="Поиск по ФИО..." th:value="${currentSearch}" style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-        <button type="submit" class="btn">Применить</button>
+        <!-- Кнопка Применить удалена, так как фильтрация динамическая -->
         <a th:href="@{/groups/{id}/members(id=${group.id})}" class="btn" style="background-color: #6c757d;">Сброс</a>
       </div>
     </form>
@@ -228,8 +178,17 @@
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${child.grade_number}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${child.skill}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;">
-          <form th:action="@{/groups/{id}/members/add(id=${group.id})}" method="post">
+          <!-- Форма добавления передает текущие параметры фильтров через скрытые поля -->
+          <form th:action="@{/groups/{id}/members/add(id=${group.id})}" method="post" class="add-member-form">
             <input type="hidden" name="childId" th:value="${child.id}">
+            <input type="hidden" name="search" th:value="${currentSearch}">
+            <input type="hidden" name="ageFrom" th:value="${currentAgeFrom}">
+            <input type="hidden" name="ageTo" th:value="${currentAgeTo}">
+            <input type="hidden" name="gradeFrom" th:value="${currentGradeFrom}">
+            <input type="hidden" name="gradeTo" th:value="${currentGradeTo}">
+            <th:block th:each="skill : ${currentSkills}">
+              <input type="hidden" name="skills" th:value="${skill}">
+            </th:block>
             <button type="submit" class="btn" style="padding: 4px 8px; font-size: 0.8em; background-color: #28a745;">Добавить</button>
           </form>
         </td>
@@ -241,22 +200,25 @@
     </table>
   </div>
 
-  <!-- Подключаем скрипт подтверждения ИСКЛЮЧЕНИЯ -->
   <script src="/js/confirm-delete-from-group.js"></script>
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // --- Логика чекбоксов включения/выключения блоков ---
         const toggles = document.querySelectorAll('.filter-toggle');
         const checkAllBox = document.getElementById('checkAllFilters');
         const uncheckAllBox = document.getElementById('uncheckAllFilters');
+        const filterForm = document.getElementById('filterForm');
 
         function updateMainCheckboxes() {
             const allChecked = Array.from(toggles).every(t => t.checked);
             const noneChecked = Array.from(toggles).every(t => !t.checked);
-
             if (checkAllBox) checkAllBox.checked = allChecked;
             if (uncheckAllBox) uncheckAllBox.checked = noneChecked;
+        }
+
+        // Функция для отправки формы фильтров
+        function submitFilters() {
+            filterForm.submit();
         }
 
         toggles.forEach(toggle => {
@@ -267,6 +229,8 @@
                     targetBlock.style.display = this.checked ? 'block' : 'none';
                 }
                 updateMainCheckboxes();
+                // Динамическая отправка при изменении чекбокса видимости блока
+                submitFilters();
             });
         });
 
@@ -279,6 +243,7 @@
                         if (targetBlock) targetBlock.style.display = 'block';
                     });
                     if (uncheckAllBox) uncheckAllBox.checked = false;
+                    submitFilters();
                 }
             });
         }
@@ -292,13 +257,12 @@
                         if (targetBlock) targetBlock.style.display = 'none';
                     });
                     if (checkAllBox) checkAllBox.checked = false;
+                    submitFilters();
                 }
             });
         }
 
-        // --- Инициализация noUiSlider ---
-
-        // Функция создания слайдера
+        // Инициализация noUiSlider
         function createSlider(sliderId, fromInputId, toInputId, min, max, startFrom, startTo) {
             const slider = document.getElementById(sliderId);
             if (!slider) return;
@@ -306,38 +270,33 @@
             noUiSlider.create(slider, {
                 start: [startFrom, startTo],
                 connect: true,
-                range: {
-                    'min': min,
-                    'max': max
-                },
+                range: { 'min': min, 'max': max },
                 step: 1
             });
 
             const fromInput = document.getElementById(fromInputId);
             const toInput = document.getElementById(toInputId);
 
-            // Когда двигаем слайдер -> обновляем инпуты
             slider.noUiSlider.on('update', function(values, handle) {
                 const val = Math.round(values[handle]);
-                if (handle === 0) {
-                    fromInput.value = val;
-                } else {
-                    toInput.value = val;
-                }
+                if (handle === 0) fromInput.value = val;
+                else toInput.value = val;
             });
 
-            // Когда меняем инпуты -> двигаем слайдер
+            // Отправка формы при изменении слайдера (когда пользователь отпустил ползунок)
+            slider.noUiSlider.on('change', function() {
+                submitFilters();
+            });
+
             fromInput.addEventListener('change', function() {
                 let val = parseInt(this.value);
                 if (isNaN(val)) val = min;
                 if (val < min) val = min;
                 if (val > max) val = max;
-
-                // Получаем текущее значение правого ползунка
                 const currentTo = parseInt(toInput.value) || max;
-                if (val > currentTo) val = currentTo; // Не даем левому уйти правее правого
-
+                if (val > currentTo) val = currentTo;
                 slider.noUiSlider.set([val, null]);
+                submitFilters();
             });
 
             toInput.addEventListener('change', function() {
@@ -345,41 +304,31 @@
                 if (isNaN(val)) val = max;
                 if (val < min) val = min;
                 if (val > max) val = max;
-
-                // Получаем текущее значение левого ползунка
                 const currentFrom = parseInt(fromInput.value) || min;
-                if (val < currentFrom) val = currentFrom; // Не даем правому уйти левее левого
-
+                if (val < currentFrom) val = currentFrom;
                 slider.noUiSlider.set([null, val]);
+                submitFilters();
             });
         }
 
-        // Создаем слайдеры с начальными значениями из Thymeleaf
         createSlider('age-slider', 'ageFromInput', 'ageToInput', 6, 18, [[${currentAgeFrom}]], [[${currentAgeTo}]]);
         createSlider('grade-slider', 'gradeFromInput', 'gradeToInput', 1, 11, [[${currentGradeFrom}]], [[${currentGradeTo}]]);
 
-        // --- Скрипт для применения критериев группы к фильтрам ---
+        // Обработчик кнопки "Применить критерии группы"
         const applyBtn = document.getElementById('applyGroupCriteriaBtn');
         if (applyBtn) {
             applyBtn.addEventListener('click', function() {
-                // Получаем значения из Thymeleaf
                 const minAge = [[${group.minAge}]];
                 const maxAge = [[${group.maxAge}]];
                 const skill1 = '[[${group.skill1}]]';
                 const skill2 = '[[${group.skill2}]]';
 
-                // Применяем к инпутам возраста
                 const ageFromInput = document.getElementById('ageFromInput');
                 const ageToInput = document.getElementById('ageToInput');
 
-                if (minAge != null) {
-                    ageFromInput.value = minAge;
-                }
-                if (maxAge != null) {
-                    ageToInput.value = maxAge;
-                }
+                if (minAge != null) ageFromInput.value = minAge;
+                if (maxAge != null) ageToInput.value = maxAge;
 
-                // Обновляем слайдеры возраста
                 const ageSlider = document.getElementById('age-slider');
                 if (ageSlider && ageSlider.noUiSlider) {
                     const fromVal = minAge != null ? minAge : 6;
@@ -387,9 +336,8 @@
                     ageSlider.noUiSlider.set([fromVal, toVal]);
                 }
 
-                // Применяем к чекбоксам навыков
                 const checkboxes = document.querySelectorAll('#skillBlock input[type="checkbox"]');
-                checkboxes.forEach(cb => cb.checked = false); // Сброс
+                checkboxes.forEach(cb => cb.checked = false);
 
                 if (skill1 && skill1 !== 'null') {
                     const cb1 = document.querySelector(`#skillBlock input[value="${skill1}"]`);
@@ -399,6 +347,9 @@
                     const cb2 = document.querySelector(`#skillBlock input[value="${skill2}"]`);
                     if (cb2) cb2.checked = true;
                 }
+
+                // Применяем фильтры сразу
+                submitFilters();
             });
         }
     });
