@@ -62,10 +62,42 @@ public class GroupService {
         validateDayTime(group.getDay6Start(), group.getDay6End(), "Суббота");
         validateDayTime(group.getDay7Start(), group.getDay7End(), "Воскресенье");
 
+        // --- ВАЛИДАЦИЯ КРИТЕРИЕВ ВСТУПЛЕНИЯ ---
+        validateEntryCriteria(group.getMinAge(), group.getMaxAge(), group.getSkill1(), group.getSkill2());
+
         groupRepository.save(group);
 
         
         lessonService.generateLessonsForGroup(group);
+    }
+
+
+    private void validateEntryCriteria(Integer minAge, Integer maxAge, String skill1, String skill2) {
+        // Валидация возраста
+        if (minAge != null) {
+            if (minAge < 6 || minAge > 18) throw new IllegalArgumentException("Минимальный возраст должен быть от 6 до 18.");
+        }
+        if (maxAge != null) {
+            if (maxAge < 6 || maxAge > 18) throw new IllegalArgumentException("Максимальный возраст должен быть от 6 до 18.");
+        }
+        if (minAge != null && maxAge != null && minAge > maxAge) {
+            throw new IllegalArgumentException("Минимальный возраст не может быть больше максимального.");
+        }
+
+        // Валидация навыков
+        if (skill1 != null && skill2 != null) {
+            if (skill1.equals(skill2)) {
+                throw new IllegalArgumentException("Навыки не должны совпадать.");
+            }
+            // Запрещенная комбинация крайностей
+            boolean isExtremeCombo =
+                    ("не умеет".equals(skill1) && "уверенно плавает".equals(skill2)) ||
+                            ("уверенно плавает".equals(skill1) && "не умеет".equals(skill2));
+
+            if (isExtremeCombo) {
+                throw new IllegalArgumentException("Нельзя сочетать крайние навыки: 'не умеет' и 'уверенно плавает'.");
+            }
+        }
     }
 
     private void validateDayTime(LocalTime start, LocalTime end, String dayName) {

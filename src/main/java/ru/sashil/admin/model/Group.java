@@ -49,4 +49,19 @@ public class Group {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, insertable = false)
     private LocalDateTime createdAt;
+
+
+    // --- НОВЫЕ ПОЛЯ ДЛЯ КРИТЕРИЕВ ВСТУПЛЕНИЯ ---
+
+    @Column(name = "min_age")
+    private Integer minAge;
+
+    @Column(name = "max_age")
+    private Integer maxAge;
+
+    @Column(name = "skill_1")
+    private String skill1;
+
+    @Column(name = "skill_2")
+    private String skill2;
 }

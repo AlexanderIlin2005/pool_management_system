@@ -133,6 +133,33 @@
       </div>
     </div>
 
+
+    <!-- Блок критериев вступления -->
+    <h3>Критерии вступления в группу</h3>
+    <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">Эти критерии будут использоваться как рекомендательные фильтры при добавлении детей в группу.</p>
+
+    <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+      <div style="flex: 1;">
+        <label>Минимальный возраст:</label>
+        <input type="number" th:field="*{minAge}" min="6" max="18" style="width: 100%; padding: 8px;">
+      </div>
+      <div style="flex: 1;">
+        <label>Максимальный возраст:</label>
+        <input type="number" th:field="*{maxAge}" min="6" max="18" style="width: 100%; padding: 8px;">
+      </div>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <label>Допустимые навыки плавания (можно выбрать 1 или 2, но не противоположные):</label>
+      <div style="display: flex; gap: 15px; margin-top: 5px;">
+        <label><input type="checkbox" name="skill1" value="не умеет" th:checked="${group.skill1 == 'не умеет' or group.skill2 == 'не умеет'}"> Не умеет</label>
+        <label><input type="checkbox" name="skill2" value="держится на воде" th:checked="${group.skill1 == 'держится на воде' or group.skill2 == 'держится на воде'}"> Держится на воде</label>
+        <label><input type="checkbox" name="skill3" value="уверенно плавает" th:checked="${group.skill1 == 'уверенно плавает' or group.skill2 == 'уверенно плавает'}"> Уверенно плавает</label>
+      </div>
+      <small style="color: #dc3545; display: block; margin-top: 5px;">* Комбинация "Не умеет" + "Уверенно плавает" запрещена.</small>
+    </div>
+
+
     <p th:if="${error}" style="color: red;" th:text="${error}"></p>
 
     <div style="margin-top: 20px;">
@@ -146,6 +173,30 @@
     /*<![CDATA[*/
     window.coachesList = /*[[${coaches}]]*/ [];
     /*]]>*/
+  </script>
+
+
+  <script>
+    // Простой скрипт для предотвращения выбора запрещенной комбинации на клиенте
+    document.addEventListener('DOMContentLoaded', function() {
+        const cb1 = document.querySelector('input[name="skill1"]');
+        const cb3 = document.querySelector('input[name="skill3"]');
+
+        if (cb1 && cb3) {
+            cb1.addEventListener('change', function() {
+                if (this.checked && cb3.checked) {
+                    alert('Нельзя одновременно выбрать "Не умеет" и "Уверенно плавает"');
+                    this.checked = false;
+                }
+            });
+            cb3.addEventListener('change', function() {
+                if (this.checked && cb1.checked) {
+                    alert('Нельзя одновременно выбрать "Не умеет" и "Уверенно плавает"');
+                    this.checked = false;
+                }
+            });
+        }
+    });
   </script>
 
   <!-- Подключаем внешние скрипты -->

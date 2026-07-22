@@ -77,7 +77,12 @@ CREATE TABLE pool.groups (
     day_6_start TIME, day_6_end TIME,
     day_7_start TIME, day_7_end TIME,
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    min_age INTEGER CHECK (min_age BETWEEN 6 AND 18),
+    max_age INTEGER CHECK (max_age BETWEEN 6 AND 18),
+    skill_1 VARCHAR(50),
+    skill_2 VARCHAR(50)
 );
 
 CREATE TABLE pool.group_children (
@@ -183,6 +188,12 @@ CREATE TABLE IF NOT EXISTS pool.certificates (
     date_from DATE, -- Дата начала действия справки
     date_to DATE,   -- Дата окончания действия справки
     processed_by BIGINT REFERENCES pool.admin_users(id) -- Кто обработал справку
+);
+
+ALTER TABLE pool.groups
+ADD CONSTRAINT chk_skills_valid CHECK (
+    (skill_1 IS NULL AND skill_2 IS NULL) OR
+    (skill_1 != skill_2 AND NOT (skill_1 = 'не умеет' AND skill_2 = 'уверенно плавает') AND NOT (skill_1 = 'уверенно плавает' AND skill_2 = 'не умеет'))
 );
 
 -- Индекс для быстрого поиска непрочитанных

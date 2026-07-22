@@ -133,31 +133,56 @@ public class GroupController {
         Optional<Group> groupOpt = groupService.getGroupById(id);
         if (groupOpt.isEmpty()) return "redirect:/groups";
 
+        Group group = groupOpt.get();
+
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "groups");
         model.addAttribute("pools", groupService.getAllPools());
         model.addAttribute("coaches", groupService.getAllCoaches());
-        model.addAttribute("group", groupOpt.get());
+        model.addAttribute("group", group);
         model.addAttribute("isEdit", true);
+
+        // Передаем выбранные навыки для чекбоксов
+        if (group.getSkill1() != null) model.addAttribute("selectedSkill1", group.getSkill1());
+        if (group.getSkill2() != null) model.addAttribute("selectedSkill2", group.getSkill2());
 
         return "new-group";
     }
 
     @PostMapping("/save")
-    public String saveGroup(@ModelAttribute Group group, Model model, HttpSession session) {
+    public String saveGroup(@ModelAttribute Group group,
+                            @RequestParam(required = false) String skill1,
+                            @RequestParam(required = false) String skill2,
+                            @RequestParam(required = false) String skill3,
+                            Model model, HttpSession session) {
+
         if (!isAdmin(session)) return "redirect:/parents";
+
         try {
+            // Собираем выбранные навыки в поля модели
+            List<String> selectedSkills = new ArrayList<>();
+            if ("не умеет".equals(skill1)) selectedSkills.add("не умеет");
+            if ("держится на воде".equals(skill2)) selectedSkills.add("держится на воде");
+            if ("уверенно плавает".equals(skill3)) selectedSkills.add("уверенно плавает");
+
+            if (selectedSkills.size() > 0) group.setSkill1(selectedSkills.get(0));
+            if (selectedSkills.size() > 1) group.setSkill2(selectedSkills.get(1));
+
             groupService.saveGroup(group);
             wsNotificationService.sendUpdateNotification("GROUP_SAVED");
             return "redirect:/groups?success";
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("pools", groupService.getAllPools());
+            model.addAttribute("coaches", groupService.getAllCoaches());
             model.addAttribute("fullName", ((AdminUser) session.getAttribute("currentUser")).getFullName());
             model.addAttribute("role", ((AdminUser) session.getAttribute("currentUser")).getRole());
             model.addAttribute("activePage", "groups");
             model.addAttribute("isEdit", group.getId() != null);
+            // Возвращаем выбранные навыки обратно в форму, чтобы они не сбросились
+            if (group.getSkill1() != null) model.addAttribute("selectedSkill1", group.getSkill1());
+            if (group.getSkill2() != null) model.addAttribute("selectedSkill2", group.getSkill2());
             return "new-group";
         }
     }

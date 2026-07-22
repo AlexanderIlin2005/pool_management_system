@@ -109,6 +109,25 @@
     <!-- Блок 2: Добавление новых участников -->
     <h3>Добавить участника</h3>
 
+    <!-- Информационный блок о критериях группы -->
+    <div th:if="${group.minAge != null or group.maxAge != null or group.skill1 != null}"
+         style="background: #e7f3ff; border: 1px solid #b6d4fe; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+      <h4 style="margin-top: 0; color: #084298;">Рекомендуемые критерии для этой группы:</h4>
+      <ul style="margin-bottom: 0; padding-left: 20px;">
+        <li th:if="${group.minAge != null and group.maxAge != null}">Возраст: от <span th:text="${group.minAge}"></span> до <span th:text="${group.maxAge}"></span> лет</li>
+        <li th:if="${group.minAge != null and group.maxAge == null}">Возраст: от <span th:text="${group.minAge}"></span> лет</li>
+        <li th:if="${group.minAge == null and group.maxAge != null}">Возраст: до <span th:text="${group.maxAge}"></span> лет</li>
+
+        <li th:if="${group.skill1 != null and group.skill2 != null}">
+          Навыки: <span th:text="${group.skill1}"></span> или <span th:text="${group.skill2}"></span>
+        </li>
+        <li th:if="${group.skill1 != null and group.skill2 == null}">
+          Навык: <span th:text="${group.skill1}"></span>
+        </li>
+      </ul>
+      <button type="button" id="applyGroupCriteriaBtn" class="btn" style="margin-top: 10px; background-color: #0d6efd; font-size: 0.9em;">Применить эти критерии к фильтрам</button>
+    </div>
+
     <form method="get" th:action="@{/groups/{id}/members(id=${group.id})}" id="filterForm">
 
       <!-- Левое меню управления фильтрами -->
@@ -338,6 +357,50 @@
         // Создаем слайдеры с начальными значениями из Thymeleaf
         createSlider('age-slider', 'ageFromInput', 'ageToInput', 6, 18, [[${currentAgeFrom}]], [[${currentAgeTo}]]);
         createSlider('grade-slider', 'gradeFromInput', 'gradeToInput', 1, 11, [[${currentGradeFrom}]], [[${currentGradeTo}]]);
+
+        // --- Скрипт для применения критериев группы к фильтрам ---
+        const applyBtn = document.getElementById('applyGroupCriteriaBtn');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', function() {
+                // Получаем значения из Thymeleaf
+                const minAge = [[${group.minAge}]];
+                const maxAge = [[${group.maxAge}]];
+                const skill1 = '[[${group.skill1}]]';
+                const skill2 = '[[${group.skill2}]]';
+
+                // Применяем к инпутам возраста
+                const ageFromInput = document.getElementById('ageFromInput');
+                const ageToInput = document.getElementById('ageToInput');
+
+                if (minAge != null) {
+                    ageFromInput.value = minAge;
+                }
+                if (maxAge != null) {
+                    ageToInput.value = maxAge;
+                }
+
+                // Обновляем слайдеры возраста
+                const ageSlider = document.getElementById('age-slider');
+                if (ageSlider && ageSlider.noUiSlider) {
+                    const fromVal = minAge != null ? minAge : 6;
+                    const toVal = maxAge != null ? maxAge : 18;
+                    ageSlider.noUiSlider.set([fromVal, toVal]);
+                }
+
+                // Применяем к чекбоксам навыков
+                const checkboxes = document.querySelectorAll('#skillBlock input[type="checkbox"]');
+                checkboxes.forEach(cb => cb.checked = false); // Сброс
+
+                if (skill1 && skill1 !== 'null') {
+                    const cb1 = document.querySelector(`#skillBlock input[value="${skill1}"]`);
+                    if (cb1) cb1.checked = true;
+                }
+                if (skill2 && skill2 !== 'null') {
+                    const cb2 = document.querySelector(`#skillBlock input[value="${skill2}"]`);
+                    if (cb2) cb2.checked = true;
+                }
+            });
+        }
     });
   </script>
 </div>
