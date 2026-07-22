@@ -58,7 +58,6 @@ public class GroupController {
 
         List<Group> allGroups;
 
-
         if (user.getRole() == AdminUser.Role.ADMIN) {
             allGroups = groupService.getAllGroups();
         } else if (user.getRole() == AdminUser.Role.COACH) {
@@ -66,7 +65,6 @@ public class GroupController {
         } else {
             return "restricted";
         }
-
 
         Map<Long, Integer> memberCounts = new HashMap<>();
         for (Group g : allGroups) {
@@ -213,7 +211,7 @@ public class GroupController {
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "groups");
-        model.addAttribute("currentUri", request.getRequestURI()); // Добавлен URI
+        model.addAttribute("currentUri", request.getRequestURI());
 
         Optional<Group> groupOpt = groupService.getGroupById(id);
         if (groupOpt.isEmpty()) return "redirect:/groups";
@@ -235,8 +233,45 @@ public class GroupController {
         return "group-members";
     }
 
+    // НОВЫЙ МЕТОД ДЛЯ AJAX ФИЛЬТРАЦИИ
+    @GetMapping("/{id}/members/filter")
+    public String filterMembers(@PathVariable Long id,
+                                @RequestParam(required = false) String search,
+                                @RequestParam(required = false) List<String> skills,
+                                @RequestParam(required = false) Integer ageFrom,
+                                @RequestParam(required = false) Integer ageTo,
+                                @RequestParam(required = false) Integer gradeFrom,
+                                @RequestParam(required = false) Integer gradeTo,
+                                Model model, HttpSession session) {
+
+        Optional<Group> groupOpt = groupService.getGroupById(id);
+        if (groupOpt.isEmpty()) return "fragments/member-table :: tableContent";
+
+        Group group = groupOpt.get();
+
+        model.addAttribute("group", group);
+        model.addAttribute("availableChildren", memberService.getAvailableChildren(id, search, skills, ageFrom, ageTo, gradeFrom, gradeTo));
+        model.addAttribute("currentSearch", search);
+        model.addAttribute("currentSkills", skills);
+        model.addAttribute("currentAgeFrom", ageFrom != null ? ageFrom : 6);
+        model.addAttribute("currentAgeTo", ageTo != null ? ageTo : 18);
+        model.addAttribute("currentGradeFrom", gradeFrom != null ? gradeFrom : 1);
+        model.addAttribute("currentGradeTo", gradeTo != null ? gradeTo : 11);
+
+        return "fragments/member-table :: tableContent";
+    }
+
+
     @PostMapping("/{id}/members/add")
-    public String addMember(@PathVariable Long id, @RequestParam Long childId, HttpSession session) {
+    public String addMember(@PathVariable Long id,
+                            @RequestParam Long childId,
+                            @RequestParam(required = false) String search,
+                            @RequestParam(required = false) List<String> skills,
+                            @RequestParam(required = false) Integer ageFrom,
+                            @RequestParam(required = false) Integer ageTo,
+                            @RequestParam(required = false) Integer gradeFrom,
+                            @RequestParam(required = false) Integer gradeTo,
+                            HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
 
         String groupName = groupService.getGroupById(id).map(Group::getName).orElse("Группа ID=" + id);
@@ -249,11 +284,20 @@ public class GroupController {
 
         memberService.addChildToGroup(id, childId, user);
         wsNotificationService.sendUpdateNotification("CHILD_ADDED_TO_GROUP");
-        return "redirect:/groups/{id}/members";
+
+        return "redirect:/groups/" + id + "/members";
     }
 
     @PostMapping("/{id}/members/remove")
-    public String removeMember(@PathVariable Long id, @RequestParam Long childId, HttpSession session) {
+    public String removeMember(@PathVariable Long id,
+                               @RequestParam Long childId,
+                               @RequestParam(required = false) String search,
+                               @RequestParam(required = false) List<String> skills,
+                               @RequestParam(required = false) Integer ageFrom,
+                               @RequestParam(required = false) Integer ageTo,
+                               @RequestParam(required = false) Integer gradeFrom,
+                               @RequestParam(required = false) Integer gradeTo,
+                               HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
 
         String groupName = groupService.getGroupById(id).map(Group::getName).orElse("Группа ID=" + id);
@@ -266,7 +310,8 @@ public class GroupController {
 
         memberService.removeChildFromGroup(id, childId, user);
         wsNotificationService.sendUpdateNotification("CHILD_REMOVED_FROM_GROUP");
-        return "redirect:/groups/{id}/members";
+
+        return "redirect:/groups/" + id + "/members";
     }
 
 
@@ -308,8 +353,8 @@ public class GroupController {
     @PostMapping("/transfer/save")
     public String saveTransfer(@RequestParam Long group1Id,
                                @RequestParam Long group2Id,
-                               @RequestParam(required = false) List<Long> toGroup2, 
-                               @RequestParam(required = false) List<Long> toGroup1, 
+                               @RequestParam(required = false) List<Long> toGroup2,
+                               @RequestParam(required = false) List<Long> toGroup1,
                                HttpSession session) {
         if (!isAdmin(session)) return "redirect:/parents";
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
@@ -324,7 +369,7 @@ public class GroupController {
             }
         }
 
-        
+
         if (toGroup1 != null) {
             for (Long childId : toGroup1) {
                 memberService.removeChildFromGroup(group2Id, childId, user);

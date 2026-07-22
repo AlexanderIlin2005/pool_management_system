@@ -47,7 +47,7 @@
       <tbody>
       <tr th:each="member : ${members}">
         <td style="padding: 12px; border: 1px solid #ddd;">
-          <a th:href="@{/children/skill/edit/{id}(id=${member.id}, returnUrl=${currentUri})}"
+          <a th:href="@{/children/skill/edit/{id}(id=${member.id})}"
              th:text="${member.last_name} + ' ' + ${member.first_name}"
              style="color: #007bff; text-decoration: none;"></a>
         </td>
@@ -55,9 +55,9 @@
         <td style="padding: 12px; border: 1px solid #ddd;" th:text="${member.grade_number}"></td>
         <td style="padding: 12px; border: 1px solid #ddd;" th:text="${member.skill}"></td>
         <td style="padding: 12px; border: 1px solid #ddd;">
-          <!-- Форма исключения передает текущие параметры фильтров через скрытые поля -->
           <form th:action="@{/groups/{id}/members/remove(id=${group.id})}" method="post" class="remove-member-form">
             <input type="hidden" name="childId" th:value="${member.id}">
+            <!-- Сохраняем фильтры -->
             <input type="hidden" name="search" th:value="${currentSearch}">
             <input type="hidden" name="ageFrom" th:value="${currentAgeFrom}">
             <input type="hidden" name="ageTo" th:value="${currentAgeTo}">
@@ -92,19 +92,19 @@
         <li th:if="${group.skill1 != null and group.skill2 != null}">Навыки: <span th:text="${group.skill1}"></span> или <span th:text="${group.skill2}"></span></li>
         <li th:if="${group.skill1 != null and group.skill2 == null}">Навык: <span th:text="${group.skill1}"></span></li>
       </ul>
-      <!-- Кнопка теперь просто применяет критерии к инпутам, не отправляя форму -->
-      <button type="button" id="applyGroupCriteriaBtn" class="btn" style="margin-top: 10px; background-color: #0d6efd; font-size: 0.9em;">Применить эти критерии к фильтрам</button>
+      <button type="button" id="applyGroupCriteriaBtn" class="btn"
+              th:data-min-age="${group.minAge}"
+              th:data-max-age="${group.maxAge}"
+              th:data-skill1="${group.skill1}"
+              th:data-skill2="${group.skill2}"
+              style="margin-top: 10px; background-color: #0d6efd; font-size: 0.9em;">Применить эти критерии к фильтрам</button>
     </div>
 
-    <!-- Форма фильтров и поиска (GET запрос) -->
-    <form method="get" th:action="@{/groups/{id}/members(id=${group.id})}" id="filterForm">
+    <!-- Форма фильтров -->
+    <div id="filterContainer">
       <div style="display: flex; gap: 20px;">
         <div style="width: 250px; background: #f8f9fa; padding: 15px; border-radius: 8px; height: fit-content;">
           <label style="font-weight: bold; display: block; margin-bottom: 10px;">Фильтры:</label>
-          <div style="margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
-            <label><input type="checkbox" id="checkAllFilters"> Все фильтры</label><br>
-            <label><input type="checkbox" id="uncheckAllFilters"> Снять все</label>
-          </div>
           <div style="margin-bottom: 5px;"><label><input type="checkbox" class="filter-toggle" data-target="ageBlock" checked> Возраст</label></div>
           <div style="margin-bottom: 5px;"><label><input type="checkbox" class="filter-toggle" data-target="gradeBlock" checked> Класс</label></div>
           <div style="margin-bottom: 5px;"><label><input type="checkbox" class="filter-toggle" data-target="skillBlock" checked> Навык</label></div>
@@ -148,210 +148,234 @@
         </div>
       </div>
 
-      <!-- Поиск и Кнопки -->
       <div style="display: flex; gap: 10px; align-items: center; margin-top: 20px;">
-        <input type="text" name="search" placeholder="Поиск по ФИО..." th:value="${currentSearch}" style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-        <!-- Кнопка Применить удалена, так как фильтрация динамическая -->
-        <a th:href="@{/groups/{id}/members(id=${group.id})}" class="btn" style="background-color: #6c757d;">Сброс</a>
+        <input type="text" id="searchInput" name="search" placeholder="Поиск по ФИО..." th:value="${currentSearch}" style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        <button type="button" id="resetFiltersBtn" class="btn" style="background-color: #6c757d;">Сброс</button>
       </div>
-    </form>
+    </div>
 
-    <!-- Таблица результатов -->
-    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-      <thead>
-      <tr style="background: #eef2f5; text-align: left;">
-        <th style="padding: 10px; border: 1px solid #ddd;">ФИО</th>
-        <th style="padding: 10px; border: 1px solid #ddd;">Возраст</th>
-        <th style="padding: 10px; border: 1px solid #ddd;">Класс</th>
-        <th style="padding: 10px; border: 1px solid #ddd;">Навык</th>
-        <th style="padding: 10px; border: 1px solid #ddd; width: 150px;">Действие</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr th:each="child : ${availableChildren}">
-        <td style="padding: 10px; border: 1px solid #ddd;">
-          <a th:href="@{/children/skill/edit/{id}(id=${child.id})}"
-             th:text="${child.last_name} + ' ' + ${child.first_name}"
-             style="color: #007bff; text-decoration: none;"></a>
-        </td>
-        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${child.age}"></td>
-        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${child.grade_number}"></td>
-        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${child.skill}"></td>
-        <td style="padding: 10px; border: 1px solid #ddd;">
-          <!-- Форма добавления передает текущие параметры фильтров через скрытые поля -->
-          <form th:action="@{/groups/{id}/members/add(id=${group.id})}" method="post" class="add-member-form">
-            <input type="hidden" name="childId" th:value="${child.id}">
-            <input type="hidden" name="search" th:value="${currentSearch}">
-            <input type="hidden" name="ageFrom" th:value="${currentAgeFrom}">
-            <input type="hidden" name="ageTo" th:value="${currentAgeTo}">
-            <input type="hidden" name="gradeFrom" th:value="${currentGradeFrom}">
-            <input type="hidden" name="gradeTo" th:value="${currentGradeTo}">
-            <th:block th:each="skill : ${currentSkills}">
-              <input type="hidden" name="skills" th:value="${skill}">
-            </th:block>
-            <button type="submit" class="btn" style="padding: 4px 8px; font-size: 0.8em; background-color: #28a745;">Добавить</button>
-          </form>
-        </td>
-      </tr>
-      <tr th:if="${#lists.isEmpty(availableChildren)}">
-        <td colspan="5" style="text-align: center; padding: 10px; color: #666;">Нет детей, соответствующих критериям</td>
-      </tr>
-      </tbody>
-    </table>
+    <!-- Контейнер для таблицы результатов -->
+    <div id="resultsContainer">
+      <div th:replace="~{fragments/member-table :: tableContent}"></div>
+    </div>
+
   </div>
 
   <script src="/js/confirm-delete-from-group.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.css">
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const toggles = document.querySelectorAll('.filter-toggle');
-        const checkAllBox = document.getElementById('checkAllFilters');
-        const uncheckAllBox = document.getElementById('uncheckAllFilters');
-        const filterForm = document.getElementById('filterForm');
+        // Получаем ID группы из URL
+        const pathParts = window.location.pathname.split('/');
+        const groupId = pathParts[2];
 
-        function updateMainCheckboxes() {
-            const allChecked = Array.from(toggles).every(t => t.checked);
-            const noneChecked = Array.from(toggles).every(t => !t.checked);
-            if (checkAllBox) checkAllBox.checked = allChecked;
-            if (uncheckAllBox) uncheckAllBox.checked = noneChecked;
-        }
+        // Функция получения параметров фильтров
+        function getFilterParams() {
+            const params = new URLSearchParams();
 
-        // Функция для отправки формы фильтров
-        function submitFilters() {
-            filterForm.submit();
-        }
+            const search = document.getElementById('searchInput');
+            if (search && search.value) params.append('search', search.value);
 
-        toggles.forEach(toggle => {
-            toggle.addEventListener('change', function() {
-                const targetId = this.getAttribute('data-target');
-                const targetBlock = document.getElementById(targetId);
-                if (targetBlock) {
-                    targetBlock.style.display = this.checked ? 'block' : 'none';
-                }
-                updateMainCheckboxes();
-                // Динамическая отправка при изменении чекбокса видимости блока
-                submitFilters();
+            const ageFrom = document.getElementById('ageFromInput');
+            const ageTo = document.getElementById('ageToInput');
+            if (ageFrom && ageFrom.value) params.append('ageFrom', ageFrom.value);
+            if (ageTo && ageTo.value) params.append('ageTo', ageTo.value);
+
+            const gradeFrom = document.getElementById('gradeFromInput');
+            const gradeTo = document.getElementById('gradeToInput');
+            if (gradeFrom && gradeFrom.value) params.append('gradeFrom', gradeFrom.value);
+            if (gradeTo && gradeTo.value) params.append('gradeTo', gradeTo.value);
+
+            document.querySelectorAll('#skillBlock input[type="checkbox"]:checked').forEach(cb => {
+                params.append('skills', cb.value);
             });
-        });
 
-        if (checkAllBox) {
-            checkAllBox.addEventListener('change', function() {
-                if (this.checked) {
-                    toggles.forEach(t => {
-                        t.checked = true;
-                        const targetBlock = document.getElementById(t.getAttribute('data-target'));
-                        if (targetBlock) targetBlock.style.display = 'block';
+            return params;
+        }
+
+        // Функция обновления таблицы через AJAX
+        function updateTable() {
+            const params = getFilterParams();
+            fetch(`/groups/${groupId}/members/filter?${params.toString()}`)
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('resultsContainer').innerHTML = html;
+                    // Перепривязываем обработчики к новым формам
+                    document.querySelectorAll('.add-member-form').forEach(form => {
+                        form.addEventListener('submit', function(e) {
+                            // Форма уже содержит все скрытые поля с фильтрами
+                            // Просто отправляем
+                        });
                     });
-                    if (uncheckAllBox) uncheckAllBox.checked = false;
-                    submitFilters();
-                }
-            });
+                })
+                .catch(error => console.error('Error:', error));
         }
 
-        if (uncheckAllBox) {
-            uncheckAllBox.addEventListener('change', function() {
-                if (this.checked) {
-                    toggles.forEach(t => {
-                        t.checked = false;
-                        const targetBlock = document.getElementById(t.getAttribute('data-target'));
-                        if (targetBlock) targetBlock.style.display = 'none';
+        // Debounce функция
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        // Инициализация слайдеров
+        function initSliders() {
+            // Слайдер возраста
+            const ageSlider = document.getElementById('age-slider');
+            if (ageSlider && typeof noUiSlider !== 'undefined') {
+                if (ageSlider.noUiSlider) ageSlider.noUiSlider.destroy();
+
+                const ageFrom = parseInt(document.getElementById('ageFromInput').value) || 6;
+                const ageTo = parseInt(document.getElementById('ageToInput').value) || 18;
+
+                noUiSlider.create(ageSlider, {
+                    start: [ageFrom, ageTo],
+                    connect: true,
+                    range: { 'min': 6, 'max': 18 },
+                    step: 1
+                });
+
+                ageSlider.noUiSlider.on('update', function(values) {
+                    document.getElementById('ageFromInput').value = Math.round(values[0]);
+                    document.getElementById('ageToInput').value = Math.round(values[1]);
+                });
+
+                ageSlider.noUiSlider.on('change', debounce(updateTable, 300));
+            }
+
+            // Слайдер класса
+            const gradeSlider = document.getElementById('grade-slider');
+            if (gradeSlider && typeof noUiSlider !== 'undefined') {
+                if (gradeSlider.noUiSlider) gradeSlider.noUiSlider.destroy();
+
+                const gradeFrom = parseInt(document.getElementById('gradeFromInput').value) || 1;
+                const gradeTo = parseInt(document.getElementById('gradeToInput').value) || 11;
+
+                noUiSlider.create(gradeSlider, {
+                    start: [gradeFrom, gradeTo],
+                    connect: true,
+                    range: { 'min': 1, 'max': 11 },
+                    step: 1
+                });
+
+                gradeSlider.noUiSlider.on('update', function(values) {
+                    document.getElementById('gradeFromInput').value = Math.round(values[0]);
+                    document.getElementById('gradeToInput').value = Math.round(values[1]);
+                });
+
+                gradeSlider.noUiSlider.on('change', debounce(updateTable, 300));
+            }
+        }
+
+        // Настройка обработчиков
+        function setupHandlers() {
+            // Поиск
+            document.getElementById('searchInput').addEventListener('input', debounce(updateTable, 300));
+
+            // Инпуты
+            document.querySelectorAll('#ageFromInput, #ageToInput, #gradeFromInput, #gradeToInput').forEach(input => {
+                input.addEventListener('change', updateTable);
+            });
+
+            // Чекбоксы навыков
+            document.querySelectorAll('#skillBlock input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', updateTable);
+            });
+
+            // Чекбоксы фильтров
+            document.querySelectorAll('.filter-toggle').forEach(toggle => {
+                toggle.addEventListener('change', function() {
+                    const target = document.getElementById(this.dataset.target);
+                    if (target) target.style.display = this.checked ? 'block' : 'none';
+                    updateTable();
+                });
+            });
+
+            // Кнопка сброса
+            document.getElementById('resetFiltersBtn').addEventListener('click', function() {
+                window.location.href = window.location.pathname;
+            });
+
+            // Кнопка применения критериев группы
+            const applyBtn = document.getElementById('applyGroupCriteriaBtn');
+            if (applyBtn) {
+                applyBtn.addEventListener('click', function() {
+                    const minAge = this.dataset.minAge;
+                    const maxAge = this.dataset.maxAge;
+                    const skill1 = this.dataset.skill1;
+                    const skill2 = this.dataset.skill2;
+
+                    if (minAge) document.getElementById('ageFromInput').value = minAge;
+                    if (maxAge) document.getElementById('ageToInput').value = maxAge;
+
+                    document.querySelectorAll('#skillBlock input[type="checkbox"]').forEach(cb => cb.checked = false);
+                    if (skill1 && skill1 !== 'null') {
+                        const cb = document.querySelector(`#skillBlock input[value="${skill1}"]`);
+                        if (cb) cb.checked = true;
+                    }
+                    if (skill2 && skill2 !== 'null') {
+                        const cb = document.querySelector(`#skillBlock input[value="${skill2}"]`);
+                        if (cb) cb.checked = true;
+                    }
+
+                    // Обновляем слайдеры
+                    const ageSlider = document.getElementById('age-slider');
+                    if (ageSlider && ageSlider.noUiSlider) {
+                        ageSlider.noUiSlider.set([
+                            parseInt(minAge) || 6,
+                            parseInt(maxAge) || 18
+                        ]);
+                    }
+
+                    updateTable();
+                });
+            }
+
+            // Обработчики для форм добавления
+            document.querySelectorAll('.add-member-form').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const formData = new FormData(this);
+                    const params = new URLSearchParams(formData);
+
+                    fetch(`/groups/${groupId}/members/add?${params.toString()}`, {
+                        method: 'POST'
+                    }).then(response => {
+                        if (response.ok) {
+                            // Обновляем страницу с сохранением фильтров
+                            window.location.href = window.location.pathname + '?' + getFilterParams().toString();
+                        }
                     });
-                    if (checkAllBox) checkAllBox.checked = false;
-                    submitFilters();
-                }
+                });
+            });
+
+            // Обработчики для форм удаления
+            document.querySelectorAll('.remove-member-form').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const formData = new FormData(this);
+                    const childName = this.querySelector('input[name="childName"]')?.value || 'участника';
+                    if (confirm(`Вы уверены, что хотите исключить ${childName} из группы?`)) {
+                        const params = new URLSearchParams(formData);
+                        fetch(`/groups/${groupId}/members/remove?${params.toString()}`, {
+                            method: 'POST'
+                        }).then(response => {
+                            if (response.ok) {
+                                window.location.href = window.location.pathname + '?' + getFilterParams().toString();
+                            }
+                        });
+                    }
+                });
             });
         }
 
-        // Инициализация noUiSlider
-        function createSlider(sliderId, fromInputId, toInputId, min, max, startFrom, startTo) {
-            const slider = document.getElementById(sliderId);
-            if (!slider) return;
-
-            noUiSlider.create(slider, {
-                start: [startFrom, startTo],
-                connect: true,
-                range: { 'min': min, 'max': max },
-                step: 1
-            });
-
-            const fromInput = document.getElementById(fromInputId);
-            const toInput = document.getElementById(toInputId);
-
-            slider.noUiSlider.on('update', function(values, handle) {
-                const val = Math.round(values[handle]);
-                if (handle === 0) fromInput.value = val;
-                else toInput.value = val;
-            });
-
-            // Отправка формы при изменении слайдера (когда пользователь отпустил ползунок)
-            slider.noUiSlider.on('change', function() {
-                submitFilters();
-            });
-
-            fromInput.addEventListener('change', function() {
-                let val = parseInt(this.value);
-                if (isNaN(val)) val = min;
-                if (val < min) val = min;
-                if (val > max) val = max;
-                const currentTo = parseInt(toInput.value) || max;
-                if (val > currentTo) val = currentTo;
-                slider.noUiSlider.set([val, null]);
-                submitFilters();
-            });
-
-            toInput.addEventListener('change', function() {
-                let val = parseInt(this.value);
-                if (isNaN(val)) val = max;
-                if (val < min) val = min;
-                if (val > max) val = max;
-                const currentFrom = parseInt(fromInput.value) || min;
-                if (val < currentFrom) val = currentFrom;
-                slider.noUiSlider.set([null, val]);
-                submitFilters();
-            });
-        }
-
-        createSlider('age-slider', 'ageFromInput', 'ageToInput', 6, 18, [[${currentAgeFrom}]], [[${currentAgeTo}]]);
-        createSlider('grade-slider', 'gradeFromInput', 'gradeToInput', 1, 11, [[${currentGradeFrom}]], [[${currentGradeTo}]]);
-
-        // Обработчик кнопки "Применить критерии группы"
-        const applyBtn = document.getElementById('applyGroupCriteriaBtn');
-        if (applyBtn) {
-            applyBtn.addEventListener('click', function() {
-                const minAge = [[${group.minAge}]];
-                const maxAge = [[${group.maxAge}]];
-                const skill1 = '[[${group.skill1}]]';
-                const skill2 = '[[${group.skill2}]]';
-
-                const ageFromInput = document.getElementById('ageFromInput');
-                const ageToInput = document.getElementById('ageToInput');
-
-                if (minAge != null) ageFromInput.value = minAge;
-                if (maxAge != null) ageToInput.value = maxAge;
-
-                const ageSlider = document.getElementById('age-slider');
-                if (ageSlider && ageSlider.noUiSlider) {
-                    const fromVal = minAge != null ? minAge : 6;
-                    const toVal = maxAge != null ? maxAge : 18;
-                    ageSlider.noUiSlider.set([fromVal, toVal]);
-                }
-
-                const checkboxes = document.querySelectorAll('#skillBlock input[type="checkbox"]');
-                checkboxes.forEach(cb => cb.checked = false);
-
-                if (skill1 && skill1 !== 'null') {
-                    const cb1 = document.querySelector(`#skillBlock input[value="${skill1}"]`);
-                    if (cb1) cb1.checked = true;
-                }
-                if (skill2 && skill2 !== 'null') {
-                    const cb2 = document.querySelector(`#skillBlock input[value="${skill2}"]`);
-                    if (cb2) cb2.checked = true;
-                }
-
-                // Применяем фильтры сразу
-                submitFilters();
-            });
-        }
+        // Запускаем все
+        initSliders();
+        setupHandlers();
     });
   </script>
 </div>
