@@ -3,7 +3,7 @@
 <body>
 <div th:fragment="content">
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-    <!-- Панель управления -->
+
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <div style="display: flex; align-items: center; gap: 15px;">
         <a th:href="@{/schedule(poolId=${selectedPoolId}, weekOffset=${weekOffset - 1})}"
@@ -12,7 +12,7 @@
         <a th:href="@{/schedule(poolId=${selectedPoolId}, weekOffset=${weekOffset + 1})}"
            class="btn" style="padding: 5px 10px; font-size: 0.9em;">След. →</a>
       </div>
-      <!-- Селектор бассейнов с сохранением недели -->
+
       <div th:if="${showPoolSelector}">
         <label>Бассейн: </label>
         <input type="hidden" id="currentWeekOffset" th:value="${weekOffset}" />
@@ -24,11 +24,11 @@
     </div>
 
     <div th:unless="${message}" style="position: relative; overflow-x: auto; min-width: 100%;">
-      <!-- Шапка дней недели -->
+
       <div style="display: grid; grid-template-columns: 60px repeat(7, minmax(120px, 1fr)); border-bottom: 2px solid #eee; margin-bottom: 10px; min-width: max-content;">
         <div style="padding: 10px; font-weight: bold; color: #666;">Время</div>
 
-        <!-- ИСПРАВЛЕННАЯ ЛОГИКА СТИЛЕЙ ДЛЯ ШАПКИ -->
+
         <div th:each="i : ${#numbers.sequence(1, 7)}"
              th:with="currentDate=${weekStart.plusDays(i - 1)},
                       isToday=${currentDate.equals(today)},
@@ -41,7 +41,7 @@
         </div>
       </div>
 
-      <!-- Сетка расписания -->
+
       <div style="display: grid; grid-template-columns: 60px repeat(7, minmax(120px, 1fr)); position: relative; height: 800px; border-top: 1px solid #eee; min-width: max-content;">
         <div style="position: relative; border-right: 1px solid #eee;">
           <div th:each="h : ${#numbers.sequence(9, 22)}"
@@ -54,13 +54,13 @@
              th:style="${dayIdx == currentDayIndex and weekOffset == 0} ? 'position: relative; border-left: 1px solid #f0f0f0; border: 2px solid #007bff; box-sizing: border-box;' : 'position: relative; border-left: 1px solid #f0f0f0;'"
              style="height: 100%;">
 
-          <!-- Линия текущего времени -->
+
           <div th:if="${dayIdx == currentDayIndex and weekOffset == 0 and currentTimePercent > 0}"
                th:style="'position: absolute; top: ' + ${currentTimePercent} + '%; left: 0; right: 0; height: 2px; background: #dc3545; z-index: 10; pointer-events: none;'">
             <div style="position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; background: #dc3545; border-radius: 50%;"></div>
           </div>
 
-          <!-- Карточки занятий -->
+
           <div th:each="slot : ${schedule.get(dayIdx) != null ? schedule.get(dayIdx) : null}"
                th:if="${slot != null and slot.lessonId != null and slot.lessonId != ''}"
                th:data-lesson-id="${slot.lessonId}"

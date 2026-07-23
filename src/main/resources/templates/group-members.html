@@ -3,7 +3,7 @@
 <body>
 <div th:fragment="content">
 
-  <!-- Стили для кастомизации noUiSlider под наш дизайн -->
+
   <style>
     /* Трек слайдера */
     .noUi-target {
@@ -62,7 +62,7 @@
       <a href="/groups" class="btn" style="background-color: #6c757d;">Назад к группам</a>
     </div>
 
-    <!-- Блок 1: Текущие участники -->
+
     <h3>Участники группы</h3>
     <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
       <thead>
@@ -108,10 +108,10 @@
 
     <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
 
-    <!-- Блок 2: Добавление новых участников -->
+
     <h3>Добавить участника</h3>
 
-    <!-- Информационный блок о критериях группы -->
+
     <div th:if="${group.minAge != null or group.maxAge != null or group.skill1 != null}"
          style="background: #e7f3ff; border: 1px solid #b6d4fe; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
       <h4 style="margin-top: 0; color: #084298;">Рекомендуемые критерии для этой группы:</h4>
@@ -130,7 +130,7 @@
               style="margin-top: 10px; background-color: #0d6efd; font-size: 0.9em;">Применить эти критерии к фильтрам</button>
     </div>
 
-    <!-- Форма фильтров -->
+
     <div id="filterContainer">
       <div style="display: flex; gap: 20px;">
         <div style="width: 250px; background: #f8f9fa; padding: 15px; border-radius: 8px; height: fit-content;">
@@ -184,7 +184,7 @@
       </div>
     </div>
 
-    <!-- Контейнер для таблицы результатов -->
+
     <div id="resultsContainer">
       <div th:replace="~{fragments/member-table :: tableContent}"></div>
     </div>
@@ -192,7 +192,7 @@
   </div>
 
 
-  <!-- ВЕСЬ JS В ОДНОМ МЕСТЕ - НЕТ ВНЕШНЕГО СКРИПТА -->
+
   <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Получаем ID группы из URL

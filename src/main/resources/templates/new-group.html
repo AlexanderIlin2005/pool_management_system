@@ -27,7 +27,7 @@
         </select>
       </div>
 
-      <!-- Блок выбора тренера -->
+
       <div style="flex: 1; position: relative;">
         <label>Тренер (опционально):</label>
         <input type="text" id="coach-search" placeholder="Начните вводить имя..."
@@ -45,7 +45,7 @@
     <h3>Расписание занятий</h3>
     <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">Нажмите на дни, когда проходят занятия:</p>
 
-    <!-- Горизонтальная строка переключателей -->
+
     <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
       <button type="button" class="day-toggle" data-day="1" style="padding: 10px 15px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; border-radius: 4px; font-weight: bold;">Пн</button>
       <button type="button" class="day-toggle" data-day="2" style="padding: 10px 15px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; border-radius: 4px; font-weight: bold;">Вт</button>
@@ -56,7 +56,7 @@
       <button type="button" class="day-toggle" data-day="7" style="padding: 10px 15px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; border-radius: 4px; font-weight: bold;">Вс</button>
     </div>
 
-    <!-- Понедельник -->
+
     <div id="time-block-1" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Понедельник:</strong>
       <div style="margin-top: 10px;">
@@ -67,7 +67,7 @@
       </div>
     </div>
 
-    <!-- Вторник -->
+
     <div id="time-block-2" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Вторник:</strong>
       <div style="margin-top: 10px;">
@@ -78,7 +78,7 @@
       </div>
     </div>
 
-    <!-- Среда -->
+
     <div id="time-block-3" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Среда:</strong>
       <div style="margin-top: 10px;">
@@ -89,7 +89,7 @@
       </div>
     </div>
 
-    <!-- Четверг -->
+
     <div id="time-block-4" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Четверг:</strong>
       <div style="margin-top: 10px;">
@@ -100,7 +100,7 @@
       </div>
     </div>
 
-    <!-- Пятница -->
+
     <div id="time-block-5" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Пятница:</strong>
       <div style="margin-top: 10px;">
@@ -111,7 +111,7 @@
       </div>
     </div>
 
-    <!-- Суббота -->
+
     <div id="time-block-6" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Суббота:</strong>
       <div style="margin-top: 10px;">
@@ -122,7 +122,7 @@
       </div>
     </div>
 
-    <!-- Воскресенье -->
+
     <div id="time-block-7" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Воскресенье:</strong>
       <div style="margin-top: 10px;">
@@ -134,7 +134,7 @@
     </div>
 
 
-    <!-- Блок критериев вступления -->
+
     <h3>Критерии вступления в группу</h3>
     <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">Эти критерии будут использоваться как рекомендательные фильтры при добавлении детей в группу.</p>
 
@@ -168,7 +168,7 @@
     </div>
   </form>
 
-  <!-- Передаем список тренеров в JS -->
+
   <script th:inline="javascript">
     /*<![CDATA[*/
     window.coachesList = /*[[${coaches}]]*/ [];
@@ -199,7 +199,7 @@
     });
   </script>
 
-  <!-- Подключаем внешние скрипты -->
+
   <script src="/js/coach-search.js"></script>
   <script src="/js/schedule-toggle.js"></script>
 </div>

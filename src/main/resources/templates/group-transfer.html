@@ -12,7 +12,7 @@
             Изменения успешно сохранены!
         </div>
 
-        <!-- Форма выбора групп -->
+
         <form method="get" action="/groups/transfer" style="display: flex; gap: 20px; margin-bottom: 30px; align-items: flex-end;">
             <div style="flex: 1;">
                 <label style="font-weight: bold; display: block; margin-bottom: 5px;">Группа 1 (Откуда):</label>
@@ -42,7 +42,7 @@
                 <input type="hidden" name="group2Id" th:value="${group2.id}">
 
                 <div style="display: flex; gap: 40px;">
-                    <!-- Список Группы 1 -->
+
                     <div style="flex: 1;">
                         <div style="max-height: 500px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px;">
                             <table style="width: 100%; border-collapse: collapse;">
@@ -67,7 +67,7 @@
                         </div>
                     </div>
 
-                    <!-- Список Группы 2 -->
+
                     <div style="flex: 1;">
                         <div style="max-height: 500px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px;">
                             <table style="width: 100%; border-collapse: collapse;">

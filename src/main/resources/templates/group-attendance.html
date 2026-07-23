@@ -10,10 +10,10 @@
            class="btn" style="background-color: #6c757d; font-size: 0.8em;">Назад</a>
       </div>
 
-      <!-- Навигация по месяцам -->
+
       <div style="display: flex; align-items: center; gap: 15px;">
 
-        <!-- Кнопка НАЗАД с проверкой даты создания группы -->
+
         <a th:if="${minNavigationDate == null or prevMonthDate.isAfter(minNavigationDate.withDayOfMonth(1).minusDays(1))}"
            th:href="@{/groups/{id}/attendance(id=${group.id}, year=${prevMonthDate.year}, month=${prevMonthDate.monthValue})}"
            class="btn" style="padding: 5px 10px;">← Пред.</a>
@@ -22,7 +22,7 @@
 
         <h2 style="margin: 0;" th:text="${#temporals.format(T(java.time.LocalDate).of(year, month, 1), 'MMMM yyyy')}"></h2>
 
-        <!-- Кнопка ВПЕРЕД (только если месяц не в будущем) -->
+
         <a th:if="${T(java.time.LocalDate).now().isAfter(T(java.time.LocalDate).of(year, month, 1).withDayOfMonth(T(java.time.LocalDate).of(year, month, 1).lengthOfMonth()))}"
            th:href="@{/groups/{id}/attendance(id=${group.id}, year=${nextMonthDate.year}, month=${nextMonthDate.monthValue})}"
            class="btn" style="padding: 5px 10px;">След. →</a>
@@ -36,7 +36,7 @@
       <tr style="background: #f8f9fa;">
         <th style="padding: 10px; border: 1px solid #ddd; position: sticky; left: 0; background: #f8f9fa; z-index: 2; min-width: 200px;">ФИО</th>
 
-        <!-- Шапка дат -->
+
         <th th:each="day : ${days}"
             style="padding: 10px; text-align: center; border-left: 1px solid #f0f0f0; min-width: 40px;">
 
@@ -54,7 +54,7 @@
         <td style="padding: 10px; border: 1px solid #ddd; position: sticky; left: 0; background: white; z-index: 1; font-weight: 500;"
             th:text="${row['fullName']}"></td>
 
-        <!-- Выводим статусы по ИНДЕКСУ дня -->
+
         <td th:each="day, dayStat : ${days}"
             style="padding: 5px; border: 1px solid #ddd; text-align: center; color: #555;">
 

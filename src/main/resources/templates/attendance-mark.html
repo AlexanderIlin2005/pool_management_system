@@ -36,7 +36,7 @@
                         </select>
                     </td>
                     <td style="padding: 10px;">
-                        <!-- Исправлено: берем значение из currentComments -->
+
                         <input type="text" th:name="'comments[' + ${child.id} + ']'"
                                th:value="${currentComments != null and currentComments.containsKey(child.id) ? currentComments[child.id] : ''}"
                                style="width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">

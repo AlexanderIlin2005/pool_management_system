@@ -8,7 +8,7 @@
       <a href="/pools/new" class="btn">+ Добавить бассейн</a>
     </div>
 
-    <!-- Сообщение об ошибке пароля -->
+
     <div th:if="${param.error}" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
       Неверный пароль администратора. Операция отменена.
     </div>
@@ -26,7 +26,7 @@
         <td style="padding: 12px; border: 1px solid #ddd;" th:text="${pool.name}"></td>
         <td style="padding: 12px; border: 1px solid #ddd;" th:text="${pool.address}"></td>
         <td style="padding: 12px; border: 1px solid #ddd;">
-          <!-- Используем data-атрибуты для передачи ID и имени в JS -->
+
           <button type="button"
                   class="btn btn-danger delete-pool-btn"
                   style="padding: 5px 10px; font-size: 0.8em;"
@@ -43,7 +43,7 @@
     </table>
   </div>
 
-  <!-- Подключаем внешний скрипт подтверждения удаления -->
+
   <script src="/js/confirm-delete-pool.js"></script>
 </div>
 </body>

@@ -7,7 +7,7 @@
             <h1>Список родителей и детей</h1>
         </div>
 
-        <!-- Форма поиска -->
+
         <form method="get" action="/parents" class="controls" style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
             <input type="text" name="search" class="search-box" placeholder="Поиск по ФИО, детям, email..." th:value="${currentSearch}" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
             <button type="submit" class="btn">Найти</button>
@@ -35,7 +35,7 @@
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${parent.email != null ? parent.email : '-'}">email@example.com</td>
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${parent.phone != null ? parent.phone : '-'}">+7...</td>
 
-                <!-- Ребенок 1 -->
+
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <span th:if="${parent.child1 != null and parent.child1 != '-' and parent.child1 != ''}">
                         <a th:href="@{/children/skill/edit/{id}(id=${parent.child1Id}, returnUrl=${currentUri})}"
@@ -45,7 +45,7 @@
                     <span th:unless="${parent.child1 != null and parent.child1 != '-' and parent.child1 != ''}" th:text="'-'"></span>
                 </td>
 
-                <!-- Ребенок 2 -->
+
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <span th:if="${parent.child2 != null and parent.child2 != '-' and parent.child2 != ''}">
                         <a th:href="@{/children/skill/edit/{id}(id=${parent.child2Id}, returnUrl=${currentUri})}"
@@ -55,7 +55,7 @@
                     <span th:unless="${parent.child2 != null and parent.child2 != '-' and parent.child2 != ''}" th:text="'-'"></span>
                 </td>
 
-                <!-- Ребенок 3 -->
+
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <span th:if="${parent.child3 != null and parent.child3 != '-' and parent.child3 != ''}">
                         <a th:href="@{/children/skill/edit/{id}(id=${parent.child3Id}, returnUrl=${currentUri})}"
