@@ -25,7 +25,7 @@
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${req.child.lastName} + ' ' + ${req.child.firstName}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${req.group.name}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;">
-          <a th:href="@{/groups/join-requests/{id}(id=${req.id})}" class="btn" style="background-color: #007bff; font-size: 0.8em;">Просмотреть</a>
+          <a th:href="@{/join-requests/{id}(id=${req.id})}" class="btn" style="background-color: #007bff; font-size: 0.8em;">Просмотреть</a>
         </td>
       </tr>
       <tr th:if="${#lists.isEmpty(requests)}">

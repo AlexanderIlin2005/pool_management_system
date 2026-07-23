@@ -13,7 +13,7 @@ import ru.sashil.admin.service.GroupMemberService;
 import java.util.List;
 
 @Controller
-@RequestMapping("/groups/join-requests")
+@RequestMapping("/join-requests")
 public class GroupJoinController {
 
     @Autowired private GroupJoinService joinService;
@@ -28,7 +28,7 @@ public class GroupJoinController {
         model.addAttribute("requests", requests);
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
-        model.addAttribute("activePage", "groups");
+        model.addAttribute("activePage", "join-requests");
         return "group-join-requests";
     }
 
@@ -59,6 +59,6 @@ public class GroupJoinController {
         if (user == null) return "redirect:/login";
 
         joinService.processRequest(id, status, comment, user.getId());
-        return "redirect:/groups/join-requests?success=true";
+        return "redirect:/join-requests?success=true";
     }
 }

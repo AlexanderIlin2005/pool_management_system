@@ -42,7 +42,7 @@ public class CertificateController {
 
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
-        model.addAttribute("activePage", "documents");
+        model.addAttribute("activePage", "certificates");
         model.addAttribute("certificates", certificates);
         model.addAttribute("currentTab", isNewTab ? "new" : "archive");
 

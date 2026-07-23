@@ -13,7 +13,7 @@
       <p><strong>Вместимость группы:</strong> <span th:text="${memberCount}"></span> / <span th:text="${request.group.capacity}"></span></p>
     </div>
 
-    <form th:action="@{/groups/join-requests/{id}/process(id=${request.id})}" method="post">
+    <form th:action="@{/join-requests/{id}/process(id=${request.id})}" method="post">
       <div style="margin-bottom: 15px;">
         <label style="font-weight: bold; display: block; margin-bottom: 5px;">Решение:</label>
         <select name="status" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
@@ -29,7 +29,7 @@
 
       <div style="display: flex; gap: 10px;">
         <button type="submit" class="btn" style="background-color: #28a745;">Применить решение</button>
-        <a href="/groups/join-requests" class="btn" style="background-color: #6c757d;">Назад к списку</a>
+        <a href="/join-requests" class="btn" style="background-color: #6c757d;">Назад к списку</a>
       </div>
     </form>
   </div>
