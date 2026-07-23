@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Ищем именно тот класс, который указан в HTML форме
     const forms = document.querySelectorAll('.delete-group-form');
 
     forms.forEach(form => {
@@ -8,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const groupName = groupNameInput ? groupNameInput.value : 'эту группу';
 
             if (!confirm('Вы точно хотите удалить группу \'' + groupName + '\'? Это действие нельзя отменить.')) {
-                e.preventDefault(); // Отменяем отправку формы
+                e.preventDefault();
             }
         });
     });

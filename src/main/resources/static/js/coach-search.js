@@ -1,14 +1,14 @@
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('coach-search');
-    if (!searchInput) return; // Если на странице нет поля поиска, выходим
+    if (!searchInput) return;
 
     const resultsDiv = document.getElementById('coach-results');
     const hiddenIdInput = document.getElementById('coach-id-input');
 
-    // Получаем список тренеров из глобальной переменной, которую мы определим в HTML
+
     const coaches = window.coachesList || [];
 
-    // Если мы редактируем группу и тренер уже назначен, показываем его имя
+
     const currentTrainerId = hiddenIdInput.value;
     if (currentTrainerId) {
         const currentCoach = coaches.find(c => c.id == currentTrainerId);
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Функция фильтрации
+
     searchInput.addEventListener('input', function() {
         const query = this.value.toLowerCase();
         resultsDiv.innerHTML = '';
@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Скрываем список при клике вне его
+
     document.addEventListener('click', function(e) {
         if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
             resultsDiv.style.display = 'none';

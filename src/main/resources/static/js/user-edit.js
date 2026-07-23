@@ -6,38 +6,35 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveBtn = document.getElementById('saveBtn');
     const downloadFlag = document.getElementById('downloadFlag');
 
-    // 1. Логика скрытия/раскрытия пароля с подтверждением
+
     if (toggleBtn) {
         toggleBtn.addEventListener('click', function() {
             const isHidden = passwordContainer.style.display === 'none';
 
             if (isHidden) {
-                // Запрашиваем подтверждение перед открытием
+
                 if (confirm("Вы действительно хотите изменить пароль? Это действие потребует ввода нового пароля.")) {
                     passwordContainer.style.display = 'block';
-                    downloadBtn.style.display = 'inline-block'; // Показываем кнопку скачивания
+                    downloadBtn.style.display = 'inline-block';
                     passwordField.focus();
                     this.textContent = 'Скрыть поле пароля';
                 }
             } else {
-                // Скрываем и очищаем
                 passwordContainer.style.display = 'none';
-                downloadBtn.style.display = 'none'; // Скрываем кнопку скачивания
-                passwordField.value = ''; // Очищаем значение, чтобы Java увидела пустую строку
+                downloadBtn.style.display = 'none';
+                passwordField.value = '';
                 this.textContent = 'Изменить пароль';
             }
         });
     }
 
-    // Изначально скрываем контейнер пароля и кнопку скачивания
+
     if (passwordContainer) passwordContainer.style.display = 'none';
     if (downloadBtn) downloadBtn.style.display = 'none';
 
-    // 2. Логика подтверждения перед сохранением (без скачивания)
+
     if (saveBtn) {
         saveBtn.addEventListener('click', function(e) {
-            // Если парольное поле скрыто или пусто, просто сохраняем логин/ФИО
-            // Если поле открыто и там что-то есть, предупреждаем о смене пароля
             if (passwordContainer.style.display !== 'none' && passwordField.value.trim() !== "") {
                 if (!confirm("Вы собираетесь изменить пароль пользователя. Продолжить?")) {
                     e.preventDefault();
@@ -47,12 +44,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     e.preventDefault();
                 }
             }
-            // Флаг скачивания оставляем false
             downloadFlag.value = "false";
         });
     }
 
-    // 3. Логика подтверждения перед скачиванием файла
+
     if (downloadBtn) {
         downloadBtn.addEventListener('click', function(e) {
             if (passwordField.value.trim() === "") {
@@ -70,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Функция копирования (остается глобальной, так как вызывается из HTML onclick)
+
 function copyToClipboard(elementId) {
     const copyText = document.getElementById(elementId);
     copyText.select();
