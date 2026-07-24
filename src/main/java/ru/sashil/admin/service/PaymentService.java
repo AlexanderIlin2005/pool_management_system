@@ -46,9 +46,50 @@ public class PaymentService {
     private AuditLogService auditLogService;
 
     @Autowired
+    private SettingRepository settingRepository;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    private static final BigDecimal DEFAULT_AMOUNT = new BigDecimal("4000.00");
+    private static final String SETTING_KEY_DEFAULT_AMOUNT = "DEFAULT_PAYMENT_AMOUNT";
+    private static final BigDecimal FALLBACK_AMOUNT = new BigDecimal("4000.00");
+
+    /**
+     * Получает текущую сумму по умолчанию из настроек.
+     */
+    public BigDecimal getDefaultAmount() {
+        Optional<Setting> setting = settingRepository.findByKey(SETTING_KEY_DEFAULT_AMOUNT);
+        if (setting.isPresent()) {
+            try {
+                return new BigDecimal(setting.get().getValue());
+            } catch (NumberFormatException e) {
+                return FALLBACK_AMOUNT;
+            }
+        }
+        return FALLBACK_AMOUNT;
+    }
+
+    /**
+     * Устанавливает сумму по умолчанию для всех будущих платежей.
+     */
+    @Transactional
+    public void setDefaultAmount(BigDecimal amount, AdminUser actor) {
+        Setting setting = settingRepository.findByKey(SETTING_KEY_DEFAULT_AMOUNT)
+                .orElse(new Setting());
+
+        BigDecimal oldAmount = getDefaultAmount();
+        setting.setKey(SETTING_KEY_DEFAULT_AMOUNT);
+        setting.setValue(amount.toString());
+        setting.setUpdatedAt(LocalDateTime.now());
+        setting.setUpdatedBy(actor);
+        settingRepository.save(setting);
+
+        // Логируем изменение
+        auditLogService.log("DEFAULT_PAYMENT_AMOUNT_CHANGED", actor,
+                "Изменена базовая сумма оплаты: " + oldAmount + " ₽ → " + amount + " ₽");
+
+        wsNotificationService.sendUpdateNotification("DEFAULT_AMOUNT_UPDATED");
+    }
 
     /**
      * Генерирует записи об оплате для всех детей на указанный месяц.
@@ -56,8 +97,8 @@ public class PaymentService {
     @Transactional
     public void generatePaymentsForMonth(LocalDate month) {
         LocalDate monthStart = month.withDayOfMonth(1);
+        BigDecimal defaultAmount = getDefaultAmount();
 
-        // Получаем всех детей, у которых есть группа
         String sql = "SELECT DISTINCT c.id FROM pool.children c " +
                 "JOIN pool.group_children gc ON c.id = gc.child_id";
 
@@ -73,7 +114,7 @@ public class PaymentService {
                 payment.setMonthYear(monthStart);
                 payment.setIsPaid(false);
                 payment.setStatus("PENDING");
-                payment.setAmount(DEFAULT_AMOUNT);
+                payment.setAmount(defaultAmount);
                 paymentRepository.save(payment);
             }
         }
@@ -135,12 +176,12 @@ public class PaymentService {
                     cell.put("isPaid", payment.getIsPaid());
                     cell.put("status", payment.getStatus());
                     cell.put("receiptFileUrl", payment.getReceiptFileUrl());
-                    cell.put("amount", payment.getAmount());  // <-- ДОБАВЛЯЕМ amount
+                    cell.put("amount", payment.getAmount());
                     cell.put("month", month);
                 } else {
                     cell.put("isPaid", false);
                     cell.put("status", "NOT_GENERATED");
-                    cell.put("amount", DEFAULT_AMOUNT);  // <-- ДОБАВЛЯЕМ amount
+                    cell.put("amount", getDefaultAmount());
                 }
                 monthData.put(month, cell);
             }
@@ -162,14 +203,13 @@ public class PaymentService {
                 "SELECT DISTINCT c.id, c.first_name, c.last_name, c.age, c.skill::text, p.vk_id as parent_vk_id " +
                         "FROM pool.children c " +
                         "JOIN pool.parents p ON c.parent_id = p.id " +
-                        "WHERE EXISTS (SELECT 1 FROM pool.group_children gc WHERE gc.child_id = c.id) " +  // <-- ТОЛЬКО ДЕТИ В ГРУППАХ
+                        "WHERE EXISTS (SELECT 1 FROM pool.group_children gc WHERE gc.child_id = c.id) " +
                         "ORDER BY c.last_name, c.first_name"
         );
 
         List<Object> params = new ArrayList<>();
 
         if (search != null && !search.trim().isEmpty()) {
-            // Вставляем поиск в подзапрос
             sql = new StringBuilder(
                     "SELECT DISTINCT c.id, c.first_name, c.last_name, c.age, c.skill::text, p.vk_id as parent_vk_id " +
                             "FROM pool.children c " +
@@ -244,10 +284,6 @@ public class PaymentService {
 
     /**
      * Загружает квитанцию об оплате (через бота).
-     * ИСПРАВЛЕНО: обрабатываем Exception от MinIO
-     */
-    /**
-     * Загружает квитанцию об оплате (через бота).
      */
     @Transactional
     public void uploadReceipt(Long childId, LocalDate monthYear, MultipartFile file, Long parentVkId) throws IOException {
@@ -264,7 +300,7 @@ public class PaymentService {
             payment.setMonthYear(monthYear);
             payment.setIsPaid(false);
             payment.setStatus("PENDING");
-            payment.setAmount(DEFAULT_AMOUNT);
+            payment.setAmount(getDefaultAmount());
         }
 
         String originalFileName = file.getOriginalFilename();
@@ -275,7 +311,6 @@ public class PaymentService {
         String objectName = "receipts/" + UUID.randomUUID().toString() + extension;
 
         try {
-            // Передаем оригинальное имя для определения Content-Type
             String fileUrl = minioService.uploadFileToDocsBucket(file.getInputStream(), objectName, file.getSize(), originalFileName);
             payment.setReceiptFileUrl(fileUrl);
             payment.setReceiptOriginalName(originalFileName);
@@ -295,18 +330,13 @@ public class PaymentService {
         LocalDate nextMonth = LocalDate.now().plusMonths(1).withDayOfMonth(1);
         LocalDate lastWeekStart = LocalDate.now().withDayOfMonth(1).plusMonths(1).minusDays(7);
 
-        // Если сейчас последняя неделя месяца
         if (LocalDate.now().isAfter(lastWeekStart) && LocalDate.now().isBefore(nextMonth)) {
-            // Получаем всех детей
             List<Child> children = childRepository.findAll();
 
             for (Child child : children) {
-                // Проверяем, есть ли оплата за следующий месяц
                 Optional<Payment> paymentOpt = paymentRepository.findByChildIdAndMonthYear(child.getId(), nextMonth);
 
-                // Если оплаты нет или она не оплачена
                 if (paymentOpt.isEmpty() || !paymentOpt.get().getIsPaid()) {
-                    // Проверяем, не отправляли ли уже напоминание в этом месяце
                     boolean alreadySent = notificationRepository.existsByParentVkIdAndChildIdAndMonthYearAndNotificationType(
                             child.getParent().getVkId(),
                             child.getId(),
@@ -344,7 +374,6 @@ public class PaymentService {
         List<Payment> overdue = paymentRepository.findOverduePayments(currentMonth);
 
         for (Payment payment : overdue) {
-            // Проверяем, не отправляли ли уже уведомление
             boolean alreadySent = notificationRepository.existsByParentVkIdAndChildIdAndMonthYearAndNotificationType(
                     payment.getChild().getParent().getVkId(),
                     payment.getChild().getId(),
@@ -430,7 +459,6 @@ public class PaymentService {
         return jdbcTemplate.queryForList(sql);
     }
 
-
     /**
      * Обновляет сумму оплаты для конкретного ребенка и месяца с логированием.
      */
@@ -449,6 +477,7 @@ public class PaymentService {
             payment.setMonthYear(monthYear);
             payment.setIsPaid(false);
             payment.setStatus("PENDING");
+            payment.setAmount(getDefaultAmount());
         }
 
         BigDecimal oldAmount = payment.getAmount();
@@ -456,7 +485,6 @@ public class PaymentService {
         paymentRepository.save(payment);
         wsNotificationService.sendUpdateNotification("PAYMENT_AMOUNT_UPDATED");
 
-        // Логируем изменение
         String childName = getChildName(childId);
         auditLogService.log("PAYMENT_AMOUNT_UPDATED", actor,
                 "Изменена сумма оплаты для ребенка \"" + childName + "\" за " +
@@ -474,28 +502,37 @@ public class PaymentService {
         }
     }
 
-
     /**
      * Массовое обновление суммы оплаты для всех детей на указанный месяц.
-     * Требует подтверждения бухгалтера.
+     * Также сохраняет эту сумму как базовую для будущих месяцев.
      */
     @Transactional
-    public void updatePaymentAmountForMonth(Long adminId, LocalDate monthYear, BigDecimal amount) {
-        // Получаем все оплаты за указанный месяц
+    public void updatePaymentAmountForMonth(AdminUser actor, LocalDate monthYear, BigDecimal amount) {
+        // Обновляем базовую сумму для будущих месяцев
+        setDefaultAmount(amount, actor);
+
+        // Обновляем все неоплаченные записи за указанный месяц
         List<Payment> payments = paymentRepository.findUnpaidForMonth(monthYear);
 
         if (payments.isEmpty()) {
-            throw new IllegalArgumentException("Нет записей об оплате за " + monthYear);
+            throw new IllegalArgumentException("Нет записей об оплате за " +
+                    monthYear.format(DateTimeFormatter.ofPattern("MMMM yyyy")));
         }
 
         int updatedCount = 0;
         for (Payment payment : payments) {
+            BigDecimal oldAmount = payment.getAmount();
             payment.setAmount(amount);
             paymentRepository.save(payment);
             updatedCount++;
         }
 
         // Логируем действие
+        auditLogService.log("PAYMENT_AMOUNT_BULK_UPDATED", actor,
+                "Обновлена сумма оплаты для " + updatedCount + " детей за " +
+                        monthYear.format(DateTimeFormatter.ofPattern("MMMM yyyy")) +
+                        " на " + amount + " ₽");
+
         wsNotificationService.sendUpdateNotification("PAYMENT_AMOUNT_UPDATED_FOR_MONTH");
     }
 

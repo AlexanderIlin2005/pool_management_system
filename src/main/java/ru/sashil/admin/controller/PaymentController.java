@@ -192,22 +192,18 @@ public class PaymentController {
             return "redirect:/login";
         }
 
-        // Проверяем подтверждение (бухгалтер должен ввести слово "ПОДТВЕРЖДАЮ")
+        // Проверяем подтверждение
         if (!"ПОДТВЕРЖДАЮ".equalsIgnoreCase(confirmation.trim())) {
             return "redirect:/payments?error=confirmation_required";
         }
 
         try {
             LocalDate month = LocalDate.parse(monthYear + "-01");
-            paymentService.updatePaymentAmountForMonth(user.getId(), month, amount);
-
-            // Логируем в AuditLog
-            auditLogService.log("PAYMENT_AMOUNT_UPDATED", user,
-                    "Обновлена сумма оплаты за " + monthYear + " на " + amount + " ₽");
-
+            paymentService.updatePaymentAmountForMonth(user, month, amount);
             return "redirect:/payments?success=amount_updated_for_month";
         } catch (Exception e) {
             return "redirect:/payments?error=" + e.getMessage();
         }
     }
+
 }

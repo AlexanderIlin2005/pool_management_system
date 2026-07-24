@@ -255,6 +255,20 @@ CREATE TABLE IF NOT EXISTS pool.payment_notifications (
     sent_at TIMESTAMP
 );
 
+-- Таблица для глобальных настроек
+CREATE TABLE IF NOT EXISTS pool.settings (
+    id BIGSERIAL PRIMARY KEY,
+    setting_key VARCHAR(50) UNIQUE NOT NULL,
+    setting_value VARCHAR(255) NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by BIGINT REFERENCES pool.admin_users(id)
+);
+
+-- Вставляем настройку по умолчанию
+INSERT INTO pool.settings (setting_key, setting_value)
+VALUES ('DEFAULT_PAYMENT_AMOUNT', '4000.00')
+ON CONFLICT (setting_key) DO NOTHING;
+
 -- Индексы для быстрого поиска
 CREATE INDEX idx_payments_child_month ON pool.payments(child_id, month_year);
 CREATE INDEX idx_payments_status ON pool.payments(status);

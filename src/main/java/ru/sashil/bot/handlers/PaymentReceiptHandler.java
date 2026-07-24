@@ -132,10 +132,10 @@ public class PaymentReceiptHandler {
                     }
                     LocalDate monthYear = LocalDate.of(year, month, 1);
 
-                    // Проверка: не слишком ли далеко в будущее (максимум на 2 месяца вперед)
+                    // Проверка: не слишком ли далеко в будущее (максимум на 6 месяцев вперед)
                     LocalDate now = LocalDate.now();
-                    if (monthYear.isAfter(now.plusMonths(2))) {
-                        return "❌ Нельзя оплачивать более чем за 2 месяца вперед.";
+                    if (monthYear.isAfter(now.plusMonths(6))) {
+                        return "❌ Нельзя оплачивать более чем за 6 месяцев вперед.";
                     }
 
                     data.put("monthYear", monthYear);
