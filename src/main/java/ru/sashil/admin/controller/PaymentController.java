@@ -39,6 +39,9 @@ public class PaymentController {
     @Autowired
     private PaymentNotificationRepository paymentNotificationRepository;
 
+    // Минимальная дата для навигации - август 2026
+    private static final LocalDate MIN_DATE = LocalDate.of(2026, 8, 1);
+
     @GetMapping
     public String paymentsPage(Model model, HttpSession session,
                                @RequestParam(required = false) String search,
@@ -50,27 +53,37 @@ public class PaymentController {
             return "redirect:/login";
         }
 
-        // Определяем начальный и конечный месяц (август 2026 - май 2027)
-        LocalDate startMonth = LocalDate.of(2026, 8, 1);
-        LocalDate endMonth = LocalDate.of(2027, 5, 1);
+        // Если год и месяц не переданы, берем базовый (август 2026)
+        LocalDate startMonth;
+        LocalDate endMonth;
 
-        // Если переданы год и месяц, используем их для навигации
         if (year != null && month != null) {
-            LocalDate newStart = LocalDate.of(year, month, 1);
-            // Сдвигаем окно на 10 месяцев вперед
-            endMonth = newStart.plusMonths(10);
-            startMonth = newStart;
+            startMonth = LocalDate.of(year, month, 1);
+            endMonth = startMonth.plusMonths(10);
+
+            // Если начальный месяц раньше MIN_DATE, перенаправляем на MIN_DATE
+            if (startMonth.isBefore(MIN_DATE)) {
+                return "redirect:/payments";
+            }
+        } else {
+            startMonth = MIN_DATE;
+            endMonth = startMonth.plusMonths(10);
         }
 
         // Генерируем оплаты за период, если их нет
         LocalDate current = startMonth;
         while (!current.isAfter(endMonth)) {
-            paymentService.generatePaymentsForMonth(current);
+            if (!current.isBefore(LocalDate.now().minusMonths(3).withDayOfMonth(1))) {
+                paymentService.generatePaymentsForMonth(current);
+            }
             current = current.plusMonths(1);
         }
 
-        Map<String, Object> data = paymentService.getPaymentTableData(startMonth, endMonth, search, null);
-        List<Group> groups = groupService.getAllGroups();
+        Map<String, Object> data = paymentService.getPaymentTableData(startMonth, endMonth, search);
+
+        // Проверяем, можно ли перейти назад
+        boolean canGoBack = startMonth.minusMonths(1).isAfter(MIN_DATE) ||
+                startMonth.minusMonths(1).isEqual(MIN_DATE);
 
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
@@ -82,8 +95,7 @@ public class PaymentController {
         model.addAttribute("endMonth", endMonth);
         model.addAttribute("prevStart", startMonth.minusMonths(1));
         model.addAttribute("nextStart", startMonth.plusMonths(1));
-
-        // Для отображения названий месяцев
+        model.addAttribute("canGoBack", canGoBack);
         model.addAttribute("monthFormatter", DateTimeFormatter.ofPattern("MMM yyyy"));
 
         return "payments";
@@ -140,7 +152,6 @@ public class PaymentController {
         if (user == null) return "redirect:/login";
         if (user.getRole() != AdminUser.Role.ACCOUNTANT) return "redirect:/login";
 
-        // Создаем уведомление для бота
         PaymentNotification notification = new PaymentNotification();
         notification.setParentVkId(parentVkId);
         Child child = new Child();
@@ -167,10 +178,6 @@ public class PaymentController {
         return "redirect:/payments?success=reminder_sent";
     }
 
-    /**
-     * Обновляет сумму оплаты.
-     * ИСПРАВЛЕНО: используем существующие методы PaymentService
-     */
     @PostMapping("/update-amount")
     public String updateAmount(@RequestParam Long childId,
                                @RequestParam String monthYear,
@@ -182,7 +189,7 @@ public class PaymentController {
         }
 
         try {
-            LocalDate month = LocalDate.parse(monthYear + "-01"); // monthYear в формате YYYY-MM
+            LocalDate month = LocalDate.parse(monthYear + "-01");
             paymentService.updatePaymentAmount(childId, month, amount);
             wsNotificationService.sendUpdateNotification("PAYMENT_AMOUNT_UPDATED");
             return "redirect:/payments?success=amount_updated";

@@ -90,10 +90,7 @@ public class PaymentService {
         }
     }
 
-    /**
-     * Получает данные для таблицы оплат.
-     */
-    public Map<String, Object> getPaymentTableData(LocalDate startMonth, LocalDate endMonth, String search, Long groupId) {
+    public Map<String, Object> getPaymentTableData(LocalDate startMonth, LocalDate endMonth, String search) {
         // Получаем список месяцев
         List<LocalDate> months = new ArrayList<>();
         LocalDate current = startMonth;
@@ -102,8 +99,8 @@ public class PaymentService {
             current = current.plusMonths(1);
         }
 
-        // Получаем список детей с фильтрацией
-        List<PaymentRowDto> children = getChildrenForPayments(search, groupId);
+        // Получаем список детей с фильтрацией (без группы)
+        List<PaymentRowDto> children = getChildrenForPayments(search);
 
         // Получаем все оплаты за период
         List<Payment> payments = paymentRepository.findPaymentsInPeriod(startMonth, endMonth);
@@ -121,7 +118,6 @@ public class PaymentService {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("childId", child.getChildId());
             row.put("childName", child.getChildName());
-            row.put("groupName", child.getGroupName());
             row.put("age", child.getAge());
             row.put("skill", child.getSkill());
             row.put("parentVkId", child.getParentVkId());
@@ -136,11 +132,12 @@ public class PaymentService {
                     cell.put("isPaid", payment.getIsPaid());
                     cell.put("status", payment.getStatus());
                     cell.put("receiptFileUrl", payment.getReceiptFileUrl());
+                    cell.put("amount", payment.getAmount());  // <-- ДОБАВЛЯЕМ amount
                     cell.put("month", month);
                 } else {
-                    // Если оплата не создана, создаем "пустую"
                     cell.put("isPaid", false);
                     cell.put("status", "NOT_GENERATED");
+                    cell.put("amount", DEFAULT_AMOUNT);  // <-- ДОБАВЛЯЕМ amount
                 }
                 monthData.put(month, cell);
             }
@@ -157,31 +154,31 @@ public class PaymentService {
         return result;
     }
 
-    private List<PaymentRowDto> getChildrenForPayments(String search, Long groupId) {
+    private List<PaymentRowDto> getChildrenForPayments(String search) {
         StringBuilder sql = new StringBuilder(
                 "SELECT DISTINCT c.id, c.first_name, c.last_name, c.age, c.skill::text, p.vk_id as parent_vk_id " +
                         "FROM pool.children c " +
                         "JOIN pool.parents p ON c.parent_id = p.id " +
-                        "WHERE 1=1"
+                        "WHERE EXISTS (SELECT 1 FROM pool.group_children gc WHERE gc.child_id = c.id) " +  // <-- ТОЛЬКО ДЕТИ В ГРУППАХ
+                        "ORDER BY c.last_name, c.first_name"
         );
 
         List<Object> params = new ArrayList<>();
 
-        // Убираем фильтр по группе, так как он не нужен бухгалтеру
-        // Если все же хотите оставить фильтр по группе, то нужно использовать EXISTS
-        if (groupId != null) {
-            sql.append(" AND EXISTS (SELECT 1 FROM pool.group_children gc WHERE gc.child_id = c.id AND gc.group_id = ?)");
-            params.add(groupId);
-        }
-
         if (search != null && !search.trim().isEmpty()) {
-            sql.append(" AND (c.first_name ILIKE ? OR c.last_name ILIKE ?)");
+            // Вставляем поиск в подзапрос
+            sql = new StringBuilder(
+                    "SELECT DISTINCT c.id, c.first_name, c.last_name, c.age, c.skill::text, p.vk_id as parent_vk_id " +
+                            "FROM pool.children c " +
+                            "JOIN pool.parents p ON c.parent_id = p.id " +
+                            "WHERE EXISTS (SELECT 1 FROM pool.group_children gc WHERE gc.child_id = c.id) " +
+                            "AND (c.first_name ILIKE ? OR c.last_name ILIKE ?) " +
+                            "ORDER BY c.last_name, c.first_name"
+            );
             String like = "%" + search + "%";
             params.add(like);
             params.add(like);
         }
-
-        sql.append(" ORDER BY c.last_name, c.first_name");
 
         List<PaymentRowDto> result = new ArrayList<>();
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), params.toArray());
@@ -190,7 +187,6 @@ public class PaymentService {
             PaymentRowDto dto = new PaymentRowDto();
             dto.setChildId((Long) row.get("id"));
             dto.setChildName(row.get("last_name") + " " + row.get("first_name"));
-            dto.setGroupName(null); // Группа не нужна
             dto.setAge((Integer) row.get("age"));
             dto.setSkill((String) row.get("skill"));
             dto.setParentVkId((Long) row.get("parent_vk_id"));
