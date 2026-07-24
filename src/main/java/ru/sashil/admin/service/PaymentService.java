@@ -43,6 +43,9 @@ public class PaymentService {
     private WsNotificationService wsNotificationService;
 
     @Autowired
+    private AuditLogService auditLogService;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     private static final BigDecimal DEFAULT_AMOUNT = new BigDecimal("4000.00");
@@ -429,10 +432,10 @@ public class PaymentService {
 
 
     /**
-     * Обновляет сумму оплаты для конкретного ребенка и месяца.
+     * Обновляет сумму оплаты для конкретного ребенка и месяца с логированием.
      */
     @Transactional
-    public void updatePaymentAmount(Long childId, LocalDate monthYear, BigDecimal amount) {
+    public void updatePaymentAmount(Long childId, LocalDate monthYear, BigDecimal amount, AdminUser actor) {
         Optional<Payment> paymentOpt = paymentRepository.findByChildIdAndMonthYear(childId, monthYear);
         Payment payment;
 
@@ -448,10 +451,52 @@ public class PaymentService {
             payment.setStatus("PENDING");
         }
 
+        BigDecimal oldAmount = payment.getAmount();
         payment.setAmount(amount);
         paymentRepository.save(payment);
         wsNotificationService.sendUpdateNotification("PAYMENT_AMOUNT_UPDATED");
+
+        // Логируем изменение
+        String childName = getChildName(childId);
+        auditLogService.log("PAYMENT_AMOUNT_UPDATED", actor,
+                "Изменена сумма оплаты для ребенка \"" + childName + "\" за " +
+                        monthYear.format(DateTimeFormatter.ofPattern("MMMM yyyy")) +
+                        ": " + oldAmount + " ₽ → " + amount + " ₽");
     }
 
+    private String getChildName(Long childId) {
+        try {
+            String sql = "SELECT first_name, last_name FROM pool.children WHERE id = ?";
+            Map<String, Object> row = jdbcTemplate.queryForMap(sql, childId);
+            return row.get("first_name") + " " + row.get("last_name");
+        } catch (Exception e) {
+            return "ребенок ID=" + childId;
+        }
+    }
+
+
+    /**
+     * Массовое обновление суммы оплаты для всех детей на указанный месяц.
+     * Требует подтверждения бухгалтера.
+     */
+    @Transactional
+    public void updatePaymentAmountForMonth(Long adminId, LocalDate monthYear, BigDecimal amount) {
+        // Получаем все оплаты за указанный месяц
+        List<Payment> payments = paymentRepository.findUnpaidForMonth(monthYear);
+
+        if (payments.isEmpty()) {
+            throw new IllegalArgumentException("Нет записей об оплате за " + monthYear);
+        }
+
+        int updatedCount = 0;
+        for (Payment payment : payments) {
+            payment.setAmount(amount);
+            paymentRepository.save(payment);
+            updatedCount++;
+        }
+
+        // Логируем действие
+        wsNotificationService.sendUpdateNotification("PAYMENT_AMOUNT_UPDATED_FOR_MONTH");
+    }
 
 }

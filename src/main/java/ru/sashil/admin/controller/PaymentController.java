@@ -15,6 +15,7 @@ import ru.sashil.admin.repository.PaymentNotificationRepository;
 import ru.sashil.admin.service.GroupService;
 import ru.sashil.admin.service.PaymentService;
 import ru.sashil.admin.service.WsNotificationService;
+import ru.sashil.admin.service.AuditLogService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -38,6 +39,9 @@ public class PaymentController {
 
     @Autowired
     private PaymentNotificationRepository paymentNotificationRepository;
+
+    @Autowired
+    private AuditLogService auditLogService;
 
     // Минимальная дата для навигации - август 2026
     private static final LocalDate MIN_DATE = LocalDate.of(2026, 8, 1);
@@ -178,23 +182,32 @@ public class PaymentController {
         return "redirect:/payments?success=reminder_sent";
     }
 
-    @PostMapping("/update-amount")
-    public String updateAmount(@RequestParam Long childId,
-                               @RequestParam String monthYear,
-                               @RequestParam BigDecimal amount,
-                               HttpSession session) {
+    @PostMapping("/update-amount-for-month")
+    public String updateAmountForMonth(@RequestParam String monthYear,
+                                       @RequestParam BigDecimal amount,
+                                       @RequestParam String confirmation,
+                                       HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
             return "redirect:/login";
         }
 
+        // Проверяем подтверждение (бухгалтер должен ввести слово "ПОДТВЕРЖДАЮ")
+        if (!"ПОДТВЕРЖДАЮ".equalsIgnoreCase(confirmation.trim())) {
+            return "redirect:/payments?error=confirmation_required";
+        }
+
         try {
             LocalDate month = LocalDate.parse(monthYear + "-01");
-            paymentService.updatePaymentAmount(childId, month, amount);
-            wsNotificationService.sendUpdateNotification("PAYMENT_AMOUNT_UPDATED");
-            return "redirect:/payments?success=amount_updated";
+            paymentService.updatePaymentAmountForMonth(user.getId(), month, amount);
+
+            // Логируем в AuditLog
+            auditLogService.log("PAYMENT_AMOUNT_UPDATED", user,
+                    "Обновлена сумма оплаты за " + monthYear + " на " + amount + " ₽");
+
+            return "redirect:/payments?success=amount_updated_for_month";
         } catch (Exception e) {
-            return "redirect:/payments?error=amount_update_failed";
+            return "redirect:/payments?error=" + e.getMessage();
         }
     }
 }

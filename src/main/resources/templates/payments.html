@@ -11,14 +11,16 @@
     <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
       Операция успешно выполнена!
     </div>
+    <div th:if="${param.error == 'confirmation_required'}" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+      ❌ Для изменения суммы необходимо ввести слово "ПОДТВЕРЖДАЮ" в поле подтверждения.
+    </div>
     <div th:if="${param.error}" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-      Ошибка при выполнении операции.
+      Ошибка: <span th:text="${param.error}"></span>
     </div>
 
     <!-- Навигация по периодам -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <div style="display: flex; align-items: center; gap: 15px;">
-        <!-- Кнопка "Пред." - отключается если нельзя вернуться -->
         <a th:if="${canGoBack}"
            th:href="@{/payments(year=${prevStart.year}, month=${prevStart.monthValue}, search=${currentSearch})}"
            class="btn" style="padding: 5px 10px;">← Пред.</a>
@@ -34,6 +36,35 @@
         <a th:href="@{/payments(year=${nextStart.year}, month=${nextStart.monthValue}, search=${currentSearch})}"
            class="btn" style="padding: 5px 10px;">След. →</a>
       </div>
+    </div>
+
+    <!-- ФОРМА ИЗМЕНЕНИЯ СУММЫ ДЛЯ МЕСЯЦА -->
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #dee2e6;">
+      <h4 style="margin-top: 0;">Изменение суммы оплаты</h4>
+      <form th:action="@{/payments/update-amount-for-month}" method="post" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+        <div>
+          <label style="display: block; font-weight: bold; font-size: 0.9em;">Месяц:</label>
+          <input type="month" name="monthYear" th:value="${#temporals.format(startMonth, 'yyyy-MM')}"
+                 style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <div>
+          <label style="display: block; font-weight: bold; font-size: 0.9em;">Новая сумма (₽):</label>
+          <input type="number" name="amount" step="100" min="0" value="4000"
+                 style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 120px;">
+        </div>
+        <div>
+          <label style="display: block; font-weight: bold; font-size: 0.9em; color: #dc3545;">Подтверждение:</label>
+          <input type="text" name="confirmation" placeholder='Введите "ПОДТВЕРЖДАЮ"'
+                 style="padding: 8px; border: 1px solid #dc3545; border-radius: 4px; width: 150px;">
+        </div>
+        <button type="submit" class="btn" style="background-color: #dc3545; padding: 8px 20px;">
+          ⚠️ Изменить сумму для всех
+        </button>
+      </form>
+      <small style="color: #6c757d; display: block; margin-top: 5px;">
+        Внимание! Сумма изменится ДЛЯ ВСЕХ детей за выбранный месяц.
+        Для подтверждения введите слово "ПОДТВЕРЖДАЮ".
+      </small>
     </div>
 
     <!-- Фильтры -->
@@ -57,7 +88,7 @@
             style="padding: 10px; border: 1px solid #ddd; text-align: center; min-width: 75px;"
             th:text="${#temporals.format(month, 'MMM yyyy')}">
         </th>
-        <th style="padding: 10px; border: 1px solid #ddd; min-width: 80px; text-align: center;">Сумма</th>
+        <th style="padding: 10px; border: 1px solid #ddd; min-width: 80px; text-align: center;">Сумма (₽)</th>
         <th style="padding: 10px; border: 1px solid #ddd; min-width: 100px;">Действие</th>
       </tr>
       </thead>
