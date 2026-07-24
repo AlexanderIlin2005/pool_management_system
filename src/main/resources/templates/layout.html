@@ -166,6 +166,7 @@
   <div th:if="${role != null and role.name() == 'ACCOUNTANT'}">
     <a href="/payments" th:classappend="${activePage == 'payments'} ? 'active'">Оплаты</a>
     <a href="/payment-receipts" th:classappend="${activePage == 'payment-receipts'} ? 'active'">Квитанции</a>
+    <a href="/payments/settings" th:classappend="${activePage == 'payments'} ? 'active'">Настройка оплат</a>
   </div>
 
   <div style="margin-top: auto;">

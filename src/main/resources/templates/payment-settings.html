@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Настройка оплат', ~{::content})}">
+<body>
+<div th:fragment="content">
+  <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto;">
+    <h1>Настройка базовой суммы абонемента</h1>
+
+    <div style="margin-bottom: 20px; padding: 15px; background: #e7f3ff; border: 1px solid #b6d4fe; border-radius: 8px;">
+      <p><strong>Текущая базовая сумма:</strong> <span th:text="${currentAmount} + ' ₽'"></span></p>
+      <p style="color: #6c757d; font-size: 0.9em; margin: 0;">
+        Эта сумма будет применяться по умолчанию для всех новых платежей.
+      </p>
+    </div>
+
+    <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+      Базовая сумма успешно обновлена!
+    </div>
+    <div th:if="${param.error == 'confirmation_required'}" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+      ❌ Для изменения суммы необходимо ввести слово "ПОДТВЕРЖДАЮ".
+    </div>
+
+    <form th:action="@{/payments/update-default-amount}" method="post">
+      <div style="margin-bottom: 15px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Новая базовая сумма (₽):</label>
+        <input type="number" name="amount" step="100" min="0" required
+               style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1em;">
+        <small style="color: #6c757d;">Сумма должна быть кратной 100</small>
+      </div>
+
+      <div style="margin-bottom: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 4px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #856404;">Подтверждение изменения:</label>
+        <input type="text" name="confirmation" placeholder='Введите "ПОДТВЕРЖДАЮ"'
+               style="width: 100%; padding: 10px; border: 1px solid #dc3545; border-radius: 4px;">
+        <small style="color: #856404; display: block; margin-top: 5px;">
+          Для подтверждения введите слово <strong>"ПОДТВЕРЖДАЮ"</strong> (заглавными буквами)
+        </small>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button type="submit" class="btn" style="background-color: #dc3545; padding: 10px 30px;">
+          ⚠️ Изменить базовую сумму
+        </button>
+        <a href="/payments" class="btn" style="background-color: #6c757d;">Отмена</a>
+      </div>
+    </form>
+
+    <div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;">
+      <h4 style="margin-top: 0;">Применение изменений</h4>
+      <ul style="margin-bottom: 0; padding-left: 20px; color: #6c757d;">
+        <li>Новая сумма будет применяться для всех <strong>новых</strong> месяцев (автоматическая генерация)</li>
+        <li>Изменение базовой суммы не влияет на уже существующие записи оплат</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</body>
+</html>

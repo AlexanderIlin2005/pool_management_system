@@ -102,6 +102,8 @@ public class PaymentController {
         model.addAttribute("canGoBack", canGoBack);
         model.addAttribute("monthFormatter", DateTimeFormatter.ofPattern("MMM yyyy"));
 
+        model.addAttribute("defaultAmount", data.get("defaultAmount"));
+
         return "payments";
     }
 
@@ -203,6 +205,43 @@ public class PaymentController {
             return "redirect:/payments?success=amount_updated_for_month";
         } catch (Exception e) {
             return "redirect:/payments?error=" + e.getMessage();
+        }
+    }
+
+    @GetMapping("/settings")
+    public String settingsPage(Model model, HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+            return "redirect:/login";
+        }
+
+        BigDecimal currentAmount = paymentService.getDefaultAmount();
+        model.addAttribute("currentAmount", currentAmount);
+        model.addAttribute("fullName", user.getFullName());
+        model.addAttribute("role", user.getRole());
+        model.addAttribute("activePage", "payments");
+
+        return "payment-settings";
+    }
+
+    @PostMapping("/update-default-amount")
+    public String updateDefaultAmount(@RequestParam BigDecimal amount,
+                                      @RequestParam String confirmation,
+                                      HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+            return "redirect:/login";
+        }
+
+        if (!"ПОДТВЕРЖДАЮ".equalsIgnoreCase(confirmation.trim())) {
+            return "redirect:/payments/settings?error=confirmation_required";
+        }
+
+        try {
+            paymentService.setDefaultAmount(amount, user);
+            return "redirect:/payments/settings?success=true";
+        } catch (Exception e) {
+            return "redirect:/payments/settings?error=" + e.getMessage();
         }
     }
 

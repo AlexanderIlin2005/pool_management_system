@@ -135,7 +135,6 @@ public class PaymentService {
     }
 
     public Map<String, Object> getPaymentTableData(LocalDate startMonth, LocalDate endMonth, String search) {
-        // Получаем список месяцев
         List<LocalDate> months = new ArrayList<>();
         LocalDate current = startMonth;
         while (!current.isAfter(endMonth)) {
@@ -143,20 +142,15 @@ public class PaymentService {
             current = current.plusMonths(1);
         }
 
-        // Получаем список детей с фильтрацией (без группы)
         List<PaymentRowDto> children = getChildrenForPayments(search);
-
-        // Получаем все оплаты за период
         List<Payment> payments = paymentRepository.findPaymentsInPeriod(startMonth, endMonth);
 
-        // Строим карту оплат: childId -> month -> Payment
         Map<Long, Map<LocalDate, Payment>> paymentMap = new HashMap<>();
         for (Payment p : payments) {
             paymentMap.computeIfAbsent(p.getChild().getId(), k -> new HashMap<>())
                     .put(p.getMonthYear(), p);
         }
 
-        // Строим данные для таблицы
         List<Map<String, Object>> rows = new ArrayList<>();
         for (PaymentRowDto child : children) {
             Map<String, Object> row = new LinkedHashMap<>();
@@ -165,6 +159,9 @@ public class PaymentService {
             row.put("age", child.getAge());
             row.put("skill", child.getSkill());
             row.put("parentVkId", child.getParentVkId());
+
+            // Считаем итоговую сумму оплаченных месяцев
+            BigDecimal totalPaid = BigDecimal.ZERO;
 
             Map<LocalDate, Map<String, Object>> monthData = new LinkedHashMap<>();
             for (LocalDate month : months) {
@@ -178,22 +175,32 @@ public class PaymentService {
                     cell.put("receiptFileUrl", payment.getReceiptFileUrl());
                     cell.put("amount", payment.getAmount());
                     cell.put("month", month);
+
+                    // Если оплачено, добавляем сумму к итогу
+                    if (payment.getIsPaid() != null && payment.getIsPaid()) {
+                        totalPaid = totalPaid.add(payment.getAmount() != null ? payment.getAmount() : BigDecimal.ZERO);
+                    }
                 } else {
                     cell.put("isPaid", false);
                     cell.put("status", "NOT_GENERATED");
-                    cell.put("amount", getDefaultAmount());
+                    cell.put("amount", BigDecimal.ZERO);
                 }
                 monthData.put(month, cell);
             }
             row.put("months", monthData);
+            row.put("totalPaid", totalPaid);  // Добавляем итоговую сумму
             rows.add(row);
         }
+
+        // Получаем текущую базовую сумму
+        BigDecimal defaultAmount = getDefaultAmount();
 
         Map<String, Object> result = new HashMap<>();
         result.put("months", months);
         result.put("rows", rows);
         result.put("startMonth", startMonth);
         result.put("endMonth", endMonth);
+        result.put("defaultAmount", defaultAmount);
 
         return result;
     }
