@@ -11,11 +11,10 @@ import java.nio.file.Files;
 import java.util.UUID;
 import java.util.logging.Logger;
 
-@Service 
+@Service
 public class MinIOService {
     private static final Logger LOGGER = Logger.getLogger(MinIOService.class.getName());
 
-    
     private String getContentType(String fileName) {
         if (fileName == null) return "application/octet-stream";
         String lowerName = fileName.toLowerCase();
@@ -24,6 +23,7 @@ public class MinIOService {
         if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) return "image/jpeg";
         if (lowerName.endsWith(".gif")) return "image/gif";
         if (lowerName.endsWith(".txt")) return "text/plain";
+        if (lowerName.endsWith(".doc") || lowerName.endsWith(".docx")) return "application/msword";
         return "application/octet-stream";
     }
 
@@ -82,10 +82,10 @@ public class MinIOService {
         return MinIOConfig.getEndpoint() + "/" + bucket + "/" + objectName;
     }
 
-    public String uploadFileToDocsBucket(InputStream stream, String objectName, long size) throws Exception {
+    public String uploadFileToDocsBucket(InputStream stream, String objectName, long size, String originalName) throws Exception {
         MinioClient client = MinIOConfig.getClient();
         String bucket = MinIOConfig.getDocsBucket();
-        String contentType = "application/pdf";
+        String contentType = getContentType(originalName != null ? originalName : objectName);
 
         client.putObject(PutObjectArgs.builder()
                 .bucket(bucket)
@@ -94,7 +94,14 @@ public class MinIOService {
                 .contentType(contentType)
                 .build());
 
-        LOGGER.info("✅ Файл загружен в бакет документов: " + objectName);
+        LOGGER.info("✅ Файл загружен в бакет документов: " + objectName + " (" + contentType + ")");
         return MinIOConfig.getEndpoint() + "/" + bucket + "/" + objectName;
     }
+
+    // Старый метод для обратной совместимости
+    public String uploadFileToDocsBucket(InputStream stream, String objectName, long size) throws Exception {
+        return uploadFileToDocsBucket(stream, objectName, size, objectName);
+    }
+
+
 }

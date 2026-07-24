@@ -740,6 +740,108 @@ public class DatabaseService {
         }
     }
 
+
+    // В DatabaseService.java добавляем:
+
+    /**
+     * Сохраняет квитанцию об оплате от родителя.
+     */
+    /**
+     * Сохраняет квитанцию об оплате от родителя.
+     */
+    public void savePaymentReceipt(long parentVkId, long childId, LocalDate monthYear, String fileUrl, String originalName) {
+        Long parentId = getParentIdByVkId(parentVkId);
+        if (parentId == null) {
+            LOGGER.severe("Ошибка: Родитель с VK ID " + parentVkId + " не найден в базе.");
+            return;
+        }
+
+        // Сначала проверяем, есть ли уже запись об оплате за этот месяц
+        String checkSql = "SELECT id FROM pool.payments WHERE child_id = ? AND month_year = ?";
+        Long paymentId = null;
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(checkSql)) {
+            stmt.setLong(1, childId);
+            stmt.setDate(2, Date.valueOf(monthYear));
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                paymentId = rs.getLong("id");
+                LOGGER.info("Найдена существующая оплата ID=" + paymentId);
+            } else {
+                LOGGER.info("Оплата не найдена, создаем новую");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        String sql;
+        if (paymentId != null) {
+            sql = "UPDATE pool.payments SET receipt_file_url = ?, receipt_original_name = ?, status = 'PENDING', updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+        } else {
+            sql = "INSERT INTO pool.payments (child_id, month_year, receipt_file_url, receipt_original_name, status, amount) VALUES (?, ?, ?, ?, 'PENDING', 4000.00)";
+        }
+
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            if (paymentId != null) {
+                stmt.setString(1, fileUrl);
+                stmt.setString(2, originalName);
+                stmt.setLong(3, paymentId);
+                LOGGER.info("Обновляем оплату ID=" + paymentId);
+            } else {
+                stmt.setLong(1, childId);
+                stmt.setDate(2, Date.valueOf(monthYear));
+                stmt.setString(3, fileUrl);
+                stmt.setString(4, originalName);
+                LOGGER.info("Создаем новую оплату для childId=" + childId);
+            }
+            int rows = stmt.executeUpdate();
+            LOGGER.info("✅ Квитанция сохранена для child_id=" + childId + ", month=" + monthYear + ", rows=" + rows);
+        } catch (SQLException e) {
+            LOGGER.severe("❌ Ошибка сохранения квитанции: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Получает необработанные квитанции об оплате (для бухгалтера).
+     */
+    public List<Map<String, Object>> getPendingPayments() {
+        String sql = "SELECT p.id, p.child_id, p.month_year, p.receipt_file_url, p.receipt_original_name, " +
+                "p.status, p.created_at, " +
+                "c.first_name, c.last_name, " +
+                "par.vk_id as parent_vk_id " +
+                "FROM pool.payments p " +
+                "JOIN pool.children c ON p.child_id = c.id " +
+                "JOIN pool.parents par ON c.parent_id = par.id " +
+                "WHERE p.status = 'PENDING' " +
+                "ORDER BY p.created_at DESC";
+        return executeQuery(sql);
+    }
+
+    /**
+     * Получает неотправленные уведомления об оплате.
+     */
+    public List<Map<String, Object>> getPendingPaymentNotifications() {
+        String sql = "SELECT pn.id, pn.parent_vk_id, pn.message_text " +
+                "FROM pool.payment_notifications pn " +
+                "WHERE pn.is_sent = FALSE " +
+                "ORDER BY pn.created_at ASC";
+        return executeQuery(sql);
+    }
+
+    /**
+     * Помечает уведомление об оплате как отправленное.
+     */
+    public void markPaymentNotificationSent(long notifId) {
+        String sql = "UPDATE pool.payment_notifications SET is_sent = TRUE, sent_at = CURRENT_TIMESTAMP WHERE id = ?";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, notifId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
     // === ВСПОМОГАТЕЛЬНЫЙ МЕТОД ===
 
     private List<Map<String, Object>> executeQuery(String sql) {

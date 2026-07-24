@@ -222,6 +222,45 @@ CREATE TABLE IF NOT EXISTS pool.join_request_notifications (
     sent_at TIMESTAMP
 );
 
+-- Таблица для хранения оплат
+CREATE TABLE IF NOT EXISTS pool.payments (
+    id BIGSERIAL PRIMARY KEY,
+    child_id BIGINT REFERENCES pool.children(id) ON DELETE CASCADE,
+    month_year DATE NOT NULL, -- Первое число месяца (например, 2026-09-01)
+    is_paid BOOLEAN DEFAULT FALSE,
+    paid_at TIMESTAMP,
+    amount DECIMAL(10, 2),
+    payment_method VARCHAR(50), -- 'CASH', 'BANK', 'QR', 'RECEIPT'
+    receipt_file_url VARCHAR(500), -- Ссылка на файл квитанции в MinIO
+    receipt_original_name VARCHAR(255),
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'PAID')),
+    verified_by BIGINT REFERENCES pool.admin_users(id),
+    verified_at TIMESTAMP,
+    comment TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(child_id, month_year)
+);
+
+-- Таблица для уведомлений об оплате (для бота)
+CREATE TABLE IF NOT EXISTS pool.payment_notifications (
+    id BIGSERIAL PRIMARY KEY,
+    parent_vk_id BIGINT NOT NULL,
+    child_id BIGINT REFERENCES pool.children(id) ON DELETE CASCADE,
+    month_year DATE NOT NULL,
+    message_text TEXT NOT NULL,
+    notification_type VARCHAR(20) NOT NULL CHECK (notification_type IN ('REMINDER', 'OVERDUE', 'RECEIPT_CONFIRMED', 'RECEIPT_REJECTED')),
+    is_sent BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    sent_at TIMESTAMP
+);
+
+-- Индексы для быстрого поиска
+CREATE INDEX idx_payments_child_month ON pool.payments(child_id, month_year);
+CREATE INDEX idx_payments_status ON pool.payments(status);
+CREATE INDEX idx_payment_notifications_pending ON pool.payment_notifications(is_sent);
+CREATE INDEX idx_payment_notifications_parent ON pool.payment_notifications(parent_vk_id);
+
 CREATE INDEX idx_join_notif_pending ON pool.join_request_notifications(is_sent);
 
 -- Индекс для быстрого поиска непрочитанных

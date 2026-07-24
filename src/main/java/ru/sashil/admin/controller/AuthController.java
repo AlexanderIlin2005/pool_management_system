@@ -45,11 +45,13 @@ public class AuthController {
             if (passwordEncoder.matches(password, user.getPasswordHash())) {
                 session.setAttribute(SESSION_USER_KEY, user);
 
-                
+
+                // Редирект по ролям
                 if (user.getRole() == AdminUser.Role.COACH) {
                     return "redirect:/schedule";
+                } else if (user.getRole() == AdminUser.Role.ACCOUNTANT) {
+                    return "redirect:/payments";
                 } else {
-                    
                     return "redirect:/parents";
                 }
             }

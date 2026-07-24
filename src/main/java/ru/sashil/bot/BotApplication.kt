@@ -26,11 +26,13 @@ class BotApplication {
         private lateinit var childEditHandler: ChildEditHandler
         private lateinit var notificationService: NotificationService
         private lateinit var certificateHandler: CertificateHandler
+        private lateinit var paymentReceiptHandler: PaymentReceiptHandler
         private lateinit var minioService: MinIOService
 
         // Хранилище для потока записи в группу
         private val joinRequestSteps = ConcurrentHashMap<Long, Int>() // 1: выбор ребенка, 2: выбор группы
         private val joinRequestTempData = ConcurrentHashMap<Long, MutableMap<String, Any>>() // временные данные
+
 
         @JvmStatic
         fun main(args: Array<String>) {
@@ -57,6 +59,7 @@ class BotApplication {
 
                 notificationService = NotificationService(dbService, bot)
                 certificateHandler = CertificateHandler(dbService, minioService)
+                paymentReceiptHandler = PaymentReceiptHandler(dbService, minioService)
 
                 LOGGER.info("Бот запущен!")
 
@@ -235,6 +238,10 @@ class BotApplication {
                         val response = certificateHandler.processStep(userId, text, rawJson)
                         if (response != null) sendText(bot, userId, response)
                     }
+                    paymentReceiptHandler.isUploading(userId) -> {
+                        val response = paymentReceiptHandler.processStep(userId, text, rawJson)
+                        if (response != null) sendText(bot, userId, response)
+                    }
                     joinRequestSteps.containsKey(userId) -> handleJoinRequestFlow(bot, userId, text)
                     else -> handleCommands(bot, userId, text)
                 }
@@ -247,8 +254,6 @@ class BotApplication {
             }
         }
 
-        // Обработчик потока записи в группу
-        // Обработчик потока записи в группу
         // Обработчик потока записи в группу
         private suspend fun handleJoinRequestFlow(bot: VkClient, userId: Long, text: String) {
             val step = joinRequestSteps[userId] ?: return
@@ -426,6 +431,13 @@ class BotApplication {
                         sendText(bot, userId, "Сначала зарегистрируйтесь.")
                     } else {
                         certificateHandler.startUpload(userId)
+                    }
+                }
+                "квитанция" -> {
+                    if (!dbService.isParentRegistered(userId)) {
+                        sendText(bot, userId, "Сначала зарегистрируйтесь.")
+                    } else {
+                        paymentReceiptHandler.startUpload(userId)
                     }
                 }
                 "добавитьребенка" -> {

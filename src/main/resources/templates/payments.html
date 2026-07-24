@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Оплаты', ~{::content})}">
+<body>
+<div th:fragment="content">
+  <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 98%; margin: 0 auto; overflow-x: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h1>Оплата абонементов</h1>
+      <a href="/logout" class="btn" style="background-color: #6c757d;">Выйти</a>
+    </div>
+
+    <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+      Операция успешно выполнена!
+    </div>
+    <div th:if="${param.error}" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+      Ошибка при выполнении операции.
+    </div>
+
+    <!-- Навигация по периодам -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <a th:href="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch})}"
+           class="btn" style="padding: 5px 10px;">← Пред.</a>
+        <h3 style="margin: 0;">
+          <span th:text="${#temporals.format(startMonth, 'MMMM yyyy')}"></span>
+          —
+          <span th:text="${#temporals.format(endMonth, 'MMMM yyyy')}"></span>
+        </h3>
+        <a th:href="@{/payments(year=${nextStart.year}, month=${nextStart.monthValue}, search=${currentSearch})}"
+           class="btn" style="padding: 5px 10px;">След. →</a>
+      </div>
+    </div>
+
+    <!-- Фильтры -->
+    <form method="get" style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+      <input type="hidden" name="year" th:value="${startMonth.year}" />
+      <input type="hidden" name="month" th:value="${startMonth.monthValue}" />
+
+      <input type="text" name="search" placeholder="Поиск по ФИО..." th:value="${currentSearch}"
+             style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; min-width: 200px;">
+
+      <button type="submit" class="btn">Применить</button>
+      <a th:href="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue})}" class="btn" style="background-color: #6c757d;">Сброс</a>
+    </form>
+
+    <!-- Таблица оплат -->
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+      <thead>
+      <tr style="background: #f8f9fa; position: sticky; top: 0; z-index: 2;">
+        <th style="padding: 10px; border: 1px solid #ddd; position: sticky; left: 0; background: #f8f9fa; z-index: 3; min-width: 200px;">Ребенок</th>
+        <th th:each="month : ${months}"
+            style="padding: 10px; border: 1px solid #ddd; text-align: center; min-width: 80px;"
+            th:text="${#temporals.format(month, 'MMM yyyy')}">
+        </th>
+        <th style="padding: 10px; border: 1px solid #ddd; min-width: 100px;">Действие</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="row : ${rows}" style="border-bottom: 1px solid #eee;">
+        <td style="padding: 10px; border: 1px solid #ddd; position: sticky; left: 0; background: white; z-index: 1; font-weight: 500;"
+            th:text="${row['childName']}"></td>
+
+        <td th:each="month : ${months}"
+            style="padding: 5px; border: 1px solid #ddd; text-align: center;"
+            th:with="cell=${row['months'].get(month)}">
+
+          <!-- СНАЧАЛА ПРОВЕРЯЕМ НА ОПЛАЧЕННОСТЬ -->
+          <span th:if="${cell.isPaid != null and cell.isPaid}" style="color: green; font-weight: bold; font-size: 1.2em;">✅</span>
+
+          <!-- ЕСЛИ НЕ ОПЛАЧЕНО -->
+          <span th:unless="${cell.isPaid != null and cell.isPaid}">
+            <!-- Если месяц будущий (еще не наступил) -->
+            <span th:if="${month.isAfter(T(java.time.LocalDate).now().withDayOfMonth(1))}" style="color: #ccc;">•</span>
+            <!-- Если месяц текущий или прошлый -->
+            <span th:unless="${month.isAfter(T(java.time.LocalDate).now().withDayOfMonth(1))}">
+              <span th:if="${cell.status == 'PENDING'}" style="color: orange;">⏳</span>
+              <span th:if="${cell.status == 'REJECTED'}" style="color: red;">❌</span>
+              <span th:if="${cell.status == 'NOT_GENERATED'}" style="color: #ccc;">-</span>
+            </span>
+          </span>
+        </td>
+
+        <td style="padding: 10px; border: 1px solid #ddd;">
+          <!-- Кнопка для отправки сообщения родителю -->
+          <button th:if="${row['parentVkId'] != null}"
+                  class="btn btn-sm btn-warning send-reminder-btn"
+                  style="padding: 4px 8px; font-size: 0.75em; background-color: #ffc107; color: black;"
+                  th:data-child-id="${row['childId']}"
+                  th:data-child-name="${row['childName']}"
+                  th:data-parent-vk="${row['parentVkId']}">
+            Напомнить
+          </button>
+        </td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(rows)}">
+        <td colspan="100%" style="padding: 20px; text-align: center; color: #999;">Нет детей для отображения</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Модальное окно для отправки напоминания -->
+  <div id="reminderModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 20px; border-radius: 8px; max-width: 500px; width: 90%;">
+      <h3>Отправить напоминание</h3>
+      <p>Отправить напоминание об оплате для <strong id="reminderChildName"></strong>?</p>
+      <p style="color: #666; font-size: 0.9em;">Сообщение будет отправлено через VK бота.</p>
+      <form id="reminderForm" method="post">
+        <input type="hidden" name="childId" id="reminderChildId">
+        <div style="margin-top: 15px;">
+          <label>Дополнительный комментарий (опционально):</label>
+          <textarea name="comment" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+          <button type="button" onclick="closeReminderModal()" class="btn" style="background-color: #6c757d;">Отмена</button>
+          <button type="submit" class="btn" style="background-color: #28a745;">Отправить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function openReminderModal(childId, childName, parentVk) {
+      document.getElementById('reminderChildId').value = childId;
+      document.getElementById('reminderChildName').textContent = childName;
+      document.getElementById('reminderForm').action = '/payments/send-reminder/' + parentVk;
+      document.getElementById('reminderModal').style.display = 'flex';
+    }
+
+    function closeReminderModal() {
+      document.getElementById('reminderModal').style.display = 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.send-reminder-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const childId = this.dataset.childId;
+          const childName = this.dataset.childName;
+          const parentVk = this.dataset.parentVk;
+          openReminderModal(childId, childName, parentVk);
+        });
+      });
+
+      // Закрытие модального окна при клике вне его
+      document.getElementById('reminderModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+          closeReminderModal();
+        }
+      });
+    });
+  </script>
+</div>
+</body>
+</html>

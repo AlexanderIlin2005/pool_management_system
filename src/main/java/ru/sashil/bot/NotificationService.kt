@@ -40,7 +40,37 @@ class NotificationService(
         // Отправка уведомлений о статусе заявки на запись
         sendPendingJoinRequestNotifications()
 
+        sendPendingPaymentNotifications()
+
         logger.info("Проверка уведомлений завершена.")
+    }
+
+
+    // Добавляем метод:
+    private suspend fun sendPendingPaymentNotifications() {
+        val notifications = getPendingPaymentNotifications()
+        for (notif in notifications) {
+            val parentVkId = notif["parent_vk_id"] as Long
+            val message = notif["message_text"] as String
+            val notifId = notif["id"] as Long
+
+            try {
+                sendMessage(parentVkId, message)
+                markPaymentNotificationSent(notifId)
+                logger.info("Уведомление об оплате #$notifId отправлено родителю $parentVkId")
+            } catch (e: Exception) {
+                logger.severe("Не удалось отправить уведомление об оплате пользователю $parentVkId: ${e.message}")
+            }
+        }
+    }
+
+    // Вспомогательные методы (нужно добавить в DatabaseService):
+    private suspend fun getPendingPaymentNotifications(): List<Map<String, Any>> {
+        return dbService.getPendingPaymentNotifications()
+    }
+
+    private suspend fun markPaymentNotificationSent(notifId: Long) {
+        dbService.markPaymentNotificationSent(notifId)
     }
 
     /**
