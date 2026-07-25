@@ -219,7 +219,7 @@ public class PaymentController {
         model.addAttribute("currentAmount", currentAmount);
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
-        model.addAttribute("activePage", "payments");
+        model.addAttribute("activePage", "payment-settings");
 
         return "payment-settings";
     }
