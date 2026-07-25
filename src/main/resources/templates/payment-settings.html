@@ -15,29 +15,20 @@
     <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
       Базовая сумма успешно обновлена!
     </div>
-    <div th:if="${param.error == 'confirmation_required'}" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-      ❌ Для изменения суммы необходимо ввести слово "ПОДТВЕРЖДАЮ".
+    <div th:if="${param.error}" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+      Ошибка: <span th:text="${param.error}"></span>
     </div>
 
-    <form th:action="@{/payments/update-default-amount}" method="post">
+    <form th:action="@{/payments/update-default-amount}" method="post" id="amountForm">
       <div style="margin-bottom: 15px;">
         <label style="font-weight: bold; display: block; margin-bottom: 5px;">Новая базовая сумма (₽):</label>
-        <input type="number" name="amount" step="100" min="0" required
+        <input type="number" name="amount" id="newAmount" step="100" min="0" required
                style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1em;">
         <small style="color: #6c757d;">Сумма должна быть кратной 100</small>
       </div>
 
-      <div style="margin-bottom: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 4px;">
-        <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #856404;">Подтверждение изменения:</label>
-        <input type="text" name="confirmation" placeholder='Введите "ПОДТВЕРЖДАЮ"'
-               style="width: 100%; padding: 10px; border: 1px solid #dc3545; border-radius: 4px;">
-        <small style="color: #856404; display: block; margin-top: 5px;">
-          Для подтверждения введите слово <strong>"ПОДТВЕРЖДАЮ"</strong> (заглавными буквами)
-        </small>
-      </div>
-
       <div style="display: flex; gap: 10px;">
-        <button type="submit" class="btn" style="background-color: #dc3545; padding: 10px 30px;">
+        <button type="submit" id="submitBtn" class="btn" style="background-color: #dc3545; padding: 10px 30px;">
           ⚠️ Изменить базовую сумму
         </button>
         <a href="/payments" class="btn" style="background-color: #6c757d;">Отмена</a>
@@ -52,6 +43,37 @@
       </ul>
     </div>
   </div>
+
+  <script th:inline="javascript">
+    /*<![CDATA[*/
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.getElementById('amountForm');
+      const amountInput = document.getElementById('newAmount');
+      const currentAmount = /*[[${currentAmount}]]*/ 4000;
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const amount = amountInput.value.trim();
+        if (!amount || parseFloat(amount) <= 0) {
+          alert('Пожалуйста, введите корректную сумму.');
+          return;
+        }
+
+        // Показываем confirm диалог
+        const confirmMessage = 'Вы уверены, что хотите изменить базовую сумму абонемента?\n\n' +
+                               'Текущая сумма: ' + currentAmount + ' ₽\n' +
+                               'Новая сумма: ' + amount + ' ₽\n\n' +
+                               'Это изменение повлияет на все будущие платежи.';
+
+        if (confirm(confirmMessage)) {
+          // Если подтверждено, отправляем форму
+          form.submit();
+        }
+      });
+    });
+    /*]]>*/
+  </script>
 </div>
 </body>
 </html>

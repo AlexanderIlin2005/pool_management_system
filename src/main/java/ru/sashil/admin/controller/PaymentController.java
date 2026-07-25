@@ -226,15 +226,10 @@ public class PaymentController {
 
     @PostMapping("/update-default-amount")
     public String updateDefaultAmount(@RequestParam BigDecimal amount,
-                                      @RequestParam String confirmation,
                                       HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
             return "redirect:/login";
-        }
-
-        if (!"ПОДТВЕРЖДАЮ".equalsIgnoreCase(confirmation.trim())) {
-            return "redirect:/payments/settings?error=confirmation_required";
         }
 
         try {
