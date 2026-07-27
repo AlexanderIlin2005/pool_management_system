@@ -3,7 +3,21 @@
 <body>
 <div th:fragment="content">
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto;">
-    <h1>Заявки на вступление в группы</h1>
+
+    <!-- Переключатель вкладок -->
+    <div style="margin-bottom: 20px; border-bottom: 1px solid #eee;">
+      <a th:href="@{/join-requests(tab=new)}"
+         th:class="${currentTab == 'new' or currentTab == null} ? 'btn' : 'btn'"
+         th:style="${currentTab == 'new' or currentTab == null} ? 'background-color: #007bff;' : 'background-color: #f8f9fa; color: #333;'">
+        Новые заявки
+      </a>
+      <a th:href="@{/join-requests(tab=archive)}"
+         th:class="${currentTab == 'archive'} ? 'btn' : 'btn'"
+         th:style="${currentTab == 'archive'} ? 'background-color: #007bff;' : 'background-color: #f8f9fa; color: #333;'">
+        Обработанные
+      </a>
+    </div>
+
     <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
       Заявка успешно обработана!
     </div>
@@ -11,25 +25,52 @@
     <table style="width: 100%; border-collapse: collapse;">
       <thead>
       <tr style="background: #f8f9fa; text-align: left;">
-        <th style="padding: 10px; border: 1px solid #ddd;">Дата</th>
+        <th style="padding: 10px; border: 1px solid #ddd;">Дата создания</th>
+        <th th:if="${currentTab == 'archive'}" style="padding: 10px; border: 1px solid #ddd;">Дата обработки</th>
         <th style="padding: 10px; border: 1px solid #ddd;">Родитель</th>
         <th style="padding: 10px; border: 1px solid #ddd;">Ребенок</th>
         <th style="padding: 10px; border: 1px solid #ddd;">Группа</th>
+        <th th:if="${currentTab == 'archive'}" style="padding: 10px; border: 1px solid #ddd;">Статус</th>
         <th style="padding: 10px; border: 1px solid #ddd;">Действие</th>
       </tr>
       </thead>
       <tbody>
       <tr th:each="req : ${requests}">
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${#temporals.format(req.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
+
+        <!-- Дата обработки (только для архива) -->
+        <td th:if="${currentTab == 'archive'}" style="padding: 10px; border: 1px solid #ddd;">
+          <span th:text="${req.processedAt != null ? #temporals.format(req.processedAt, 'dd.MM.yyyy HH:mm') : '-'}"></span>
+        </td>
+
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${req.parent.lastName} + ' ' + ${req.parent.firstName}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${req.child.lastName} + ' ' + ${req.child.firstName}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${req.group.name}"></td>
+
+        <!-- Статус (только для архива) -->
+        <td th:if="${currentTab == 'archive'}" style="padding: 10px; border: 1px solid #ddd;">
+          <span th:if="${req.status == 'APPROVED'}" style="color: green; font-weight: bold;">✅ Одобрена</span>
+          <span th:if="${req.status == 'REJECTED'}" style="color: red; font-weight: bold;">❌ Отклонена</span>
+        </td>
+
         <td style="padding: 10px; border: 1px solid #ddd;">
-          <a th:href="@{/join-requests/{id}(id=${req.id})}" class="btn" style="background-color: #007bff; font-size: 0.8em;">Просмотреть</a>
+          <!-- Для новых заявок - кнопка просмотра -->
+          <a th:if="${currentTab == 'new' or currentTab == null}"
+             th:href="@{/join-requests/{id}(id=${req.id})}"
+             class="btn" style="background-color: #007bff; font-size: 0.8em;">Просмотреть</a>
+
+          <!-- Для обработанных - просто статус -->
+          <span th:if="${currentTab == 'archive'}" style="color: #6c757d; font-size: 0.85em;">
+            <span th:if="${req.status == 'APPROVED'}">✅</span>
+            <span th:if="${req.status == 'REJECTED'}">❌</span>
+          </span>
         </td>
       </tr>
       <tr th:if="${#lists.isEmpty(requests)}">
-        <td colspan="5" style="padding: 20px; text-align: center; color: #999;">Нет новых заявок</td>
+        <td th:colspan="${currentTab == 'archive' ? 7 : 6}" style="padding: 20px; text-align: center; color: #999;">
+          <span th:if="${currentTab == 'new' or currentTab == null}">Нет новых заявок</span>
+          <span th:if="${currentTab == 'archive'}">Нет обработанных заявок</span>
+        </td>
       </tr>
       </tbody>
     </table>

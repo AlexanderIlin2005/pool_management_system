@@ -20,15 +20,28 @@ public class GroupJoinController {
     @Autowired private GroupMemberService memberService;
 
     @GetMapping
-    public String listRequests(Model model, HttpSession session) {
+    public String listRequests(Model model, HttpSession session,
+                               @RequestParam(required = false) String tab) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null || !"ADMIN".equals(user.getRole().name())) return "redirect:/login";
 
-        List<GroupJoinRequest> requests = joinService.getRequestRepository().findByStatusOrderByCreatedAtDesc("PENDING");
+        List<GroupJoinRequest> requests;
+        boolean isNewTab = !"archive".equals(tab);
+
+        if (isNewTab) {
+            // Новые заявки (PENDING)
+            requests = joinService.getRequestRepository().findByStatusOrderByCreatedAtDesc("PENDING");
+        } else {
+            // Обработанные заявки (APPROVED или REJECTED)
+            requests = joinService.getRequestRepository().findProcessedOrderByProcessedAtDesc();
+        }
+
         model.addAttribute("requests", requests);
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "join-requests");
+        model.addAttribute("currentTab", isNewTab ? "new" : "archive");
+
         return "group-join-requests";
     }
 
@@ -46,7 +59,7 @@ public class GroupJoinController {
         model.addAttribute("memberCount", memberCount);
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
-        model.addAttribute("activePage", "groups");
+        model.addAttribute("activePage", "join-requests");
         return "group-join-request-detail";
     }
 
