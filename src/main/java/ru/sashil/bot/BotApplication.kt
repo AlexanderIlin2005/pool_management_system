@@ -6,6 +6,7 @@ import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import kotlinx.coroutines.*
 import ru.sashil.bot.handlers.*
+import ru.sashil.bot.util.WebSocketNotifier
 import ru.sashil.common.service.DatabaseService
 import ru.sashil.common.service.MinIOService
 import ru.sashil.common.util.CommandUtils
@@ -152,6 +153,9 @@ class BotApplication {
                         updateStmt.executeUpdate()
                         updateStmt.close()
                         LOGGER.info("Рассылка #$taskId выполнена. Получателей: $sentCount")
+
+                        WebSocketNotifier.sendWebSocketNotification("BROADCAST_COMPLETED")
+
                     } catch (e: Exception) {
                         LOGGER.severe("Ошибка рассылки #$taskId: ${e.message}")
                         val errorSql = "UPDATE pool.broadcast_messages SET status = 'ERROR' WHERE id = ?"
