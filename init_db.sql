@@ -187,7 +187,8 @@ CREATE TABLE IF NOT EXISTS pool.certificates (
     status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED_SICK', 'APPROVED_EXCUSED', 'REJECTED')),
     date_from DATE, -- Дата начала действия справки
     date_to DATE,   -- Дата окончания действия справки
-    processed_by BIGINT REFERENCES pool.admin_users(id) -- Кто обработал справку
+    processed_by BIGINT REFERENCES pool.admin_users(id), -- Кто обработал справку
+    comment TEXT
 );
 
 ALTER TABLE pool.groups

@@ -446,6 +446,37 @@ public class DatabaseService {
         }
     }
 
+    /**
+     * Отклоняет справку (без дат).
+     */
+    public void rejectCertificate(Long certId, Long adminId, String comment) {
+        String sql;
+        // Если комментарий есть - сохраняем его, если нет - оставляем NULL
+        if (comment != null && !comment.trim().isEmpty()) {
+            sql = "UPDATE pool.certificates SET is_read = TRUE, status = 'REJECTED', processed_by = ?, comment = ? WHERE id = ?";
+        } else {
+            sql = "UPDATE pool.certificates SET is_read = TRUE, status = 'REJECTED', processed_by = ? WHERE id = ?";
+        }
+
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, adminId);
+            if (comment != null && !comment.trim().isEmpty()) {
+                stmt.setString(2, comment);
+                stmt.setLong(3, certId);
+            } else {
+                stmt.setLong(2, certId);
+            }
+            stmt.executeUpdate();
+            LOGGER.info("✅ Справка ID=" + certId + " отклонена." + (comment != null ? " Причина: " + comment : ""));
+
+            // Отправляем WebSocket уведомление
+            sendWebSocketNotification("CERTIFICATE_REJECTED");
+        } catch (SQLException e) {
+            LOGGER.severe("❌ Ошибка отклонения справки: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
     public void resetCertificateReadStatus(Long certId) {
         String selectSql = "SELECT child_id, date_from, date_to FROM pool.certificates WHERE id = ?";
         Long childId = null;

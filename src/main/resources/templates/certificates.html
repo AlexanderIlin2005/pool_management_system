@@ -4,7 +4,6 @@
 <div th:fragment="content">
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto;">
 
-
     <div style="margin-bottom: 20px; border-bottom: 1px solid #eee;">
       <a th:href="@{/certificates(tab=new)}"
          th:class="${currentTab == 'new' or currentTab == null} ? 'btn' : 'btn'"
@@ -40,7 +39,6 @@
       </thead>
       <tbody>
       <tr th:each="cert : ${certificates}">
-
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${#dates.format(cert.uploaded_at, 'dd.MM.yyyy HH:mm')}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${cert.parent_name}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${cert.child_name}"></td>
@@ -60,21 +58,31 @@
         </td>
         <td style="padding: 10px; border: 1px solid #ddd;">
 
+          <!-- ДЛЯ НОВЫХ СПРАВОК -->
           <div th:if="${cert.status == 'PENDING'}">
-            <form th:action="@{/certificates/process}" method="post" style="display: flex; flex-direction: column; gap: 5px;">
+            <!-- Форма для подтверждения (больничный/уважительная) -->
+            <form th:action="@{/certificates/process}" method="post" style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 5px;">
               <input type="hidden" name="certId" th:value="${cert.id}">
               <select name="status" required style="padding: 5px;">
                 <option value="APPROVED_SICK">Больничный</option>
                 <option value="APPROVED_EXCUSED">Уважительная</option>
-                <option value="REJECTED">Отклонить</option>
               </select>
-              <input type="date" name="dateFrom" required style="padding: 5px;">
-              <input type="date" name="dateTo" required style="padding: 5px;">
-              <button type="submit" class="btn" style="background-color: #28a745; font-size: 0.8em;">Подтвердить</button>
+              <div style="display: flex; gap: 5px;">
+                <input type="date" name="dateFrom" required style="padding: 5px; flex: 1;">
+                <input type="date" name="dateTo" required style="padding: 5px; flex: 1;">
+              </div>
+              <button type="submit" class="btn" style="background-color: #28a745; font-size: 0.8em;">✅ Подтвердить</button>
+            </form>
+
+            <!-- ОТДЕЛЬНАЯ КНОПКА ДЛЯ ОТКЛОНЕНИЯ -->
+            <form th:action="@{/certificates/reject}" method="post" style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px; border-top: 1px dashed #ddd; padding-top: 5px;">
+              <input type="hidden" name="certId" th:value="${cert.id}">
+              <input type="text" name="comment" placeholder="Причина отклонения (опционально)" style="padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
+              <button type="submit" class="btn" style="background-color: #dc3545; font-size: 0.8em;">❌ Отклонить</button>
             </form>
           </div>
 
-
+          <!-- ДЛЯ ОБРАБОТАННЫХ СПРАВОК -->
           <div th:if="${cert.status != 'PENDING'}">
             <form th:action="@{/certificates/reset}" method="post">
               <input type="hidden" name="certId" th:value="${cert.id}">

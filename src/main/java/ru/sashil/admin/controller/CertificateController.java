@@ -44,7 +44,6 @@ public class CertificateController {
         model.addAttribute("activePage", "certificates");
         model.addAttribute("certificates", certificates);
         model.addAttribute("currentTab", isNewTab ? "new" : "archive");
-        // unreadCertsCount теперь добавляется через GlobalControllerAdvice
 
         return "certificates";
     }
@@ -60,6 +59,18 @@ public class CertificateController {
 
         databaseService.processCertificate(certId, user.getId(), status, dateFrom, dateTo);
         return "redirect:/certificates?success=true";
+    }
+
+    // НОВЫЙ МЕТОД ДЛЯ ОТКЛОНЕНИЯ
+    @PostMapping("/reject")
+    public String rejectCertificate(@RequestParam Long certId,
+                                    @RequestParam(required = false) String comment,
+                                    HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return "redirect:/login";
+
+        databaseService.rejectCertificate(certId, user.getId(), comment);
+        return "redirect:/certificates?success=rejected";
     }
 
     @PostMapping("/reset")
