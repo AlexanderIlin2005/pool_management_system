@@ -29,10 +29,8 @@ public class GroupJoinController {
         boolean isNewTab = !"archive".equals(tab);
 
         if (isNewTab) {
-            // Новые заявки (PENDING)
             requests = joinService.getRequestRepository().findByStatusOrderByCreatedAtDesc("PENDING");
         } else {
-            // Обработанные заявки (APPROVED или REJECTED)
             requests = joinService.getRequestRepository().findProcessedOrderByProcessedAtDesc();
         }
 
@@ -41,6 +39,7 @@ public class GroupJoinController {
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "join-requests");
         model.addAttribute("currentTab", isNewTab ? "new" : "archive");
+        // unreadJoinRequestsCount теперь добавляется через GlobalControllerAdvice
 
         return "group-join-requests";
     }
@@ -52,7 +51,6 @@ public class GroupJoinController {
 
         GroupJoinRequest req = joinService.getRequestRepository().findById(id).orElseThrow();
 
-        // Получаем количество участников в группе
         int memberCount = memberService.getMemberCount(req.getGroup().getId());
 
         model.addAttribute("request", req);
@@ -60,6 +58,8 @@ public class GroupJoinController {
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "join-requests");
+        // unreadJoinRequestsCount теперь добавляется через GlobalControllerAdvice
+
         return "group-join-request-detail";
     }
 

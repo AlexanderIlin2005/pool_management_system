@@ -30,7 +30,6 @@ public class CertificateController {
         boolean isNewTab = !"archive".equals(tab);
 
         if (isNewTab) {
-
             if (user.getRole() == AdminUser.Role.COACH) {
                 certificates = databaseService.getUnreadCertificatesForCoach(user.getId());
             } else {
@@ -45,6 +44,7 @@ public class CertificateController {
         model.addAttribute("activePage", "certificates");
         model.addAttribute("certificates", certificates);
         model.addAttribute("currentTab", isNewTab ? "new" : "archive");
+        // unreadCertsCount теперь добавляется через GlobalControllerAdvice
 
         return "certificates";
     }
@@ -61,7 +61,6 @@ public class CertificateController {
         databaseService.processCertificate(certId, user.getId(), status, dateFrom, dateTo);
         return "redirect:/certificates?success=true";
     }
-
 
     @PostMapping("/reset")
     public String resetCertificate(@RequestParam Long certId, HttpSession session) {

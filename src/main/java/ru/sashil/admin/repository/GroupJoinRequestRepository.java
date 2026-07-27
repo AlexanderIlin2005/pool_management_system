@@ -14,4 +14,6 @@ public interface GroupJoinRequestRepository extends JpaRepository<GroupJoinReque
     // Новый метод для получения обработанных заявок
     @Query("SELECT r FROM GroupJoinRequest r WHERE r.status IN ('APPROVED', 'REJECTED') ORDER BY r.processedAt DESC")
     List<GroupJoinRequest> findProcessedOrderByProcessedAtDesc();
+
+    int countByStatus(String status);
 }
