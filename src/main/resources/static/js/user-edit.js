@@ -73,7 +73,7 @@ function copyToClipboard(elementId) {
     copyText.setSelectionRange(0, 99999);
 
     navigator.clipboard.writeText(copyText.value).then(() => {
-        alert("Скопировано: " + copyText.value);
+        alert("Пароль скопирован в буфер обмена");
     }).catch(err => {
         console.error('Ошибка копирования: ', err);
     });
