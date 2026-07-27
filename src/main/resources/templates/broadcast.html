@@ -5,10 +5,6 @@
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto;">
     <h1>Рассылка сообщений</h1>
 
-    <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-      Задача на рассылку успешно создана! Бот отправит сообщения в течение минуты.
-    </div>
-
     <div th:if="${param.error}" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
       Ошибка: Тренеры не могут делать общую рассылку всем родителям. Выберите конкретную группу.
     </div>
