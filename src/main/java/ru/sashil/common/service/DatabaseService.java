@@ -1,6 +1,8 @@
 package ru.sashil.common.service;
 
 import ru.sashil.common.util.NameUtils;
+import ru.sashil.common.util.SpringContextHolder;
+
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -291,6 +293,8 @@ public class DatabaseService {
             stmt.setString(3, fileUrl);
             stmt.executeUpdate();
             LOGGER.info("✅ Справка сохранена для parent_id=" + parentId + ", child_id=" + childId);
+            // ОТПРАВЛЯЕМ WEB SOCKET УВЕДОМЛЕНИЕ
+            sendWebSocketNotification("NEW_CERTIFICATE");
         } catch (SQLException e) {
             LOGGER.severe("❌ Ошибка сохранения справки: " + e.getMessage());
             e.printStackTrace();
@@ -714,6 +718,9 @@ public class DatabaseService {
             stmt.setString(2, message);
             stmt.executeUpdate();
         }
+
+        // ОТПРАВЛЯЕМ WEB SOCKET УВЕДОМЛЕНИЕ
+        sendWebSocketNotification("NEW_JOIN_REQUEST");
     }
 
     /**
@@ -795,6 +802,9 @@ public class DatabaseService {
             }
             int rows = stmt.executeUpdate();
             LOGGER.info("✅ Квитанция сохранена для child_id=" + childId + ", month=" + monthYear + ", rows=" + rows);
+
+            // ОТПРАВЛЯЕМ WEB SOCKET УВЕДОМЛЕНИЕ
+            sendWebSocketNotification("NEW_PAYMENT_RECEIPT");
         } catch (SQLException e) {
             LOGGER.severe("❌ Ошибка сохранения квитанции: " + e.getMessage());
             e.printStackTrace();
@@ -838,6 +848,25 @@ public class DatabaseService {
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * Отправляет WebSocket уведомление об обновлении данных.
+     */
+    private void sendWebSocketNotification(String eventType) {
+        try {
+            // Пытаемся получить сервис из Spring контекста
+            Object wsService = SpringContextHolder.getBean("wsNotificationService");
+            if (wsService != null) {
+                // Используем рефлексию для вызова метода
+                java.lang.reflect.Method method = wsService.getClass().getMethod("sendUpdateNotification", String.class);
+                method.invoke(wsService, eventType);
+                LOGGER.info("✅ WebSocket уведомление отправлено: " + eventType);
+            }
+        } catch (Exception e) {
+            // Если Spring еще не инициализирован (при запуске бота), просто логируем
+            LOGGER.fine("WebSocket уведомление не отправлено (Spring не инициализирован): " + e.getMessage());
         }
     }
 
