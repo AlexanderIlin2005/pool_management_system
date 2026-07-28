@@ -41,12 +41,12 @@
       <a th:if="${role.name() == 'ADMIN' or role.name() == 'COACH'}"
          th:href="@{/children/skill/edit/{id}(id=${profile.childId}, returnUrl=${currentUri})}"
          class="btn" style="background-color: #ffc107; color: black; padding: 5px 15px; font-size: 0.8em;">
-        ✏️ Изменить навык
+        Изменить навык
       </a>
     </div>
 
     <!-- Группы -->
-    <h3>📚 Группы</h3>
+    <h3>Группы</h3>
     <div th:if="${#lists.isEmpty(profile.groups)}" style="color: #999; padding: 10px;">Ребенок не состоит в группах</div>
     <div th:unless="${#lists.isEmpty(profile.groups)}" style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 30px;">
       <div th:each="group : ${profile.groups}" style="background: #e7f3ff; border: 1px solid #b6d4fe; border-radius: 8px; padding: 15px; min-width: 200px; flex: 1;">
@@ -64,7 +64,7 @@
     </div>
 
     <!-- Справки -->
-    <h3>📄 Справки</h3>
+    <h3>Справки</h3>
     <div th:if="${#lists.isEmpty(profile.certificates)}" style="color: #999; padding: 10px;">Нет загруженных справок</div>
     <div th:unless="${#lists.isEmpty(profile.certificates)}" style="overflow-x: auto; margin-bottom: 30px;">
       <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
@@ -102,7 +102,7 @@
     </div>
 
     <!-- Посещаемость -->
-    <h3>📊 Посещаемость (последние 3 месяца)</h3>
+    <h3>Посещаемость (последние 3 месяца)</h3>
     <div th:if="${#maps.isEmpty(profile.attendance)}" style="color: #999; padding: 10px;">Нет данных о посещаемости</div>
     <div th:unless="${#maps.isEmpty(profile.attendance)}" style="overflow-x: auto; margin-bottom: 30px;">
       <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
@@ -120,10 +120,10 @@
           <td th:each="groupName : ${profile.attendance.values().iterator().next().keySet()}"
               style="padding: 8px; border: 1px solid #ddd; text-align: center;">
               <span th:with="status=${entry.value.get(groupName)}">
-                <span th:if="${status == 'PRESENT'}" style="color: green;">✅</span>
-                <span th:if="${status == 'ABSENT'}" style="color: red;">❌</span>
-                <span th:if="${status == 'SICK'}" style="color: orange;">🏥</span>
-                <span th:if="${status == 'EXCUSED'}" style="color: blue;">📝</span>
+                <span th:if="${status == 'PRESENT'}" style="color: green;">П</span>
+                <span th:if="${status == 'ABSENT'}" style="color: red;">О</span>
+                <span th:if="${status == 'SICK'}" style="color: orange;">Б</span>
+                <span th:if="${status == 'EXCUSED'}" style="color: blue;">У</span>
                 <span th:unless="${status == 'PRESENT' or status == 'ABSENT' or status == 'SICK' or status == 'EXCUSED'}" style="color: #ccc;">-</span>
               </span>
           </td>
@@ -151,10 +151,10 @@
         <tr th:each="entry : ${profile.payments}">
           <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;" th:text="${#temporals.format(entry.key, 'MM.yyyy')}"></td>
           <td style="padding: 8px; border: 1px solid #ddd;">
-            <span th:if="${entry.value.isPaid}" style="color: green;">✅ Оплачено</span>
+            <span th:if="${entry.value.isPaid}" style="color: green;">Оплачено</span>
             <span th:unless="${entry.value.isPaid}">
-                <span th:if="${entry.value.status == 'PENDING'}" style="color: orange;">⏳ На проверке</span>
-                <span th:if="${entry.value.status == 'REJECTED'}" style="color: red;">❌ Отклонено</span>
+                <span th:if="${entry.value.status == 'PENDING'}" style="color: orange;">В ожидании</span>
+                <span th:if="${entry.value.status == 'REJECTED'}" style="color: red;">Отклонено</span>
                 <span th:if="${entry.value.status == 'NOT_GENERATED'}" style="color: #ccc;">-</span>
               </span>
           </td>
