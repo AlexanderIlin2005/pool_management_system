@@ -54,7 +54,7 @@ public class ChildProfileService {
         // 3. Справки ребенка
         profile.setCertificates(getChildCertificates(childId));
 
-        // 4. Посещаемость по месяцам
+        // 4. Посещаемость по группам
         profile.setAttendance(getChildAttendance(childId));
 
         // 5. Оплаты по месяцам
@@ -155,31 +155,33 @@ public class ChildProfileService {
         return certificates;
     }
 
-    private Map<LocalDate, Map<String, String>> getChildAttendance(Long childId) {
+    private Map<String, Map<LocalDate, String>> getChildAttendance(Long childId) {
         // Получаем последние 3 месяца
         LocalDate now = LocalDate.now();
         LocalDate threeMonthsAgo = now.minusMonths(3);
 
-        String sql = "SELECT pl.lesson_date, g.name as group_name, a.status " +
+        String sql = "SELECT pl.lesson_date, g.name as group_name, g.id as group_id, a.status " +
                 "FROM pool.attendance a " +
                 "JOIN pool.pool_lessons pl ON a.lesson_id = pl.id " +
                 "JOIN pool.groups g ON pl.group_id = g.id " +
                 "WHERE a.child_id = ? AND pl.lesson_date >= ? " +
-                "ORDER BY pl.lesson_date DESC, g.name";
+                "ORDER BY g.name, pl.lesson_date DESC";
 
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, childId, java.sql.Date.valueOf(threeMonthsAgo));
 
-        Map<LocalDate, Map<String, String>> attendance = new LinkedHashMap<>();
+        // Структура: группа -> дата -> статус
+        Map<String, Map<LocalDate, String>> attendanceByGroup = new LinkedHashMap<>();
+
         for (Map<String, Object> row : rows) {
-            LocalDate date = ((java.sql.Date) row.get("lesson_date")).toLocalDate();
             String groupName = (String) row.get("group_name");
+            LocalDate date = ((java.sql.Date) row.get("lesson_date")).toLocalDate();
             String status = (String) row.get("status");
 
-            attendance.computeIfAbsent(date, k -> new LinkedHashMap<>())
-                    .put(groupName, status != null ? status : "Нет данных");
+            attendanceByGroup.computeIfAbsent(groupName, k -> new LinkedHashMap<>())
+                    .put(date, status != null ? status : "Нет данных");
         }
 
-        return attendance;
+        return attendanceByGroup;
     }
 
     private Map<LocalDate, ChildProfileDto.PaymentInfo> getChildPayments(Long childId) {

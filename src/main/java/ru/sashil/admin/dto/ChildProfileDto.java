@@ -36,8 +36,8 @@ public class ChildProfileDto {
     // Справки ребенка
     private List<CertificateInfo> certificates;
 
-    // Посещаемость по месяцам
-    private Map<LocalDate, Map<String, String>> attendance; // дата -> (группа -> статус)
+    // Посещаемость по группам: группа -> (дата -> статус)
+    private Map<String, Map<LocalDate, String>> attendance;
 
     // Оплаты по месяцам
     private Map<LocalDate, PaymentInfo> payments;

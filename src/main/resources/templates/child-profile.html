@@ -104,32 +104,40 @@
     <!-- Посещаемость -->
     <h3>Посещаемость (последние 3 месяца)</h3>
     <div th:if="${#maps.isEmpty(profile.attendance)}" style="color: #999; padding: 10px;">Нет данных о посещаемости</div>
-    <div th:unless="${#maps.isEmpty(profile.attendance)}" style="overflow-x: auto; margin-bottom: 30px;">
-      <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
-        <thead>
-        <tr style="background: #f8f9fa;">
-          <th style="padding: 8px; border: 1px solid #ddd;">Дата</th>
-          <th th:each="groupName : ${profile.attendance.values().iterator().next().keySet()}"
-              style="padding: 8px; border: 1px solid #ddd; text-align: center;"
-              th:text="${groupName}"></th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr th:each="entry : ${profile.attendance}">
-          <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;" th:text="${#temporals.format(entry.key, 'dd.MM.yyyy')}"></td>
-          <td th:each="groupName : ${profile.attendance.values().iterator().next().keySet()}"
-              style="padding: 8px; border: 1px solid #ddd; text-align: center;">
-              <span th:with="status=${entry.value.get(groupName)}">
-                <span th:if="${status == 'PRESENT'}" style="color: green;">П</span>
-                <span th:if="${status == 'ABSENT'}" style="color: red;">О</span>
-                <span th:if="${status == 'SICK'}" style="color: orange;">Б</span>
-                <span th:if="${status == 'EXCUSED'}" style="color: blue;">У</span>
-                <span th:unless="${status == 'PRESENT' or status == 'ABSENT' or status == 'SICK' or status == 'EXCUSED'}" style="color: #ccc;">-</span>
-              </span>
-          </td>
-        </tr>
-        </tbody>
-      </table>
+    <div th:unless="${#maps.isEmpty(profile.attendance)}">
+      <!-- Для каждой группы отдельная таблица -->
+      <div th:each="entry : ${profile.attendance}" style="margin-bottom: 25px;">
+        <h4 style="color: #0d6efd; margin-bottom: 10px;" th:text="'Группа: ' + ${entry.key}"></h4>
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+            <thead>
+            <tr style="background: #f8f9fa;">
+              <th style="padding: 8px; border: 1px solid #ddd; min-width: 100px;">Дата</th>
+              <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Статус</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="attendanceEntry : ${entry.value}">
+              <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;"
+                  th:text="${#temporals.format(attendanceEntry.key, 'dd.MM.yyyy (EEEE)')}"></td>
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+                        <span th:with="status=${attendanceEntry.value}">
+                            <span th:if="${status == 'PRESENT'}" style="color: green; font-weight: bold;">П</span>
+                            <span th:if="${status == 'ABSENT'}" style="color: red; font-weight: bold;">О</span>
+                            <span th:if="${status == 'SICK'}" style="color: orange; font-weight: bold;">Б</span>
+                            <span th:if="${status == 'EXCUSED'}" style="color: blue; font-weight: bold;">У</span>
+                            <span th:unless="${status == 'PRESENT' or status == 'ABSENT' or status == 'SICK' or status == 'EXCUSED'}"
+                                  style="color: #ccc;">-</span>
+                        </span>
+              </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(entry.value)}">
+              <td colspan="2" style="padding: 8px; text-align: center; color: #999;">Нет занятий за этот период</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- Оплаты -->
