@@ -118,7 +118,7 @@
     <div th:unless="${#maps.isEmpty(profile.attendance)}">
       <!-- Для каждой группы отдельная таблица -->
       <div th:each="entry : ${profile.attendance}" style="margin-bottom: 25px;">
-        <h4 style="color: #0d6efd; margin-bottom: 8px;" th:text="'📊 Группа: ' + ${entry.key}"></h4>
+        <h4 style="color: #0d6efd; margin-bottom: 8px;" th:text="'Группа: ' + ${entry.key}"></h4>
         <div style="overflow-x: auto;">
           <table style="width: 100%; border-collapse: collapse; font-size: 0.85em; border: 1px solid #ddd;">
             <thead>
