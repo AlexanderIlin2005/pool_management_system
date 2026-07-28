@@ -33,6 +33,7 @@
         <p><strong>Родитель:</strong> <span th:text="${profile.parentName}"></span></p>
         <p th:if="${profile.parentVkId != null}"><strong>VK ID:</strong> <span th:text="${profile.parentVkId}"></span></p>
         <p th:if="${profile.parentEmail != null}"><strong>Email:</strong> <span th:text="${profile.parentEmail}"></span></p>
+        <p th:if="${profile.parentPhone != null}"><strong>Телефон:</strong> <span th:text="${profile.parentPhone}"></span></p>
       </div>
     </div>
 

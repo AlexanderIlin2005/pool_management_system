@@ -46,6 +46,7 @@ public class ChildProfileService {
             profile.setParentName(child.getParent().getLastName() + " " + child.getParent().getFirstName());
             profile.setParentVkId(child.getParent().getVkId());
             profile.setParentEmail(child.getParent().getEmail());
+            profile.setParentPhone(child.getParent().getPhone());  // ДОБАВЛЯЕМ
         }
 
         // 2. Группы, в которых состоит ребенок

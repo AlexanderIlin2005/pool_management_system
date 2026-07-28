@@ -28,6 +28,9 @@ public class Parent {
     @Column(name = "email")
     private String email;
 
+    @Column(name = "phone")  // ДОБАВЛЯЕМ
+    private String phone;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS pool.parents (
     middle_name VARCHAR(100), -- Отчество
     email VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    phone VARCHAR(20),
+    notify_regular BOOLEAN DEFAULT TRUE
 );
 
 -- Таблица детей
