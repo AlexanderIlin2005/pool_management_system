@@ -551,5 +551,27 @@ public class GroupController {
     }
 
 
+    @GetMapping("/{id}/members-view")
+    public String viewMembers(@PathVariable Long id, Model model, HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return "redirect:/login";
+
+        Optional<Group> groupOpt = groupService.getGroupById(id);
+        if (groupOpt.isEmpty()) return "redirect:/groups";
+
+        Group group = groupOpt.get();
+        int currentCount = memberService.getMemberCount(id);
+
+        model.addAttribute("fullName", user.getFullName());
+        model.addAttribute("role", user.getRole());
+        model.addAttribute("activePage", "groups");
+        model.addAttribute("group", group);
+        model.addAttribute("currentCount", currentCount);
+        model.addAttribute("members", memberService.getGroupMembers(id));
+
+        return "group-members-view";
+    }
+
+
 
 }
