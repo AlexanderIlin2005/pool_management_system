@@ -58,18 +58,18 @@
                 </td>
                 <td style="padding: 12px; border: 1px solid #ddd; display: flex; gap: 5px; flex-wrap: wrap;">
                     <!-- Кнопка "Редактировать" (только для админа) -->
-                    <a th:if="${role.name() == 'ADMIN'}" th:href="@{/groups/edit/{id}(id=${g.id})}" class="btn" style="padding: 5px 10px; font-size: 0.8em; background-color: #ffc107; color: black;">✏️ Редактировать</a>
+                    <a th:if="${role.name() == 'ADMIN'}" th:href="@{/groups/edit/{id}(id=${g.id})}" class="btn" style="padding: 5px 10px; font-size: 0.8em; background-color: #ffc107; color: black;">Редактировать</a>
 
                     <!-- Кнопка "Изменить состав" (только для админа) -->
-                    <a th:if="${role.name() == 'ADMIN'}" th:href="@{/groups/{id}/members(id=${g.id})}" class="btn" style="padding: 5px 10px; font-size: 0.8em; background-color: #28a745;">👥 Изменить состав</a>
+                    <a th:if="${role.name() == 'ADMIN'}" th:href="@{/groups/{id}/members(id=${g.id})}" class="btn" style="padding: 5px 10px; font-size: 0.8em; background-color: #28a745;">Изменить состав</a>
 
                     <!-- Кнопка "Посещаемость" для всех -->
-                    <a th:href="@{/groups/{id}/attendance(id=${g.id})}" class="btn" style="padding: 5px 10px; font-size: 0.8em; background-color: #17a2b8;">📊 Посещаемость</a>
+                    <a th:href="@{/groups/{id}/attendance(id=${g.id})}" class="btn" style="padding: 5px 10px; font-size: 0.8em; background-color: #17a2b8;">Посещаемость</a>
 
                     <!-- Кнопка "Удалить" (только для админа) -->
                     <form th:if="${role.name() == 'ADMIN'}" th:action="@{/groups/delete/{id}(id=${g.id})}" method="post" class="delete-group-form">
                         <input type="hidden" name="groupName" th:value="${g.name}">
-                        <button type="submit" class="btn btn-danger" style="padding: 5px 10px; font-size: 0.8em;">🗑 Удалить</button>
+                        <button type="submit" class="btn btn-danger" style="padding: 5px 10px; font-size: 0.8em;">Удалить</button>
                     </form>
                 </td>
             </tr>
