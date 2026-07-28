@@ -35,7 +35,7 @@
             <tbody>
             <tr th:each="member : ${members}">
                 <td style="padding: 12px; border: 1px solid #ddd;">
-                    <a th:href="@{/children/skill/edit/{id}(id=${member.id})}"
+                    <a th:href="@{/children/profile/{id}(id=${member.id})}"
                        th:text="${member.last_name} + ' ' + ${member.first_name}"
                        style="color: #007bff; text-decoration: none;"></a>
                 </td>

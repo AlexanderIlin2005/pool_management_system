@@ -38,7 +38,7 @@
 
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <span th:if="${parent.child1 != null and parent.child1 != '-' and parent.child1 != ''}">
-                        <a th:href="@{/children/skill/edit/{id}(id=${parent.child1Id}, returnUrl=${currentUri})}"
+                        <a th:href="@{/children/profile/{id}(id=${parent.child1Id})}"
                            th:text="${parent.child1}"
                            style="color: #007bff; text-decoration: none;"></a>
                     </span>
@@ -48,7 +48,7 @@
 
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <span th:if="${parent.child2 != null and parent.child2 != '-' and parent.child2 != ''}">
-                        <a th:href="@{/children/skill/edit/{id}(id=${parent.child2Id}, returnUrl=${currentUri})}"
+                        <a th:href="@{/children/profile/{id}(id=${parent.child2Id})}"
                            th:text="${parent.child2}"
                            style="color: #007bff; text-decoration: none;"></a>
                     </span>
@@ -58,7 +58,7 @@
 
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <span th:if="${parent.child3 != null and parent.child3 != '-' and parent.child3 != ''}">
-                        <a th:href="@{/children/skill/edit/{id}(id=${parent.child3Id}, returnUrl=${currentUri})}"
+                        <a th:href="@{/children/profile/{id}(id=${parent.child3Id})}"
                            th:text="${parent.child3}"
                            style="color: #007bff; text-decoration: none;"></a>
                     </span>

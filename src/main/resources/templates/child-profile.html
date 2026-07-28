@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Профиль ребенка', ~{::content})}">
+<body>
+<div th:fragment="content">
+  <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto;">
+
+    <!-- Заголовок -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h1>
+        <span th:text="${profile.lastName} + ' ' + ${profile.firstName}"></span>
+        <span style="font-size: 0.7em; color: #6c757d; font-weight: normal;">
+          (<span th:text="${profile.age}"></span> лет)
+        </span>
+      </h1>
+      <a href="/parents" class="btn" style="background-color: #6c757d;">← Назад</a>
+    </div>
+
+    <!-- Блок информации о ребенке -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; background: #f8f9fa; padding: 20px; border-radius: 8px;">
+      <div>
+        <p><strong>ФИО:</strong> <span th:text="${profile.lastName} + ' ' + ${profile.firstName} + ' ' + ${profile.middleName}"></span></p>
+        <p><strong>Дата рождения:</strong> <span th:text="${#temporals.format(profile.birthDate, 'dd.MM.yyyy')}"></span></p>
+        <p><strong>Возраст:</strong> <span th:text="${profile.age}"></span> лет</p>
+        <p><strong>Класс:</strong> <span th:text="${profile.gradeNumber} + ' (' + ${profile.gradeName} + ')'"></span></p>
+        <p><strong>Навык плавания:</strong>
+          <span th:text="${profile.skill != null ? profile.skill.dbValue : 'не указан'}"
+                th:style="${profile.skill != null and profile.skill.dbValue == 'уверенно плавает'} ? 'color: green; font-weight: bold;' :
+                           (${profile.skill != null and profile.skill.dbValue == 'держится на воде'} ? 'color: orange; font-weight: bold;' : 'color: red; font-weight: bold;')">
+          </span>
+        </p>
+      </div>
+      <div>
+        <p><strong>Родитель:</strong> <span th:text="${profile.parentName}"></span></p>
+        <p th:if="${profile.parentVkId != null}"><strong>VK ID:</strong> <span th:text="${profile.parentVkId}"></span></p>
+        <p th:if="${profile.parentEmail != null}"><strong>Email:</strong> <span th:text="${profile.parentEmail}"></span></p>
+      </div>
+    </div>
+
+    <!-- Кнопка изменения навыка -->
+    <div style="margin-top: -10px; margin-bottom: 20px;">
+      <a th:if="${role.name() == 'ADMIN' or role.name() == 'COACH'}"
+         th:href="@{/children/skill/edit/{id}(id=${profile.childId}, returnUrl=${currentUri})}"
+         class="btn" style="background-color: #ffc107; color: black; padding: 5px 15px; font-size: 0.8em;">
+        ✏️ Изменить навык
+      </a>
+    </div>
+
+    <!-- Группы -->
+    <h3>📚 Группы</h3>
+    <div th:if="${#lists.isEmpty(profile.groups)}" style="color: #999; padding: 10px;">Ребенок не состоит в группах</div>
+    <div th:unless="${#lists.isEmpty(profile.groups)}" style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 30px;">
+      <div th:each="group : ${profile.groups}" style="background: #e7f3ff; border: 1px solid #b6d4fe; border-radius: 8px; padding: 15px; min-width: 200px; flex: 1;">
+        <div style="font-weight: bold; color: #0d6efd;" th:text="${group.groupName}"></div>
+        <div style="font-size: 0.9em; color: #6c757d;">
+          №<span th:text="${group.groupNumber}"></span>
+          <span th:text="' | ' + ${group.poolName}"></span>
+        </div>
+        <div style="font-size: 0.85em; color: #6c757d;">Тренер: <span th:text="${group.trainerName}"></span></div>
+        <div style="font-size: 0.85em; color: #6c757d;">Расписание: <span th:text="${group.schedule}"></span></div>
+        <div style="margin-top: 8px;">
+          <a th:href="@{/groups/{id}/attendance(id=${group.groupId})}" class="btn" style="padding: 2px 8px; font-size: 0.7em; background-color: #17a2b8;">Посещаемость группы</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Справки -->
+    <h3>📄 Справки</h3>
+    <div th:if="${#lists.isEmpty(profile.certificates)}" style="color: #999; padding: 10px;">Нет загруженных справок</div>
+    <div th:unless="${#lists.isEmpty(profile.certificates)}" style="overflow-x: auto; margin-bottom: 30px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+        <thead>
+        <tr style="background: #f8f9fa;">
+          <th style="padding: 8px; border: 1px solid #ddd;">Дата загрузки</th>
+          <th style="padding: 8px; border: 1px solid #ddd;">Статус</th>
+          <th style="padding: 8px; border: 1px solid #ddd;">Даты действия</th>
+          <th style="padding: 8px; border: 1px solid #ddd;">Кем обработана</th>
+          <th style="padding: 8px; border: 1px solid #ddd;">Комментарий</th>
+          <th style="padding: 8px; border: 1px solid #ddd;">Файл</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="cert : ${profile.certificates}" style="border-bottom: 1px solid #eee;">
+          <td style="padding: 8px; border: 1px solid #ddd;" th:text="${#temporals.format(cert.uploadedAt, 'dd.MM.yyyy HH:mm')}"></td>
+          <td style="padding: 8px; border: 1px solid #ddd;">
+            <span th:if="${cert.status == 'PENDING'}" style="color: orange;">Новая</span>
+            <span th:if="${cert.status == 'APPROVED_SICK'}" style="color: green;">Больничный</span>
+            <span th:if="${cert.status == 'APPROVED_EXCUSED'}" style="color: blue;">Уважительная</span>
+            <span th:if="${cert.status == 'REJECTED'}" style="color: red;">Отклонена</span>
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd;">
+            <span th:if="${cert.dateFrom != null}" th:text="${#temporals.format(cert.dateFrom, 'dd.MM.yyyy')} + ' - ' + ${#temporals.format(cert.dateTo, 'dd.MM.yyyy')}"></span>
+            <span th:unless="${cert.dateFrom != null}">-</span>
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd;" th:text="${cert.processedByName}"></td>
+          <td style="padding: 8px; border: 1px solid #ddd;" th:text="${cert.comment != null ? cert.comment : '-'}"></td>
+          <td style="padding: 8px; border: 1px solid #ddd;">
+            <a th:href="${cert.fileUrl}" target="_blank" class="btn" style="padding: 2px 8px; font-size: 0.7em; background-color: #17a2b8;">Открыть</a>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Посещаемость -->
+    <h3>📊 Посещаемость (последние 3 месяца)</h3>
+    <div th:if="${#maps.isEmpty(profile.attendance)}" style="color: #999; padding: 10px;">Нет данных о посещаемости</div>
+    <div th:unless="${#maps.isEmpty(profile.attendance)}" style="overflow-x: auto; margin-bottom: 30px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+        <thead>
+        <tr style="background: #f8f9fa;">
+          <th style="padding: 8px; border: 1px solid #ddd;">Дата</th>
+          <th th:each="groupName : ${profile.attendance.values().iterator().next().keySet()}"
+              style="padding: 8px; border: 1px solid #ddd; text-align: center;"
+              th:text="${groupName}"></th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="entry : ${profile.attendance}">
+          <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;" th:text="${#temporals.format(entry.key, 'dd.MM.yyyy')}"></td>
+          <td th:each="groupName : ${profile.attendance.values().iterator().next().keySet()}"
+              style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+              <span th:with="status=${entry.value.get(groupName)}">
+                <span th:if="${status == 'PRESENT'}" style="color: green;">✅</span>
+                <span th:if="${status == 'ABSENT'}" style="color: red;">❌</span>
+                <span th:if="${status == 'SICK'}" style="color: orange;">🏥</span>
+                <span th:if="${status == 'EXCUSED'}" style="color: blue;">📝</span>
+                <span th:unless="${status == 'PRESENT' or status == 'ABSENT' or status == 'SICK' or status == 'EXCUSED'}" style="color: #ccc;">-</span>
+              </span>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Оплаты -->
+    <h3>💰 Оплата абонементов</h3>
+    <div th:if="${#maps.isEmpty(profile.payments)}" style="color: #999; padding: 10px;">Нет данных об оплате</div>
+    <div th:unless="${#maps.isEmpty(profile.payments)}" style="overflow-x: auto; margin-bottom: 30px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+        <thead>
+        <tr style="background: #f8f9fa;">
+          <th style="padding: 8px; border: 1px solid #ddd;">Месяц</th>
+          <th style="padding: 8px; border: 1px solid #ddd;">Статус</th>
+          <th style="padding: 8px; border: 1px solid #ddd;">Сумма</th>
+          <th style="padding: 8px; border: 1px solid #ddd;">Кем подтверждена</th>
+          <th style="padding: 8px; border: 1px solid #ddd;">Комментарий</th>
+          <th style="padding: 8px; border: 1px solid #ddd;">Квитанция</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="entry : ${profile.payments}">
+          <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;" th:text="${#temporals.format(entry.key, 'MM.yyyy')}"></td>
+          <td style="padding: 8px; border: 1px solid #ddd;">
+            <span th:if="${entry.value.isPaid}" style="color: green;">✅ Оплачено</span>
+            <span th:unless="${entry.value.isPaid}">
+                <span th:if="${entry.value.status == 'PENDING'}" style="color: orange;">⏳ На проверке</span>
+                <span th:if="${entry.value.status == 'REJECTED'}" style="color: red;">❌ Отклонено</span>
+                <span th:if="${entry.value.status == 'NOT_GENERATED'}" style="color: #ccc;">-</span>
+              </span>
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd;" th:text="${entry.value.amount} + ' ₽'"></td>
+          <td style="padding: 8px; border: 1px solid #ddd;" th:text="${entry.value.verifiedByName}"></td>
+          <td style="padding: 8px; border: 1px solid #ddd;" th:text="${entry.value.comment != null ? entry.value.comment : '-'}"></td>
+          <td style="padding: 8px; border: 1px solid #ddd;">
+            <a th:if="${entry.value.receiptFileUrl != null}" th:href="${entry.value.receiptFileUrl}" target="_blank" class="btn" style="padding: 2px 8px; font-size: 0.7em; background-color: #17a2b8;">Открыть</a>
+            <span th:unless="${entry.value.receiptFileUrl != null}" style="color: #ccc;">Нет</span>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>
