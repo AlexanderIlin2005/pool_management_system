@@ -103,6 +103,15 @@
 
     <!-- Посещаемость -->
     <h3>Посещаемость (последние 3 месяца)</h3>
+
+    <div style="margin-top: 20px; font-size: 0.8em; color: #666;">
+      <strong>Легенда:</strong>
+      <span style="color: green; font-weight: bold;">П</span> - Присутствует,
+      <span style="color: red;">О</span> - Отсутствует,
+      <span style="color: orange;">Б</span> - Болеет,
+      <span style="color: blue;">У</span> - Уважительная причина.
+    </div>
+
     <div th:if="${#maps.isEmpty(profile.attendance)}" style="color: #999; padding: 10px;">Нет данных о посещаемости</div>
     <div th:unless="${#maps.isEmpty(profile.attendance)}">
       <!-- Для каждой группы отдельная таблица -->
