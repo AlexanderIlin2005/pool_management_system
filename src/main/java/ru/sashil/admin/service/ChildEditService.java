@@ -159,7 +159,7 @@ public class ChildEditService {
      */
     private String buildNotificationMessage(ChildEditDto oldData, ChildEditDto newData) {
         StringBuilder sb = new StringBuilder();
-        sb.append("📝 Данные вашего ребенка были обновлены администратором:\n\n");
+        sb.append("Данные вашего ребенка были обновлены администратором:\n\n");
 
         boolean hasChanges = false;
 
@@ -195,19 +195,19 @@ public class ChildEditService {
 
         // Проверяем изменения родителя
         if (!oldData.getParentLastName().equals(newData.getParentLastName())) {
-            sb.append("• Фамилия родителя: ").append(oldData.getParentLastName()).append(" → ").append(newData.getParentLastName()).append("\n");
+            sb.append("• Ваша фамилия: ").append(oldData.getParentLastName()).append(" → ").append(newData.getParentLastName()).append("\n");
             hasChanges = true;
         }
         if (!oldData.getParentFirstName().equals(newData.getParentFirstName())) {
-            sb.append("• Имя родителя: ").append(oldData.getParentFirstName()).append(" → ").append(newData.getParentFirstName()).append("\n");
+            sb.append("• Ваше имя: ").append(oldData.getParentFirstName()).append(" → ").append(newData.getParentFirstName()).append("\n");
             hasChanges = true;
         }
         if (!safeEquals(oldData.getParentEmail(), newData.getParentEmail())) {
-            sb.append("• Email: ").append(nullToDash(oldData.getParentEmail())).append(" → ").append(nullToDash(newData.getParentEmail())).append("\n");
+            sb.append("• Ваш email: ").append(nullToDash(oldData.getParentEmail())).append(" → ").append(nullToDash(newData.getParentEmail())).append("\n");
             hasChanges = true;
         }
         if (!safeEquals(oldData.getParentPhone(), newData.getParentPhone())) {
-            sb.append("• Телефон: ").append(nullToDash(oldData.getParentPhone())).append(" → ").append(nullToDash(newData.getParentPhone())).append("\n");
+            sb.append("• Ваш телефон: ").append(nullToDash(oldData.getParentPhone())).append(" → ").append(nullToDash(newData.getParentPhone())).append("\n");
             hasChanges = true;
         }
 

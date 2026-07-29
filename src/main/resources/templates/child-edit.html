@@ -6,10 +6,10 @@
     <h1>Редактирование данных ребенка</h1>
 
     <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-      ✅ Данные ребенка успешно обновлены! Родитель получит уведомление.
+      Данные ребенка успешно обновлены! Родитель получит уведомление.
     </div>
     <div th:if="${param.error}" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-      ❌ Ошибка при обновлении данных. Попробуйте снова.
+      Ошибка при обновлении данных. Попробуйте снова.
     </div>
 
     <form th:action="@{/children/edit/update}" th:object="${child}" method="post">
@@ -85,12 +85,12 @@
 
       <div style="background: #e7f3ff; border: 1px solid #b6d4fe; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
         <p style="margin: 0; color: #084298;">
-          ⚠️ После сохранения родитель получит уведомление об изменениях через VK бота.
+          После сохранения родитель получит уведомление об изменениях через VK бота.
         </p>
       </div>
 
       <div style="display: flex; gap: 10px;">
-        <button type="submit" class="btn">💾 Сохранить изменения</button>
+        <button type="submit" class="btn">Сохранить изменения</button>
         <a th:href="@{/children/profile/{id}(id=${child.childId})}" class="btn" style="background-color: #6c757d;">← Отмена</a>
       </div>
     </form>
