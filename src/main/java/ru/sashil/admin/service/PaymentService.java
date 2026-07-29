@@ -84,11 +84,21 @@ public class PaymentService {
         setting.setUpdatedBy(actor);
         settingRepository.save(setting);
 
+        // Обновляем все PENDING платежи на новую сумму
+        int updatedCount = updatePendingPaymentsAmount(amount);
+
         // Логируем изменение
         auditLogService.log("DEFAULT_PAYMENT_AMOUNT_CHANGED", actor,
-                "Изменена базовая сумма оплаты: " + oldAmount + " ₽ → " + amount + " ₽");
+                "Изменена базовая сумма оплаты: " + oldAmount + " ₽ → " + amount + " ₽" +
+                        ". Обновлено PENDING платежей: " + updatedCount);
 
         wsNotificationService.sendUpdateNotification("DEFAULT_AMOUNT_UPDATED");
+    }
+
+    @Transactional
+    public int updatePendingPaymentsAmount(BigDecimal newAmount) {
+        String sql = "UPDATE pool.payments SET amount = ? WHERE status = 'PENDING' AND is_paid = false";
+        return jdbcTemplate.update(sql, newAmount);
     }
 
     /**
