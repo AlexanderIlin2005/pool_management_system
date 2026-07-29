@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Редактирование ребенка', ~{::content})}">
+<body>
+<div th:fragment="content">
+  <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 700px; margin: 0 auto;">
+    <h1>Редактирование данных ребенка</h1>
+
+    <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+      ✅ Данные ребенка успешно обновлены! Родитель получит уведомление.
+    </div>
+    <div th:if="${param.error}" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+      ❌ Ошибка при обновлении данных. Попробуйте снова.
+    </div>
+
+    <form th:action="@{/children/edit/update}" th:object="${child}" method="post">
+      <input type="hidden" th:field="*{childId}" />
+      <input type="hidden" th:field="*{parentId}" />
+
+      <h3>Данные ребенка</h3>
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0 20px 0;">
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div>
+          <label>Фамилия:</label>
+          <input type="text" th:field="*{lastName}" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <div>
+          <label>Имя:</label>
+          <input type="text" th:field="*{firstName}" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <div>
+          <label>Отчество:</label>
+          <input type="text" th:field="*{middleName}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div>
+          <label>Дата рождения:</label>
+          <input type="date" th:value="${#temporals.format(child.birthDate, 'yyyy-MM-dd')}" name="birthDate" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          <!-- Используем th:value вместо th:field для правильного форматирования -->
+        </div>
+        <div>
+          <label>Номер класса:</label>
+          <input type="number" th:field="*{gradeNumber}" min="1" max="11" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label>Название класса:</label>
+        <input type="text" th:field="*{gradeName}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label>Навык плавания:</label>
+        <select th:field="*{skill}" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          <option th:each="skill : ${skills}" th:value="${skill}" th:text="${skill}"></option>
+        </select>
+      </div>
+
+      <h3>Данные родителя</h3>
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0 20px 0;">
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div>
+          <label>Фамилия родителя:</label>
+          <input type="text" th:field="*{parentLastName}" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <div>
+          <label>Имя родителя:</label>
+          <input type="text" th:field="*{parentFirstName}" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+        <div>
+          <label>Email:</label>
+          <input type="email" th:field="*{parentEmail}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <div>
+          <label>Телефон:</label>
+          <input type="text" th:field="*{parentPhone}" placeholder="+7XXXXXXXXXX" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+      </div>
+
+      <div style="background: #e7f3ff; border: 1px solid #b6d4fe; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <p style="margin: 0; color: #084298;">
+          ⚠️ После сохранения родитель получит уведомление об изменениях через VK бота.
+        </p>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button type="submit" class="btn">💾 Сохранить изменения</button>
+        <a th:href="@{/children/profile/{id}(id=${child.childId})}" class="btn" style="background-color: #6c757d;">← Отмена</a>
+      </div>
+    </form>
+  </div>
+</div>
+</body>
+</html>

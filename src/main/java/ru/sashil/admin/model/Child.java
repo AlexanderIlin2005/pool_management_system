@@ -39,7 +39,7 @@ public class Child {
     private String gradeName;
 
 
-    //@Enumerated(EnumType.STRING)
+
     @Column(name = "skill", nullable = false)
     @Convert(converter = SwimmingSkill.SwimmingSkillConverter.class)
     private SwimmingSkill skill;

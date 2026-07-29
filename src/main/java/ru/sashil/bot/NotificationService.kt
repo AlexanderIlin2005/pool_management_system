@@ -42,11 +42,32 @@ class NotificationService(
 
         sendPendingPaymentNotifications()
 
+        sendPendingChildUpdateNotifications()
+
         logger.info("Проверка уведомлений завершена.")
     }
 
 
-    // Добавляем метод:
+
+    private suspend fun sendPendingChildUpdateNotifications() {
+        val notifications = dbService.getPendingChildUpdateNotifications()
+        for (notif in notifications) {
+            val parentVkId = notif["parent_vk_id"] as Long
+            val message = notif["message_text"] as String
+            val notifId = notif["id"] as Long
+
+            try {
+                sendMessage(parentVkId, message)
+                dbService.markChildUpdateNotificationSent(notifId)
+                logger.info("Уведомление об изменении данных ребенка #$notifId отправлено родителю $parentVkId")
+            } catch (e: Exception) {
+                logger.severe("Не удалось отправить уведомление об изменении данных пользователю $parentVkId: ${e.message}")
+            }
+        }
+    }
+
+
+
     private suspend fun sendPendingPaymentNotifications() {
         val notifications = getPendingPaymentNotifications()
         for (notif in notifications) {

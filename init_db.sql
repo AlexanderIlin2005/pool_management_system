@@ -272,6 +272,20 @@ INSERT INTO pool.settings (setting_key, setting_value)
 VALUES ('DEFAULT_PAYMENT_AMOUNT', '4000.00')
 ON CONFLICT (setting_key) DO NOTHING;
 
+-- Таблица уведомлений об изменении данных ребенка
+CREATE TABLE IF NOT EXISTS pool.child_update_notifications (
+    id BIGSERIAL PRIMARY KEY,
+    parent_vk_id BIGINT NOT NULL,
+    child_id BIGINT REFERENCES pool.children(id) ON DELETE CASCADE,
+    message_text TEXT NOT NULL,
+    is_sent BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    sent_at TIMESTAMP
+);
+
+CREATE INDEX idx_child_update_notifications_pending ON pool.child_update_notifications(is_sent);
+CREATE INDEX idx_child_update_notifications_parent ON pool.child_update_notifications(parent_vk_id);
+
 -- Индексы для быстрого поиска
 CREATE INDEX idx_payments_child_month ON pool.payments(child_id, month_year);
 CREATE INDEX idx_payments_status ON pool.payments(status);

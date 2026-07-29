@@ -37,8 +37,12 @@
       </div>
     </div>
 
-    <!-- Кнопка изменения навыка -->
-    <div style="margin-top: -10px; margin-bottom: 20px;">
+    <div style="margin-top: -10px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+      <a th:if="${role.name() == 'ADMIN'}"
+         th:href="@{/children/edit/{id}(id=${profile.childId})}"
+         class="btn" style="background-color: #0d6efd; color: white; padding: 5px 15px; font-size: 0.8em;">
+        Редактировать все данные
+      </a>
       <a th:if="${role.name() == 'ADMIN' or role.name() == 'COACH'}"
          th:href="@{/children/skill/edit/{id}(id=${profile.childId}, returnUrl=${currentUri})}"
          class="btn" style="background-color: #ffc107; color: black; padding: 5px 15px; font-size: 0.8em;">

@@ -902,6 +902,33 @@ public class DatabaseService {
     }
 
 
+
+    /**
+     * Получает неотправленные уведомления об изменении данных ребенка.
+     */
+    public List<Map<String, Object>> getPendingChildUpdateNotifications() {
+        String sql = "SELECT cun.id, cun.parent_vk_id, cun.message_text " +
+                "FROM pool.child_update_notifications cun " +
+                "WHERE cun.is_sent = FALSE " +
+                "ORDER BY cun.created_at ASC";
+        return executeQuery(sql);
+    }
+
+    /**
+     * Помечает уведомление об изменении данных ребенка как отправленное.
+     */
+    public void markChildUpdateNotificationSent(long notifId) {
+        String sql = "UPDATE pool.child_update_notifications SET is_sent = TRUE, sent_at = CURRENT_TIMESTAMP WHERE id = ?";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, notifId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
     // === ВСПОМОГАТЕЛЬНЫЙ МЕТОД ===
 
     private List<Map<String, Object>> executeQuery(String sql) {
