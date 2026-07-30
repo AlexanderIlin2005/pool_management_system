@@ -8,12 +8,13 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import ru.sashil.admin.model.AdminUser;
+import ru.sashil.admin.model.Child;
+import ru.sashil.admin.repository.ChildRepository;
 import ru.sashil.admin.service.ReportService;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-
-
+import java.util.List;
 
 @Controller
 @RequestMapping("/reports")
@@ -21,6 +22,9 @@ public class ReportController {
 
     @Autowired
     private ReportService reportService;
+
+    @Autowired
+    private ChildRepository childRepository;
 
     @GetMapping
     public String reportsPage(Model model, HttpSession session) {
@@ -33,7 +37,26 @@ public class ReportController {
         return "reports";
     }
 
-    @GetMapping("/no-certificate")
+    // Новая страница предпросмотра отчета "Дети без справки"
+    @GetMapping("/no-certificate/view")
+    public String viewNoCertificateReport(Model model, HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return "redirect:/login";
+
+        List<Child> children = childRepository.findByCertificateReceivedFalse();
+
+        model.addAttribute("children", children);
+        model.addAttribute("total", children.size());
+        model.addAttribute("reportDate", LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")));
+        model.addAttribute("fullName", user.getFullName());
+        model.addAttribute("role", user.getRole());
+        model.addAttribute("activePage", "reports");
+
+        return "report-no-certificate";
+    }
+
+    // Скачивание отчета
+    @GetMapping("/no-certificate/download")
     public void downloadNoCertificateReport(HttpServletResponse response, HttpSession session) throws Exception {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) {

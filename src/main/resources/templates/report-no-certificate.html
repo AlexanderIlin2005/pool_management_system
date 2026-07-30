@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Отчет: дети без справки', ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto;">
+
+        <!-- Заголовок -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div>
+                <h1 style="margin-bottom: 5px;">Список детей без медицинской справки</h1>
+                <p style="color: #6c757d; margin: 0;">
+                    Бассейн Гимназии №642 "Земля и Вселенная"<br>
+                    Дата: <span th:text="${reportDate}"></span>
+                </p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <a href="/reports/no-certificate/download" class="btn" style="background-color: #28a745;">
+                    Скачать DOCX
+                </a>
+                <a href="/reports" class="btn" style="background-color: #6c757d;">← Назад</a>
+            </div>
+        </div>
+
+        <!-- Информация -->
+        <div style="background: #e7f3ff; border: 1px solid #b6d4fe; padding: 10px 15px; border-radius: 8px; margin-bottom: 20px;">
+            <strong>Всего детей без справки:</strong>
+            <span style="font-size: 1.2em; color: #0d6efd; font-weight: bold;" th:text="${total}"></span>
+        </div>
+
+        <!-- Таблица -->
+        <div th:if="${#lists.isEmpty(children)}" style="text-align: center; padding: 40px; color: #6c757d;">
+            <p style="font-size: 1.2em;">✅ Все дети предоставили медицинские справки!</p>
+            <p>Отличная работа!</p>
+        </div>
+
+        <div th:unless="${#lists.isEmpty(children)}" style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                <thead>
+                <tr style="background: #f8f9fa; text-align: left;">
+                    <th style="padding: 12px; border: 1px solid #ddd;">№</th>
+                    <th style="padding: 12px; border: 1px solid #ddd;">ФИО ребенка</th>
+                    <th style="padding: 12px; border: 1px solid #ddd;">Возраст</th>
+                    <th style="padding: 12px; border: 1px solid #ddd;">Класс</th>
+                    <th style="padding: 12px; border: 1px solid #ddd;">Телефон родителя</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="child, iter : ${children}" style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 12px; border: 1px solid #ddd; text-align: center;" th:text="${iter.index + 1}"></td>
+                    <td style="padding: 12px; border: 1px solid #ddd;">
+                        <span th:text="${child.lastName} + ' ' + ${child.firstName}"></span>
+                        <span th:if="${child.middleName != null and child.middleName != ''}"
+                              th:text="' ' + ${child.middleName}"></span>
+                    </td>
+                    <td style="padding: 12px; border: 1px solid #ddd; text-align: center;"
+                        th:text="${child.age != null ? child.age : '-'}"></td>
+                    <td style="padding: 12px; border: 1px solid #ddd; text-align: center;"
+                        th:text="${child.gradeNumber != null ? child.gradeNumber : '-'}"></td>
+                    <td style="padding: 12px; border: 1px solid #ddd;">
+                        <span th:text="${child.parent != null and child.parent.phone != null ? child.parent.phone : '-'}"></span>
+                    </td>
+                </tr>
+                </tbody>
+
+            </table>
+        </div>
+
+    </div>
+</div>
+</body>
+</html>
