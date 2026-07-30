@@ -25,4 +25,8 @@ public interface ChildRepository extends JpaRepository<Child, Long> {
     @Query("SELECT new ru.sashil.admin.model.ChildSimple(c.id, c.firstName, c.lastName, c.middleName) " +
             "FROM Child c JOIN GroupChild gc ON c.id = gc.childId WHERE gc.groupId = :groupId")
     List<ChildSimple> findSimpleByGroupId(Long groupId);
+
+
+    @Query("SELECT c FROM Child c WHERE c.certificateReceived = false OR c.certificateReceived IS NULL ORDER BY c.lastName, c.firstName")
+    List<Child> findByCertificateReceivedFalse();
 }

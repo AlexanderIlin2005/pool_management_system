@@ -136,6 +136,22 @@
             <version>${spring-boot.version}</version>
         </dependency>
 
+        <!-- Apache POI для работы с DOCX -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+
+        <!-- Явно указываем совместимую версию commons-compress -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.26.0</version>
+        </dependency>
+
+
+
 
     </dependencies>
 

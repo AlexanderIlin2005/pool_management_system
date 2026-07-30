@@ -195,6 +195,7 @@
             style="position: absolute; top: 5px; right: 10px; background: red; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;"
             th:text="${unreadJoinRequestsCount}"></span>
     </a>
+    <a href="/reports" th:classappend="${activePage == 'reports'} ? 'active'">Отчеты</a>
     <a href="/users" th:classappend="${activePage == 'users'} ? 'active'">Персонал</a>
     <a href="/pools" th:classappend="${activePage == 'pools'} ? 'active'">Бассейны</a>
     <a href="/calendar" th:classappend="${activePage == 'calendar'} ? 'active'">Календарь</a>
