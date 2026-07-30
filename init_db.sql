@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS pool.children (
     grade_number INTEGER CHECK (grade_number BETWEEN 1 AND 11),
     grade_name VARCHAR(50), -- Полное название класса
     skill pool.swimming_skill NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    certificate_received BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS pool.admin_users (
@@ -282,6 +283,9 @@ CREATE TABLE IF NOT EXISTS pool.child_update_notifications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     sent_at TIMESTAMP
 );
+
+
+CREATE INDEX IF NOT EXISTS idx_children_certificate_received ON pool.children(certificate_received);
 
 CREATE INDEX idx_child_update_notifications_pending ON pool.child_update_notifications(is_sent);
 CREATE INDEX idx_child_update_notifications_parent ON pool.child_update_notifications(parent_vk_id);

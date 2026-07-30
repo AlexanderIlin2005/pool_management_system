@@ -29,6 +29,7 @@ public class ChildProfileDto {
     private Long parentVkId;
     private String parentEmail;
     private String parentPhone;
+    private Boolean certificateReceived;
 
     // Группы, в которых состоит ребенок
     private List<GroupInfo> groups;

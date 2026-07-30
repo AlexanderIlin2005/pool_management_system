@@ -40,38 +40,40 @@ public class AdminDashboardService {
             pwc.setPhone((String) row.get("phone"));
 
             Long parentId = (Long) row.get("id");
-            String childSql = "SELECT id, first_name, last_name FROM pool.children WHERE parent_id = ? LIMIT 3";
+            String childSql = "SELECT id, first_name, last_name, certificate_received FROM pool.children WHERE parent_id = ? LIMIT 3";
             List<Map<String, Object>> childrenRows = jdbcTemplate.queryForList(childSql, parentId);
 
-            // Списки для хранения имен и ID детей
             List<String> childNames = new ArrayList<>();
             List<Long> childIds = new ArrayList<>();
+            List<Boolean> childCerts = new ArrayList<>();
 
             for (Map<String, Object> cRow : childrenRows) {
                 String cName = cRow.get("last_name") + " " + cRow.get("first_name");
                 childNames.add(cName.trim());
                 childIds.add(((Number) cRow.get("id")).longValue());
+                childCerts.add((Boolean) cRow.get("certificate_received"));
             }
 
-            // Заполняем пустыми значениями до 3 детей
             while (childNames.size() < 3) {
                 childNames.add("");
                 childIds.add(null);
+                childCerts.add(false);
             }
 
-            // Устанавливаем имена детей
             pwc.setChild1(childNames.get(0));
-            pwc.setChild2(childNames.get(1));
-            pwc.setChild3(childNames.get(2));
-
-            // Устанавливаем ID детей
             pwc.setChild1Id(childIds.get(0));
+            pwc.setChild1CertificateReceived(childCerts.get(0));
+
+            pwc.setChild2(childNames.get(1));
             pwc.setChild2Id(childIds.get(1));
+            pwc.setChild2CertificateReceived(childCerts.get(1));
+
+            pwc.setChild3(childNames.get(2));
             pwc.setChild3Id(childIds.get(2));
+            pwc.setChild3CertificateReceived(childCerts.get(2));
 
             result.add(pwc);
         }
         return result;
     }
-
 }

@@ -101,6 +101,48 @@
   <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 
+  <!-- ДОБАВЛЯЕМ СКРИПТ ДЛЯ КНОПКИ "Изменить" (Оригинал справки) -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🔍 Ищем кнопки .toggle-certificate-btn...');
+
+        document.querySelectorAll('.toggle-certificate-btn').forEach(function(btn) {
+            console.log('✅ Найдена кнопка:', btn);
+            console.log('   data-child-id:', btn.getAttribute('data-child-id'));
+            console.log('   data-child-name:', btn.getAttribute('data-child-name'));
+            console.log('   data-current-status:', btn.getAttribute('data-current-status'));
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('🖱️ Клик по кнопке "Изменить"!');
+
+                const childId = this.getAttribute('data-child-id');
+                const childName = this.getAttribute('data-child-name');
+                const currentStatus = this.getAttribute('data-current-status') === 'true';
+
+                console.log('   childId:', childId);
+                console.log('   childName:', childName);
+                console.log('   currentStatus:', currentStatus);
+
+                const confirmMessage = currentStatus
+                    ? 'Вы уверены, что хотите снять отметку о получении оригинала справки для ребенка ' + childName + '?'
+                    : 'Вы уверены, что хотите отметить получение оригинала справки для ребенка ' + childName + '?';
+
+                if (confirm(confirmMessage)) {
+                    console.log('✅ Подтверждено! Отправляем запрос...');
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '/children/certificate/toggle/' + childId;
+                    document.body.appendChild(form);
+                    form.submit();
+                } else {
+                    console.log('❌ Отменено пользователем');
+                }
+            });
+        });
+    });
+  </script>
+
   <script th:inline="javascript">
     /*<![CDATA[*/
     var socket = new SockJS('/ws');

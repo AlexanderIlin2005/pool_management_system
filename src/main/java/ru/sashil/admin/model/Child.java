@@ -46,4 +46,7 @@ public class Child {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "certificate_received")
+    private Boolean certificateReceived = false;
 }

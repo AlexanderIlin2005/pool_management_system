@@ -12,9 +12,12 @@ public class ParentWithChildren {
     private String email;
     private String phone;
     private String child1;
-    private Long child1Id; // Добавлено
+    private Long child1Id;
+    private Boolean child1CertificateReceived;
     private String child2;
-    private Long child2Id; // Добавлено
+    private Long child2Id;
+    private Boolean child2CertificateReceived;
     private String child3;
-    private Long child3Id; // Добавлено
+    private Long child3Id;
+    private Boolean child3CertificateReceived;
 }

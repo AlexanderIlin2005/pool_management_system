@@ -40,6 +40,7 @@ public class ChildProfileService {
         profile.setGradeNumber(child.getGradeNumber());
         profile.setGradeName(child.getGradeName());
         profile.setSkill(child.getSkill());
+        profile.setCertificateReceived(child.getCertificateReceived());
 
         // Данные родителя
         if (child.getParent() != null) {
