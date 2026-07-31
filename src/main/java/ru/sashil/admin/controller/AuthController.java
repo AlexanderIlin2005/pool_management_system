@@ -28,6 +28,25 @@ public class AuthController {
     @Autowired
     private WsNotificationService wsNotificationService;
 
+    @GetMapping("/")
+    public String rootRedirect(HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute(SESSION_USER_KEY);
+
+        if (user != null) {
+            // Если пользователь уже авторизован — редирект по роли
+            if (user.getRole() == AdminUser.Role.COACH) {
+                return "redirect:/schedule";
+            } else if (user.getRole() == AdminUser.Role.ACCOUNTANT) {
+                return "redirect:/payments";
+            } else {
+                return "redirect:/parents";
+            }
+        }
+
+        // Если не авторизован — на страницу логина
+        return "redirect:/login";
+    }
+
     @GetMapping("/login")
     public String loginPage() {
         return "login";
