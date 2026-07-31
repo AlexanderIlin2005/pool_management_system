@@ -15,6 +15,8 @@ import ru.sashil.admin.repository.ChildRepository;
 import ru.sashil.admin.service.GroupService;
 import ru.sashil.admin.service.ReportService;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -109,8 +111,9 @@ public class ReportController {
         LocalDate end = LocalDate.parse(endMonth + "-01");
 
         byte[] report = reportService.generatePaymentsReport(start, end);
-        sendDocxResponse(response, report, "otchet_po_oplatam_" + start.format(DateTimeFormatter.ofPattern("MM_yyyy")) +
-                "_" + end.format(DateTimeFormatter.ofPattern("MM_yyyy")));
+        String filename = "otchet_po_oplatam_" + start.format(DateTimeFormatter.ofPattern("MM_yyyy")) +
+                "_" + end.format(DateTimeFormatter.ofPattern("MM_yyyy"));
+        sendDocxResponse(response, report, filename);
     }
 
     // ============= ПОСЕЩАЕМОСТЬ =============
@@ -130,7 +133,6 @@ public class ReportController {
         int currentYear = year != null ? year : now.getYear();
         int currentMonth = month != null ? month : now.getMonthValue();
 
-        // Форматируем month для input type="month"
         String monthValue = String.format("%d-%02d", currentYear, currentMonth);
         model.addAttribute("monthValue", monthValue);
 
@@ -157,7 +159,6 @@ public class ReportController {
             return;
         }
 
-        // Если передан monthPicker, парсим из него
         if (monthPicker != null && !monthPicker.isEmpty()) {
             String[] parts = monthPicker.split("-");
             if (parts.length == 2) {
@@ -166,7 +167,6 @@ public class ReportController {
             }
         }
 
-        // Если все еще null, используем текущий месяц
         if (year == null || month == null) {
             LocalDate now = LocalDate.now();
             year = now.getYear();
@@ -174,18 +174,41 @@ public class ReportController {
         }
 
         byte[] report = reportService.generateAttendanceReport(groupId, year, month);
-        String groupName = groupService.getGroupById(groupId).map(Group::getName).orElse("group_" + groupId);
-        sendDocxResponse(response, report, "otchet_poseshchaemosti_" + groupName + "_" + year + "_" + month);
+
+        // Получаем номер группы вместо ID для понятного имени файла
+        String groupNumber = getGroupNumber(groupId);
+
+        // Используем номер группы в имени файла
+        String filename = "otchet_poseshchaemosti_group_" + groupNumber + "_" + year + "_" + month;
+        sendDocxResponse(response, report, filename);
     }
 
     // ============= ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =============
 
+    private String getGroupNumber(Long groupId) {
+        try {
+            Group group = groupService.getGroupById(groupId).orElse(null);
+            if (group != null && group.getNumber() != null) {
+                return String.valueOf(group.getNumber());
+            }
+            return String.valueOf(groupId); // fallback на ID, если номер не задан
+        } catch (Exception e) {
+            return String.valueOf(groupId); // fallback на ID в случае ошибки
+        }
+    }
+
     private void sendDocxResponse(HttpServletResponse response, byte[] report, String filename) throws Exception {
         response.setContentType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-        response.setHeader("Content-Disposition",
-                "attachment; filename=" + filename + "_" +
-                        LocalDate.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy")) +
-                        ".docx");
+
+        // Кодируем имя файла для корректной работы с кириллицей
+        String encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8.toString())
+                .replace("+", "%20");
+
+        // Используем правильный формат Content-Disposition с поддержкой UTF-8
+        String contentDisposition = "attachment; filename*=UTF-8''" + encodedFilename +
+                "_" + LocalDate.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy")) + ".docx";
+        response.setHeader("Content-Disposition", contentDisposition);
+
         response.setContentLength(report.length);
         response.getOutputStream().write(report);
         response.getOutputStream().flush();
