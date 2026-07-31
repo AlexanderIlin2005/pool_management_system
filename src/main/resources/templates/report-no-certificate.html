@@ -30,7 +30,6 @@
         <!-- Таблица -->
         <div th:if="${#lists.isEmpty(children)}" style="text-align: center; padding: 40px; color: #6c757d;">
             <p style="font-size: 1.2em;">✅ Все дети предоставили медицинские справки!</p>
-            <p>Отличная работа!</p>
         </div>
 
         <div th:unless="${#lists.isEmpty(children)}" style="overflow-x: auto;">

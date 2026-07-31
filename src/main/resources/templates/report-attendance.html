@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Отчет по посещаемости', ~{::content})}">
+<body>
+<div th:fragment="content">
+  <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto;">
+    <h1>Отчет по посещаемости</h1>
+
+    <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+      <form method="get" action="/reports/attendance/download" style="display: flex; flex-direction: column; gap: 20px;">
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+          <div style="flex: 1;">
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Группа:</label>
+            <select name="groupId" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+              <option value="">Выберите группу...</option>
+              <option th:each="g : ${groups}" th:value="${g.id}" th:text="${g.name}"
+                      th:selected="${g.id == groupId}"></option>
+            </select>
+          </div>
+          <div style="flex: 1;">
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Месяц:</label>
+            <input type="month" th:value="${monthValue}" name="monthPicker" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+        </div>
+        <button type="submit" class="btn" style="background-color: #17a2b8; font-size: 1.1em; padding: 12px;">
+          ⬇️ Скачать отчет по посещаемости
+        </button>
+      </form>
+      <p style="color: #6c757d; font-size: 0.9em; margin-top: 15px;">
+        Отчет показывает посещаемость каждого ребенка за выбранный месяц.
+      </p>
+    </div>
+
+    <div style="margin-top: 30px; padding: 15px; background: #e7f3ff; border: 1px solid #b6d4fe; border-radius: 8px;">
+      <p style="margin: 0; color: #084298; font-size: 0.9em;">
+        <strong>ℹ️ Легенда:</strong>
+        ✅ — Присутствовал, ❌ — Отсутствовал, 🏥 — Болел, 📝 — Уважительная причина, • — Нет данных
+      </p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

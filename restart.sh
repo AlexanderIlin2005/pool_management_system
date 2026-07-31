@@ -1,1 +1,1 @@
- mvn clean package && java -jar target/pool-management-1.0-SNAPSHOT.jar
+mvn clean package && java -jar target/pool-management-1.0-SNAPSHOT.jar --server.address=0.0.0.0

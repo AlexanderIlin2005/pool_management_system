@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Отчет по оплатам', ~{::content})}">
+<body>
+<div th:fragment="content">
+  <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto;">
+    <h1>Отчет по оплатам абонементов</h1>
+
+    <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+      <form method="get" action="/reports/payments/download" style="display: flex; flex-direction: column; gap: 20px;">
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+          <div style="flex: 1;">
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Начало периода:</label>
+            <input type="month" name="startMonth" th:value="${#temporals.format(startMonth, 'yyyy-MM')}"
+                   style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+          <div style="flex: 1;">
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Конец периода:</label>
+            <input type="month" name="endMonth" th:value="${#temporals.format(endMonth, 'yyyy-MM')}"
+                   style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+        </div>
+        <button type="submit" class="btn" style="background-color: #28a745; font-size: 1.1em; padding: 12px;">
+          ⬇️ Скачать отчет по оплатам
+        </button>
+      </form>
+      <p style="color: #6c757d; font-size: 0.9em; margin-top: 15px;">
+        Отчет включает всех детей и статус оплат за каждый месяц выбранного периода.
+      </p>
+    </div>
+
+    <div style="margin-top: 30px; padding: 15px; background: #e7f3ff; border: 1px solid #b6d4fe; border-radius: 8px;">
+      <p style="margin: 0; color: #084298; font-size: 0.9em;">
+        <strong>ℹ️ Легенда:</strong>
+        ✅ — оплачено, ⏳ — на проверке, ❌ — отклонено, • — не создано
+      </p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

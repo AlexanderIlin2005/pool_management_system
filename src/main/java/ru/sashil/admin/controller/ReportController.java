@@ -7,9 +7,12 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.model.Child;
+import ru.sashil.admin.model.Group;
 import ru.sashil.admin.repository.ChildRepository;
+import ru.sashil.admin.service.GroupService;
 import ru.sashil.admin.service.ReportService;
 
 import java.time.LocalDate;
@@ -26,6 +29,9 @@ public class ReportController {
     @Autowired
     private ChildRepository childRepository;
 
+    @Autowired
+    private GroupService groupService;
+
     @GetMapping
     public String reportsPage(Model model, HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
@@ -37,7 +43,8 @@ public class ReportController {
         return "reports";
     }
 
-    // Новая страница предпросмотра отчета "Дети без справки"
+    // ============= ДЕТИ БЕЗ СПРАВКИ =============
+
     @GetMapping("/no-certificate/view")
     public String viewNoCertificateReport(Model model, HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
@@ -55,7 +62,6 @@ public class ReportController {
         return "report-no-certificate";
     }
 
-    // Скачивание отчета
     @GetMapping("/no-certificate/download")
     public void downloadNoCertificateReport(HttpServletResponse response, HttpSession session) throws Exception {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
@@ -64,21 +70,124 @@ public class ReportController {
             return;
         }
 
-        try {
-            byte[] report = reportService.generateNoCertificateReport();
+        byte[] report = reportService.generateNoCertificateReport();
+        sendDocxResponse(response, report, "spisok_bez_spravki");
+    }
 
-            response.setContentType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-            response.setHeader("Content-Disposition",
-                    "attachment; filename=spisok_bez_spravki_" +
-                            LocalDate.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy")) +
-                            ".docx");
-            response.setContentLength(report.length);
-            response.getOutputStream().write(report);
-            response.getOutputStream().flush();
+    // ============= ОПЛАТЫ =============
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Ошибка генерации отчета");
+    @GetMapping("/payments")
+    public String paymentsReportPage(Model model, HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return "redirect:/login";
+
+        LocalDate now = LocalDate.now();
+        LocalDate startMonth = now.minusMonths(0).withDayOfMonth(1);
+        LocalDate endMonth = startMonth.plusMonths(11);
+
+        model.addAttribute("startMonth", startMonth);
+        model.addAttribute("endMonth", endMonth);
+        model.addAttribute("fullName", user.getFullName());
+        model.addAttribute("role", user.getRole());
+        model.addAttribute("activePage", "reports");
+
+        return "report-payments";
+    }
+
+    @GetMapping("/payments/download")
+    public void downloadPaymentsReport(@RequestParam String startMonth,
+                                       @RequestParam String endMonth,
+                                       HttpServletResponse response,
+                                       HttpSession session) throws Exception {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) {
+            response.sendRedirect("/login");
+            return;
         }
+
+        LocalDate start = LocalDate.parse(startMonth + "-01");
+        LocalDate end = LocalDate.parse(endMonth + "-01");
+
+        byte[] report = reportService.generatePaymentsReport(start, end);
+        sendDocxResponse(response, report, "otchet_po_oplatam_" + start.format(DateTimeFormatter.ofPattern("MM_yyyy")) +
+                "_" + end.format(DateTimeFormatter.ofPattern("MM_yyyy")));
+    }
+
+    // ============= ПОСЕЩАЕМОСТЬ =============
+
+    @GetMapping("/attendance")
+    public String attendanceReportPage(Model model, HttpSession session,
+                                       @RequestParam(required = false) Long groupId,
+                                       @RequestParam(required = false) Integer year,
+                                       @RequestParam(required = false) Integer month) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return "redirect:/login";
+
+        List<Group> groups = groupService.getAllGroups();
+        model.addAttribute("groups", groups);
+
+        LocalDate now = LocalDate.now();
+        int currentYear = year != null ? year : now.getYear();
+        int currentMonth = month != null ? month : now.getMonthValue();
+
+        // Форматируем month для input type="month"
+        String monthValue = String.format("%d-%02d", currentYear, currentMonth);
+        model.addAttribute("monthValue", monthValue);
+
+        model.addAttribute("groupId", groupId);
+        model.addAttribute("year", currentYear);
+        model.addAttribute("month", currentMonth);
+        model.addAttribute("fullName", user.getFullName());
+        model.addAttribute("role", user.getRole());
+        model.addAttribute("activePage", "reports");
+
+        return "report-attendance";
+    }
+
+    @GetMapping("/attendance/download")
+    public void downloadAttendanceReport(@RequestParam Long groupId,
+                                         @RequestParam(required = false) Integer year,
+                                         @RequestParam(required = false) Integer month,
+                                         @RequestParam(required = false) String monthPicker,
+                                         HttpServletResponse response,
+                                         HttpSession session) throws Exception {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) {
+            response.sendRedirect("/login");
+            return;
+        }
+
+        // Если передан monthPicker, парсим из него
+        if (monthPicker != null && !monthPicker.isEmpty()) {
+            String[] parts = monthPicker.split("-");
+            if (parts.length == 2) {
+                year = Integer.parseInt(parts[0]);
+                month = Integer.parseInt(parts[1]);
+            }
+        }
+
+        // Если все еще null, используем текущий месяц
+        if (year == null || month == null) {
+            LocalDate now = LocalDate.now();
+            year = now.getYear();
+            month = now.getMonthValue();
+        }
+
+        byte[] report = reportService.generateAttendanceReport(groupId, year, month);
+        String groupName = groupService.getGroupById(groupId).map(Group::getName).orElse("group_" + groupId);
+        sendDocxResponse(response, report, "otchet_poseshchaemosti_" + groupName + "_" + year + "_" + month);
+    }
+
+    // ============= ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =============
+
+    private void sendDocxResponse(HttpServletResponse response, byte[] report, String filename) throws Exception {
+        response.setContentType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        response.setHeader("Content-Disposition",
+                "attachment; filename=" + filename + "_" +
+                        LocalDate.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy")) +
+                        ".docx");
+        response.setContentLength(report.length);
+        response.getOutputStream().write(report);
+        response.getOutputStream().flush();
     }
 }

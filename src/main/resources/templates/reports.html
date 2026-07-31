@@ -20,18 +20,22 @@
         <a href="/reports/no-certificate/view" class="btn" style="margin-top: 10px; background-color: #17a2b8; display: inline-block;">Просмотреть</a>
       </div>
 
-      <!-- Отчет: Посещаемость (заглушка) -->
-      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; text-align: center; opacity: 0.5; background: #f8f9fa;">
+      <!-- Отчет: Посещаемость -->
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; text-align: center; transition: all 0.3s;"
+           onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'"
+           onmouseout="this.style.boxShadow='none'">
         <h3 style="margin: 0 0 10px 0;">Посещаемость</h3>
         <p style="color: #666; font-size: 0.9em; min-height: 40px;">Отчет по посещаемости за месяц</p>
-        <a href="#" class="btn" style="margin-top: 10px; background-color: #6c757d; cursor: not-allowed;">В разработке</a>
+        <a href="/reports/attendance" class="btn" style="margin-top: 10px; background-color: #17a2b8; display: inline-block;">Перейти</a>
       </div>
 
-      <!-- Отчет: Оплаты (заглушка) -->
-      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; text-align: center; opacity: 0.5; background: #f8f9fa;">
+      <!-- Отчет: Оплаты -->
+      <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; text-align: center; transition: all 0.3s;"
+           onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'"
+           onmouseout="this.style.boxShadow='none'">
         <h3 style="margin: 0 0 10px 0;">Оплаты</h3>
         <p style="color: #666; font-size: 0.9em; min-height: 40px;">Отчет по оплатам абонементов</p>
-        <a href="#" class="btn" style="margin-top: 10px; background-color: #6c757d; cursor: not-allowed;">В разработке</a>
+        <a href="/reports/payments" class="btn" style="margin-top: 10px; background-color: #17a2b8; display: inline-block;">Перейти</a>
       </div>
 
     </div>
@@ -39,8 +43,7 @@
     <!-- Информация -->
     <div style="margin-top: 40px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
       <p style="margin: 0; color: #6c757d; font-size: 0.9em;">
-        <strong>📌 Информация:</strong> Отчет "Дети без справки" включает всех детей, у которых отсутствует отметка о получении оригинала медицинской справки.
-        Данные актуальны на момент просмотра.
+        <strong>📌 Информация:</strong> Отчеты формируются в формате DOCX. Данные актуальны на момент генерации отчета.
       </p>
     </div>
 
