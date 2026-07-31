@@ -20,7 +20,7 @@ public class MinIOConfig {
         try {
             String accessKey = ConfigLoader.get("MINIO_ACCESS_KEY");
             String secretKey = ConfigLoader.get("MINIO_SECRET_KEY");
-            endpoint = ConfigLoader.get("MINIO_ENDPOINT", "http://localhost:9000");
+            endpoint = ConfigLoader.get("MINIO_ENDPOINT", "http://135.106.180.64:9000");
 
             OkHttpClient httpClient = new OkHttpClient.Builder()
                     .connectTimeout(10, TimeUnit.MINUTES)
