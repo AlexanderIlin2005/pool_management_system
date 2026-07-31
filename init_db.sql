@@ -6,6 +6,14 @@ CREATE SCHEMA IF NOT EXISTS pool;
 -- Убеждаемся, что у pool_admin есть все права на схему
 GRANT ALL ON SCHEMA pool TO pool_admin;
 
+-- ===== НАСТРОЙКА ПРАВ ДОСТУПА =====
+-- Даем права пользователю pool_admin на все объекты в схеме pool
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA pool TO pool_admin;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA pool TO pool_admin;
+GRANT USAGE ON SCHEMA pool TO pool_admin;
+ALTER DEFAULT PRIVILEGES IN SCHEMA pool GRANT ALL PRIVILEGES ON TABLES TO pool_admin;
+ALTER DEFAULT PRIVILEGES IN SCHEMA pool GRANT ALL PRIVILEGES ON SEQUENCES TO pool_admin;
+
 -- Тип данных для навыков плавания
 -- Используем DO блок, чтобы игнорировать ошибку, если тип уже существует
 DO $$ BEGIN
@@ -22,7 +30,7 @@ CREATE TABLE IF NOT EXISTS pool.parents (
     last_name VARCHAR(100) NOT NULL,
     middle_name VARCHAR(100), -- Отчество
     email VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     phone VARCHAR(20),
     notify_regular BOOLEAN DEFAULT TRUE
 );
