@@ -124,10 +124,48 @@
 
 
   <script>
+    // =============================================
+    // АВТО-ОБНОВЛЕНИЕ СТРАНИЦ (каждые 30 секунд)
+    // Исключаем страницы с формами
+    // =============================================
     document.addEventListener('DOMContentLoaded', function() {
-        setInterval(function() {
-            location.reload();
-        }, 15000);
+        var excludedPaths = [
+            /^\/groups\/new$/,
+            /^\/groups\/edit\/\d+$/,
+            /^\/pools\/new$/,
+            /^\/pools\/edit\/\d+$/,
+            /^\/users\/register$/,
+            /^\/users\/edit\/\d+$/,
+            /^\/calendar$/,
+            /^\/broadcast$/,
+            /^\/attendance\/mark\/\d+$/,
+            /^\/children\/skill\/edit\/\d+$/,
+            /^\/children\/profile\/\d+$/,
+            /^\/parents\/edit\/\d+$/,
+            /^\/documents$/,
+            /^\/payment-receipts$/,
+            /^\/payments\/settings$/,
+            /^\/join-requests\/\d+$/,
+        ];
+
+        var currentPath = window.location.pathname;
+        var isExcluded = false;
+
+        for (var i = 0; i < excludedPaths.length; i++) {
+            if (excludedPaths[i].test(currentPath)) {
+                isExcluded = true;
+                break;
+            }
+        }
+
+        if (!isExcluded) {
+            console.log('🔄 Авто-обновление включено для:', currentPath);
+            setInterval(function() {
+                location.reload();
+            }, 30000);
+        } else {
+            console.log('⏸️ Авто-обновление ОТКЛЮЧЕНО для:', currentPath);
+        }
     });
   </script>
 
