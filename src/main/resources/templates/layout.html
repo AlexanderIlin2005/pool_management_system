@@ -122,32 +122,13 @@
     });
   </script>
 
-  <script th:inline="javascript">
-    /*<![CDATA[*/
-    // Проверяем URL страницы
-    var currentPath = window.location.pathname;
-    // Отключаем WebSocket только на страницах /groups/*/members
-    var isGroupMembersPage = currentPath.match(/^\/groups\/\d+\/members(\?|$)/) !== null;
 
-    if (!isGroupMembersPage) {
-        var socket = new SockJS('/ws');
-        var stompClient = Stomp.over(socket);
-        stompClient.debug = null;
-
-        stompClient.connect({}, function (frame) {
-            console.log('🟢 WebSocket подключен для:', currentPath);
-            stompClient.subscribe('/topic/updates', function (message) {
-                console.log('📡 Обновление:', message.body);
-                location.reload();
-            });
-        });
-        socket.onerror = function() {
-            console.log('🔴 WebSocket ошибка');
-        };
-    } else {
-        console.log('🔴 WebSocket отключен для:', currentPath);
-    }
-    /*]]>*/
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        setInterval(function() {
+            location.reload();
+        }, 15000);
+    });
   </script>
 
 </head>
