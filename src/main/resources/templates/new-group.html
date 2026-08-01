@@ -4,7 +4,7 @@
 <div th:fragment="content">
   <h1 th:text="${isEdit} ? 'Редактирование группы' : 'Создание новой группы'"></h1>
 
-  <form th:action="@{/groups/save}" th:object="${group}" method="post" style="max-width: 800px; background: white; padding: 20px; border-radius: 8px;" autocomplete="on">
+  <form th:action="@{/groups/save}" th:object="${group}" method="post" style="max-width: 800px; background: white; padding: 20px; border-radius: 8px;">
     <input type="hidden" th:field="*{id}" th:if="${isEdit}">
 
     <div style="display: flex; gap: 20px; margin-bottom: 15px;">
@@ -175,128 +175,13 @@
     /*]]>*/
   </script>
 
-  <!-- ===== ПОЛНОЕ СОХРАНЕНИЕ ФОРМЫ ===== -->
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var isEdit = /*[[${isEdit}]]*/ false;
-
-        if (isEdit) {
-            localStorage.removeItem('newGroupFormData');
-            localStorage.removeItem('newGroupDaysState');
-            return;
-        }
-
-        // Восстановление данных
-        var savedData = localStorage.getItem('newGroupFormData');
-        if (savedData) {
-            try {
-                var data = JSON.parse(savedData);
-                var form = document.querySelector('form');
-                if (form) {
-                    var inputs = form.querySelectorAll('input, select, textarea');
-                    inputs.forEach(function(input) {
-                        if (input.name && !input.name.startsWith('_')) {
-                            if (input.type === 'hidden' && input.id !== 'coach-id-input') return;
-                            if (input.type === 'checkbox') {
-                                if (data[input.name] !== undefined) input.checked = data[input.name] === true || data[input.name] === 'true';
-                            } else if (input.type === 'radio') {
-                                if (data[input.name] !== undefined && input.value === data[input.name]) input.checked = true;
-                            } else if (input.type === 'select-one') {
-                                if (data[input.name] !== undefined) input.value = data[input.name];
-                            } else {
-                                if (data[input.name] !== undefined) input.value = data[input.name];
-                            }
-                        }
-                    });
-                }
-            } catch (e) {}
-        }
-
-        // Восстановление дней
-        var savedDays = localStorage.getItem('newGroupDaysState');
-        if (savedDays) {
-            try {
-                var daysData = JSON.parse(savedDays);
-                for (var day in daysData) {
-                    if (daysData[day]) {
-                        var btn = document.querySelector('.day-toggle[data-day="' + day + '"]');
-                        var block = document.getElementById('time-block-' + day);
-                        if (btn && block) {
-                            block.style.display = 'block';
-                            btn.classList.add('active');
-                            btn.style.backgroundColor = '#007bff';
-                            btn.style.color = 'white';
-                            btn.style.borderColor = '#007bff';
-                        }
-                    }
-                }
-            } catch (e) {}
-        }
-
-        // Сохранение
-        function saveAllFormData() {
-            var formData = {};
-            var form = document.querySelector('form');
-            if (!form) return;
-            var inputs = form.querySelectorAll('input, select, textarea');
-            inputs.forEach(function(input) {
-                if (input.name && !input.name.startsWith('_')) {
-                    if (input.type === 'hidden' && input.id !== 'coach-id-input') return;
-                    if (input.type === 'checkbox') {
-                        formData[input.name] = input.checked;
-                    } else if (input.type === 'radio') {
-                        if (input.checked) formData[input.name] = input.value;
-                    } else {
-                        formData[input.name] = input.value;
-                    }
-                }
-            });
-            localStorage.setItem('newGroupFormData', JSON.stringify(formData));
-
-            // Сохраняем дни
-            var daysState = {};
-            for (var i = 1; i <= 7; i++) {
-                var btn = document.querySelector('.day-toggle[data-day="' + i + '"]');
-                if (btn) daysState[i] = btn.classList.contains('active');
-            }
-            localStorage.setItem('newGroupDaysState', JSON.stringify(daysState));
-        }
-
-        function debounce(func, wait) {
-            let timeout;
-            return function(...args) {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => func.apply(this, args), wait);
-            };
-        }
-
-        var form = document.querySelector('form');
-        if (form) {
-            form.addEventListener('change', saveAllFormData);
-            form.addEventListener('input', debounce(saveAllFormData, 300));
-        }
-
-        document.querySelectorAll('.day-toggle').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                setTimeout(saveAllFormData, 50);
-            });
-        });
-
-        // Очистка при успешном сохранении
-        var urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('success') === 'true') {
-            localStorage.removeItem('newGroupFormData');
-            localStorage.removeItem('newGroupDaysState');
-            window.history.replaceState({}, '', window.location.pathname);
-        }
-    });
-  </script>
 
   <script>
-    // Простой скрипт для предотвращения выбора запрещенной комбинации
+    // Простой скрипт для предотвращения выбора запрещенной комбинации на клиенте
     document.addEventListener('DOMContentLoaded', function() {
         const cb1 = document.querySelector('input[name="skill1"]');
         const cb3 = document.querySelector('input[name="skill3"]');
+
         if (cb1 && cb3) {
             cb1.addEventListener('change', function() {
                 if (this.checked && cb3.checked) {
@@ -314,10 +199,9 @@
     });
   </script>
 
+
   <script src="/js/coach-search.js"></script>
   <script src="/js/schedule-toggle.js"></script>
-
-
 </div>
 </body>
 </html>
