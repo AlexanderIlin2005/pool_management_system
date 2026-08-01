@@ -202,14 +202,12 @@
         // === ФУНКЦИЯ ДЛЯ ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ ===
         function attachRemoveHandlers() {
             document.querySelectorAll('.remove-member-form').forEach(function(form) {
-                // Убираем старые обработчики, чтобы избежать дублирования
                 form.removeEventListener('submit', handleRemoveSubmit);
-                // Добавляем новый обработчик
                 form.addEventListener('submit', handleRemoveSubmit);
             });
         }
 
-        // Обработчик для формы удаления
+        // Обработчик для формы удаления - ПРОСТАЯ ОТПРАВКА
         function handleRemoveSubmit(e) {
             const form = e.currentTarget;
             const childNameInput = form.querySelector('input[name="childName"]');
@@ -219,18 +217,7 @@
                 e.preventDefault();
                 return;
             }
-
-            e.preventDefault();
-            const formData = new FormData(form);
-            const params = new URLSearchParams(formData);
-
-            fetch(`/groups/${groupId}/members/remove?${params.toString()}`, {
-                method: 'POST'
-            }).then(response => {
-                if (response.ok) {
-                    window.location.href = window.location.pathname + '?' + getFilterParamsFromForm().toString();
-                }
-            });
+            // НЕ вызываем e.preventDefault() - форма отправляется как обычно
         }
 
         // === ФУНКЦИЯ ДЛЯ ОБРАБОТКИ ДОБАВЛЕНИЯ ===
@@ -247,24 +234,13 @@
         }
 
         function handleAddSubmit(e) {
-            e.preventDefault();
-            const form = e.currentTarget;
-            const formData = new FormData(form);
-            const params = new URLSearchParams(formData);
-
-            fetch(`/groups/${groupId}/members/add?${params.toString()}`, {
-                method: 'POST'
-            }).then(response => {
-                if (response.ok) {
-                    window.location.href = window.location.pathname + '?' + getFilterParamsFromForm().toString();
-                }
-            });
+            // НЕ вызываем e.preventDefault() - форма отправляется как обычно
         }
 
         function handleAddClick(e) {
             const form = e.currentTarget.closest('form');
             if (form) {
-                form.dispatchEvent(new Event('submit'));
+                form.submit();
             }
         }
 
@@ -302,15 +278,16 @@
         // === ФУНКЦИЯ ОБНОВЛЕНИЯ ТАБЛИЦЫ ===
         function updateTable() {
             const params = getFilterParamsFromForm();
-            fetch(`/groups/${groupId}/members/filter?${params.toString()}`)
-                .then(response => response.text())
-                .then(html => {
-                    document.getElementById('resultsContainer').innerHTML = html;
-                    // После обновления контента перепривязываем обработчики
-                    attachRemoveHandlers();
-                    attachAddHandlers();
-                })
-                .catch(error => console.error('Error:', error));
+            fetch(`/groups/${groupId}/members/filter?${params.toString()}`, {
+                method: 'GET'
+            })
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('resultsContainer').innerHTML = html;
+                attachRemoveHandlers();
+                attachAddHandlers();
+            })
+            .catch(error => console.error('Error:', error));
         }
 
         // === DEBOUNCE ===
@@ -324,7 +301,6 @@
 
         // === ИНИЦИАЛИЗАЦИЯ СЛАЙДЕРОВ ===
         function initSliders() {
-            // Слайдер возраста
             const ageSlider = document.getElementById('age-slider');
             if (ageSlider && typeof noUiSlider !== 'undefined') {
                 if (ageSlider.noUiSlider) ageSlider.noUiSlider.destroy();
@@ -350,7 +326,6 @@
                 });
             }
 
-            // Слайдер класса
             const gradeSlider = document.getElementById('grade-slider');
             if (gradeSlider && typeof noUiSlider !== 'undefined') {
                 if (gradeSlider.noUiSlider) gradeSlider.noUiSlider.destroy();
@@ -379,13 +354,11 @@
 
         // === НАСТРОЙКА ОБРАБОТЧИКОВ ===
         function setupHandlers() {
-            // Поиск
             document.getElementById('searchInput').addEventListener('input', debounce(function() {
                 updateURLWithFilters();
                 updateTable();
             }, 300));
 
-            // Инпуты
             document.querySelectorAll('#ageFromInput, #ageToInput, #gradeFromInput, #gradeToInput').forEach(input => {
                 input.addEventListener('change', function() {
                     updateURLWithFilters();
@@ -393,7 +366,6 @@
                 });
             });
 
-            // Чекбоксы навыков
             document.querySelectorAll('#skillBlock input[type="checkbox"]').forEach(cb => {
                 cb.addEventListener('change', function() {
                     updateURLWithFilters();
@@ -401,7 +373,6 @@
                 });
             });
 
-            // Чекбоксы фильтров
             document.querySelectorAll('.filter-toggle').forEach(toggle => {
                 toggle.addEventListener('change', function() {
                     const target = document.getElementById(this.dataset.target);
@@ -411,12 +382,10 @@
                 });
             });
 
-            // Кнопка сброса
             document.getElementById('resetFiltersBtn').addEventListener('click', function() {
                 window.location.href = window.location.pathname;
             });
 
-            // Кнопка применения критериев группы
             const applyBtn = document.getElementById('applyGroupCriteriaBtn');
             if (applyBtn) {
                 applyBtn.addEventListener('click', function() {
@@ -454,17 +423,11 @@
 
         // === ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ ===
         function init() {
-            // Привязываем обработчики для существующих форм
             attachRemoveHandlers();
             attachAddHandlers();
-
-            // Инициализируем слайдеры
             initSliders();
-
-            // Настраиваем обработчики
             setupHandlers();
 
-            // Синхронизируем URL с формой
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.toString()) {
                 const search = document.getElementById('searchInput');
@@ -489,7 +452,6 @@
             }
         }
 
-        // Запускаем инициализацию
         init();
     });
   </script>

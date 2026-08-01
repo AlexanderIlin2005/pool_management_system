@@ -129,81 +129,65 @@
 
   <script th:inline="javascript">
     /*<![CDATA[*/
-    var socket = new SockJS('/ws');
-    var stompClient = Stomp.over(socket);
+    // Определяем, нужно ли подключать WebSocket
+    var currentPath = window.location.pathname;
+    var shouldConnect = !currentPath.startsWith('/groups/') || currentPath === '/groups';
 
-    // Отключаем лишние логи
-    stompClient.debug = null;
+    if (shouldConnect) {
+        var socket = new SockJS('/ws');
+        var stompClient = Stomp.over(socket);
+        stompClient.debug = null;
 
-    // Флаг, чтобы не перезагружаться сразу после своего же действия
-    var isJustSubmitted = false;
-
-    // Слушаем отправку форм на странице
-    document.addEventListener('submit', function() {
-        isJustSubmitted = true;
-        // Сбрасываем флаг через 3 секунды (время на редирект и загрузку новой страницы)
-        setTimeout(function() { isJustSubmitted = false; }, 3000);
-    });
-
-    stompClient.connect({}, function (frame) {
-        console.log('Connected: ' + frame);
-        stompClient.subscribe('/topic/updates', function (message) {
-            console.log('Received update: ' + message.body);
-
-            // Если мы только что что-то отправили, не перезагружаемся,
-            // так как редирект сам обновит данные.
-            // Это предотвращает конфликт редиректа и reload().
-            if (!isJustSubmitted) {
+        stompClient.connect({}, function (frame) {
+            stompClient.subscribe('/topic/updates', function (message) {
                 location.reload();
-            }
+            });
         });
-    });
-
-    // Обработка ошибок соединения (чтобы не спамить в консоль)
-    socket.onerror = function() {};
+        socket.onerror = function() {};
+    }
     /*]]>*/
   </script>
 
-</head>
-<body>
-<div class="sidebar">
-  <h3>Бассейн</h3>
-  <span class="subtitle">Админ-панель</span>
+  </head>
+  <body>
+  <div class="sidebar">
+    <h3>Бассейн</h3>
+    <span class="subtitle">Админ-панель</span>
 
 
-  <div th:if="${role != null and (role.name() == 'ADMIN' or role.name() == 'COACH')}">
-    <a href="/schedule" th:classappend="${activePage == 'schedule'} ? 'active'">Расписание</a>
-    <a href="/groups" th:classappend="${activePage == 'groups'} ? 'active'">Группы</a>
-    <a href="/parents" th:classappend="${activePage == 'parents'} ? 'active'">Родители</a>
+    <div th:if="${role != null and (role.name() == 'ADMIN' or role.name() == 'COACH')}">
+      <a href="/schedule" th:classappend="${activePage == 'schedule'} ? 'active'">Расписание</a>
+      <a href="/groups" th:classappend="${activePage == 'groups'} ? 'active'">Группы</a>
+      <a href="/parents" th:classappend="${activePage == 'parents'} ? 'active'">Родители</a>
 
 
-    <a href="/certificates" th:classappend="${activePage == 'certificates'} ? 'active'" style="position: relative;">
-      Справки
-      <span th:if="${unreadCertsCount != null and unreadCertsCount > 0}"
-            style="position: absolute; top: 5px; right: 10px; background: red; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;"
-            th:text="${unreadCertsCount}"></span>
-    </a>
+      <a href="/certificates" th:classappend="${activePage == 'certificates'} ? 'active'" style="position: relative;">
+        Справки
+        <span th:if="${unreadCertsCount != null and unreadCertsCount > 0}"
+              style="position: absolute; top: 5px; right: 10px; background: red; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;"
+              th:text="${unreadCertsCount}"></span>
+      </a>
 
-    <a href="/broadcast" th:classappend="${activePage == 'broadcast'} ? 'active'">Рассылка</a>
-  </div>
+      <a href="/broadcast" th:classappend="${activePage == 'broadcast'} ? 'active'">Рассылка</a>
+    </div>
 
 
-  <div th:if="${role != null and role.name() == 'ADMIN'}">
-    <a href="/join-requests" th:classappend="${activePage == 'join-requests'} ? 'active'" style="position: relative;">
-      Заявки в группы
-      <span th:if="${unreadJoinRequestsCount != null and unreadJoinRequestsCount > 0}"
-            style="position: absolute; top: 5px; right: 10px; background: red; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;"
-            th:text="${unreadJoinRequestsCount}"></span>
-    </a>
-    <a href="/reports" th:classappend="${activePage == 'reports'} ? 'active'">Отчеты</a>
-    <a href="/users" th:classappend="${activePage == 'users'} ? 'active'">Персонал</a>
-    <a href="/pools" th:classappend="${activePage == 'pools'} ? 'active'">Бассейны</a>
-    <a href="/calendar" th:classappend="${activePage == 'calendar'} ? 'active'">Календарь</a>
-    <a href="/documents" th:classappend="${activePage == 'documents'} ? 'active'">Документы</a>
-    <a href="/logs" th:classappend="${activePage == 'logs'} ? 'active'">Логи</a>
-  </div>
+    <div th:if="${role != null and role.name() == 'ADMIN'}">
+      <a href="/join-requests" th:classappend="${activePage == 'join-requests'} ? 'active'" style="position: relative;">
+        Заявки в группы
+        <span th:if="${unreadJoinRequestsCount != null and unreadJoinRequestsCount > 0}"
+              style="position: absolute; top: 5px; right: 10px; background: red; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;"
+              th:text="${unreadJoinRequestsCount}"></span>
+      </a>
+      <a href="/reports" th:classappend="${activePage == 'reports'} ? 'active'">Отчеты</a>
+      <a href="/users" th:classappend="${activePage == 'users'} ? 'active'">Персонал</a>
+      <a href="/pools" th:classappend="${activePage == 'pools'} ? 'active'">Бассейны</a>
+      <a href="/calendar" th:classappend="${activePage == 'calendar'} ? 'active'">Календарь</a>
+      <a href="/documents" th:classappend="${activePage == 'documents'} ? 'active'">Документы</a>
+      <a href="/logs" th:classappend="${activePage == 'logs'} ? 'active'">Логи</a>
+    </div>
 
-  <!-- Вкладки для бухгалтера -->
+    <!-- Вкладки для бухгалтера -->
   <div th:if="${role != null and role.name() == 'ACCOUNTANT'}">
     <a href="/payments" th:classappend="${activePage == 'payments'} ? 'active'">Оплаты</a>
     <a href="/payment-receipts" th:classappend="${activePage == 'payment-receipts'} ? 'active'">Квитанции</a>
