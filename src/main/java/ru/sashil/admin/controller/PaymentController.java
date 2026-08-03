@@ -61,7 +61,6 @@ public class PaymentController {
 
         if (year != null && month != null) {
             startMonth = LocalDate.of(year, month, 1);
-            // Исправлено: +8 вместо +10 (сентябрь 2026 - май 2027)
             endMonth = startMonth.plusMonths(8);
 
             if (startMonth.isBefore(MIN_DATE)) {
@@ -69,7 +68,6 @@ public class PaymentController {
             }
         } else {
             startMonth = MIN_DATE;
-            // Исправлено: +8 вместо +10 (сентябрь 2026 - май 2027)
             endMonth = startMonth.plusMonths(8);
         }
 
@@ -83,9 +81,9 @@ public class PaymentController {
 
         Map<String, Object> data = paymentService.getPaymentTableData(startMonth, endMonth, search);
 
-        // Проверяем, можно ли перейти назад (не раньше сентября 2026)
-        boolean canGoBack = startMonth.minusMonths(1).isAfter(MIN_DATE) ||
-                startMonth.minusMonths(1).isEqual(MIN_DATE);
+        // Проверяем, можно ли перейти на год назад (не раньше сентября 2026)
+        boolean canGoPrevYear = startMonth.minusYears(1).isAfter(MIN_DATE) ||
+                startMonth.minusYears(1).isEqual(MIN_DATE);
 
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
@@ -95,9 +93,9 @@ public class PaymentController {
         model.addAttribute("currentSearch", search);
         model.addAttribute("startMonth", startMonth);
         model.addAttribute("endMonth", endMonth);
-        model.addAttribute("prevStart", startMonth.minusMonths(1));
-        model.addAttribute("nextStart", startMonth.plusMonths(1));
-        model.addAttribute("canGoBack", canGoBack);
+        model.addAttribute("prevYearStart", startMonth.minusYears(1));
+        model.addAttribute("nextYearStart", startMonth.plusYears(1));
+        model.addAttribute("canGoPrevYear", canGoPrevYear);
         model.addAttribute("monthFormatter", DateTimeFormatter.ofPattern("MMM yyyy"));
         model.addAttribute("defaultAmount", BigDecimal.ZERO);
         model.addAttribute("allMonths", getMonthsInPeriod(startMonth, endMonth));
@@ -262,7 +260,6 @@ public class PaymentController {
             return "redirect:/login";
         }
 
-        // Проверяем подтверждение
         if (!"ПОДТВЕРЖДАЮ".equalsIgnoreCase(confirmation.trim())) {
             return "redirect:/payments?error=confirmation_required";
         }
@@ -312,9 +309,6 @@ public class PaymentController {
         }
     }
 
-    /**
-     * Получение списка всех уведомлений об оплате
-     */
     @GetMapping("/notifications")
     public String notificationsPage(Model model, HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
@@ -331,9 +325,6 @@ public class PaymentController {
         return "payment-notifications";
     }
 
-    /**
-     * Отправка уведомления родителю
-     */
     @PostMapping("/notifications/{id}/send")
     public String sendNotification(@PathVariable Long id, HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");

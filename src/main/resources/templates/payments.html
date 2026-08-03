@@ -15,14 +15,14 @@
       Ошибка: <span th:text="${param.error}"></span>
     </div>
 
-    <!-- Навигация по периодам -->
+    <!-- Навигация по годам -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <div style="display: flex; align-items: center; gap: 15px;">
-        <a th:if="${canGoBack}"
-           th:href="@{/payments(year=${prevStart.year}, month=${prevStart.monthValue}, search=${currentSearch})}"
-           class="btn" style="padding: 5px 10px;">← Пред.</a>
-        <span th:unless="${canGoBack}"
-              class="btn" style="padding: 5px 10px; background-color: #6c757d; color: white; cursor: not-allowed; opacity: 0.6;">← Пред.</span>
+        <a th:if="${canGoPrevYear}"
+           th:href="@{/payments(year=${prevYearStart.year}, month=${prevYearStart.monthValue}, search=${currentSearch})}"
+           class="btn" style="padding: 5px 10px;">← Год</a>
+        <span th:unless="${canGoPrevYear}"
+              class="btn" style="padding: 5px 10px; background-color: #6c757d; color: white; cursor: not-allowed; opacity: 0.6;">← Год</span>
 
         <h3 style="margin: 0;">
           <span th:text="${#temporals.format(startMonth, 'MMMM yyyy')}"></span>
@@ -30,8 +30,8 @@
           <span th:text="${#temporals.format(endMonth, 'MMMM yyyy')}"></span>
         </h3>
 
-        <a th:href="@{/payments(year=${nextStart.year}, month=${nextStart.monthValue}, search=${currentSearch})}"
-           class="btn" style="padding: 5px 10px;">След. →</a>
+        <a th:href="@{/payments(year=${nextYearStart.year}, month=${nextYearStart.monthValue}, search=${currentSearch})}"
+           class="btn" style="padding: 5px 10px;">Год →</a>
       </div>
     </div>
 
