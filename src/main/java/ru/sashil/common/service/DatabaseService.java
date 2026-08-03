@@ -4,11 +4,9 @@ import ru.sashil.common.util.NameUtils;
 import ru.sashil.common.util.SpringContextHolder;
 
 import java.sql.*;
+import java.sql.Date;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Logger;
 
 public class DatabaseService {
@@ -638,6 +636,7 @@ public class DatabaseService {
     /**
      * Находит подходящие группы для ребенка по возрасту, навыку и типу абонемента.
      * Возвращает список групп, отсортированный по приоритету совпадения.
+     * Исключает группы, в которых ребенок уже состоит.
      */
     public List<Map<String, Object>> findSuitableGroupsForChild(long childId) {
         String sql = "SELECT c.age, c.skill::text as skill FROM pool.children c WHERE c.id = ?";
@@ -659,7 +658,21 @@ public class DatabaseService {
             return java.util.Collections.emptyList();
         }
 
-        // Добавляем subscription_type в запрос
+        // Получаем группы, в которых уже состоит ребенок
+        Set<Long> childGroups = new HashSet<>();
+        String childGroupsSql = "SELECT group_id FROM pool.group_children WHERE child_id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(childGroupsSql)) {
+            stmt.setLong(1, childId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                childGroups.add(rs.getLong("group_id"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        // Получаем все группы
         String groupsSql = "SELECT g.id, g.name, g.number, g.min_age, g.max_age, g.skill_1, g.skill_2, " +
                 "g.subscription_type, " +
                 "g.day_1_start, g.day_1_end, g.day_2_start, g.day_2_end, " +
@@ -669,40 +682,57 @@ public class DatabaseService {
 
         List<Map<String, Object>> allGroups = executeQuery(groupsSql);
 
+        // Списки для разных приоритетов совпадения
         List<Map<String, Object>> fullMatch = new ArrayList<>();
-        List<Map<String, Object>> skillMatch = new ArrayList<>();
+        List<Map<String, Object>> ageSkillMatch = new ArrayList<>();
         List<Map<String, Object>> ageMatch = new ArrayList<>();
-        List<Map<String, Object>> subscriptionMatch = new ArrayList<>();
+        List<Map<String, Object>> skillMatch = new ArrayList<>();
 
         for (Map<String, Object> g : allGroups) {
+            Long groupId = (Long) g.get("id");
+
+            // Пропускаем группы, в которых ребенок уже состоит
+            if (childGroups.contains(groupId)) {
+                continue;
+            }
+
             Integer minAge = (Integer) g.get("min_age");
             Integer maxAge = (Integer) g.get("max_age");
             String s1 = (String) g.get("skill_1");
             String s2 = (String) g.get("skill_2");
-            String subscriptionType = (String) g.get("subscription_type");
 
-            boolean ageOk = (minAge == null || age >= minAge) && (maxAge == null || age <= maxAge);
-            boolean skillOk = (s1 == null && s2 == null) ||
-                    (skill != null && (skill.equals(s1) || skill.equals(s2)));
-            // Если тип абонемента не задан (null) - подходит для любого
-            boolean subscriptionOk = subscriptionType == null;
+            // Проверка возраста
+            boolean ageOk = true;
+            if (minAge != null && age < minAge) ageOk = false;
+            if (maxAge != null && age > maxAge) ageOk = false;
 
-            if (ageOk && skillOk && subscriptionOk) {
+            // Проверка навыка
+            boolean skillOk = true;
+            if (s1 != null || s2 != null) {
+                if (skill == null) {
+                    skillOk = false;
+                } else {
+                    boolean matches = skill.equals(s1) || skill.equals(s2);
+                    if (!matches) skillOk = false;
+                }
+            }
+
+            // Распределяем по приоритетам
+            if (ageOk && skillOk) {
                 fullMatch.add(g);
-            } else if (skillOk && subscriptionOk) {
-                skillMatch.add(g);
-            } else if (ageOk && subscriptionOk) {
+            } else if (ageOk) {
                 ageMatch.add(g);
-            } else if (subscriptionOk) {
-                subscriptionMatch.add(g);
+            } else if (skillOk) {
+                skillMatch.add(g);
             }
         }
 
+        // Собираем результат с приоритетом
         List<Map<String, Object>> result = new ArrayList<>();
         result.addAll(fullMatch);
-        result.addAll(skillMatch);
         result.addAll(ageMatch);
-        result.addAll(subscriptionMatch);
+        result.addAll(skillMatch);
+
         return result;
     }
 
