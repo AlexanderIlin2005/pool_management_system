@@ -31,38 +31,25 @@ public class ReportService {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private static final DateTimeFormatter MONTH_SHORT = DateTimeFormatter.ofPattern("MM.yyyy");
 
+    // Русская локаль для форматирования месяцев (родительный падеж)
+    private static final Locale RUSSIAN_LOCALE = new Locale("ru", "RU");
+    private static final DateTimeFormatter MONTH_GENITIVE_FORMATTER = DateTimeFormatter.ofPattern("MMMM yyyy", RUSSIAN_LOCALE);
+
     // Маппинг месяцев для именительного падежа
     private static final Map<Integer, String> MONTH_NOMINATIVE = new HashMap<>();
     static {
-        MONTH_NOMINATIVE.put(1, "Январь");
-        MONTH_NOMINATIVE.put(2, "Февраль");
-        MONTH_NOMINATIVE.put(3, "Март");
-        MONTH_NOMINATIVE.put(4, "Апрель");
-        MONTH_NOMINATIVE.put(5, "Май");
-        MONTH_NOMINATIVE.put(6, "Июнь");
-        MONTH_NOMINATIVE.put(7, "Июль");
-        MONTH_NOMINATIVE.put(8, "Август");
-        MONTH_NOMINATIVE.put(9, "Сентябрь");
-        MONTH_NOMINATIVE.put(10, "Октябрь");
-        MONTH_NOMINATIVE.put(11, "Ноябрь");
-        MONTH_NOMINATIVE.put(12, "Декабрь");
-    }
-
-    // Маппинг месяцев для родительного падежа
-    private static final Map<Integer, String> MONTH_GENITIVE = new HashMap<>();
-    static {
-        MONTH_GENITIVE.put(1, "Января");
-        MONTH_GENITIVE.put(2, "Февраля");
-        MONTH_GENITIVE.put(3, "Марта");
-        MONTH_GENITIVE.put(4, "Апреля");
-        MONTH_GENITIVE.put(5, "Мая");
-        MONTH_GENITIVE.put(6, "Июня");
-        MONTH_GENITIVE.put(7, "Июля");
-        MONTH_GENITIVE.put(8, "Августа");
-        MONTH_GENITIVE.put(9, "Сентября");
-        MONTH_GENITIVE.put(10, "Октября");
-        MONTH_GENITIVE.put(11, "Ноября");
-        MONTH_GENITIVE.put(12, "Декабря");
+        MONTH_NOMINATIVE.put(1, "январь");
+        MONTH_NOMINATIVE.put(2, "февраль");
+        MONTH_NOMINATIVE.put(3, "март");
+        MONTH_NOMINATIVE.put(4, "апрель");
+        MONTH_NOMINATIVE.put(5, "май");
+        MONTH_NOMINATIVE.put(6, "июнь");
+        MONTH_NOMINATIVE.put(7, "июль");
+        MONTH_NOMINATIVE.put(8, "август");
+        MONTH_NOMINATIVE.put(9, "сентябрь");
+        MONTH_NOMINATIVE.put(10, "октябрь");
+        MONTH_NOMINATIVE.put(11, "ноябрь");
+        MONTH_NOMINATIVE.put(12, "декабрь");
     }
 
     /**
@@ -70,13 +57,6 @@ public class ReportService {
      */
     private String getMonthNominative(LocalDate date) {
         return MONTH_NOMINATIVE.get(date.getMonthValue()) + " " + date.getYear();
-    }
-
-    /**
-     * Возвращает название месяца в родительном падеже с годом
-     */
-    private String getMonthGenitive(LocalDate date) {
-        return MONTH_GENITIVE.get(date.getMonthValue()) + " " + date.getYear();
     }
 
     // ============= ОТЧЕТ ПО ОПЛАТАМ =============
@@ -124,10 +104,10 @@ public class ReportService {
         titleRun.setText("Бассейн Гимназии №642 \"Земля и Вселенная\"");
         titleRun.addBreak();
 
-        // Для периода используем родительный падеж для первого месяца и именительный для второго
+        // Для первого месяца используем родительный падеж (дефолтный от DateTimeFormatter)
         // "с Сентября 2026 по Май 2027"
-        String startMonthStr = getMonthGenitive(startMonth);  // родительный падеж
-        String endMonthStr = getMonthNominative(endMonth);    // именительный падеж
+        String startMonthStr = startMonth.format(MONTH_GENITIVE_FORMATTER);  // родительный падеж (дефолтный)
+        String endMonthStr = getMonthNominative(endMonth);                   // именительный падеж
         titleRun.setText("Период: с " + startMonthStr + " по " + endMonthStr);
         titleRun.addBreak();
         titleRun.addBreak();
