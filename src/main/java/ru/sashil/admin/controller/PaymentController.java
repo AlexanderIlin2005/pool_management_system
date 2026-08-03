@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -60,14 +61,16 @@ public class PaymentController {
 
         if (year != null && month != null) {
             startMonth = LocalDate.of(year, month, 1);
-            endMonth = startMonth.plusMonths(10);
+            // Исправлено: +8 вместо +10 (сентябрь 2026 - май 2027)
+            endMonth = startMonth.plusMonths(8);
 
             if (startMonth.isBefore(MIN_DATE)) {
                 return "redirect:/payments";
             }
         } else {
             startMonth = MIN_DATE;
-            endMonth = startMonth.plusMonths(10);
+            // Исправлено: +8 вместо +10 (сентябрь 2026 - май 2027)
+            endMonth = startMonth.plusMonths(8);
         }
 
         LocalDate current = startMonth;
@@ -80,6 +83,7 @@ public class PaymentController {
 
         Map<String, Object> data = paymentService.getPaymentTableData(startMonth, endMonth, search);
 
+        // Проверяем, можно ли перейти назад (не раньше сентября 2026)
         boolean canGoBack = startMonth.minusMonths(1).isAfter(MIN_DATE) ||
                 startMonth.minusMonths(1).isEqual(MIN_DATE);
 
@@ -95,9 +99,23 @@ public class PaymentController {
         model.addAttribute("nextStart", startMonth.plusMonths(1));
         model.addAttribute("canGoBack", canGoBack);
         model.addAttribute("monthFormatter", DateTimeFormatter.ofPattern("MMM yyyy"));
-        model.addAttribute("defaultAmount", BigDecimal.ZERO); // Всегда 0
+        model.addAttribute("defaultAmount", BigDecimal.ZERO);
+        model.addAttribute("allMonths", getMonthsInPeriod(startMonth, endMonth));
 
         return "payments";
+    }
+
+    /**
+     * Получает список всех месяцев в периоде для выбора
+     */
+    private List<LocalDate> getMonthsInPeriod(LocalDate startMonth, LocalDate endMonth) {
+        List<LocalDate> months = new ArrayList<>();
+        LocalDate current = startMonth;
+        while (!current.isAfter(endMonth)) {
+            months.add(current);
+            current = current.plusMonths(1);
+        }
+        return months;
     }
 
     /**

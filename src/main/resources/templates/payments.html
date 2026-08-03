@@ -93,8 +93,7 @@
           <button class="btn btn-sm btn-success add-payment-btn"
                   style="padding: 4px 8px; font-size: 0.75em; background-color: #28a745; color: white;"
                   th:data-child-id="${row['childId']}"
-                  th:data-child-name="${row['childName']}"
-                  th:data-month="${#temporals.format(startMonth, 'yyyy-MM')}">
+                  th:data-child-name="${row['childName']}">
             + Добавить оплату
           </button>
 
@@ -121,11 +120,19 @@
     <div style="background: white; padding: 25px; border-radius: 8px; max-width: 500px; width: 90%;">
       <h3>➕ Добавить оплату</h3>
       <p>Ребенок: <strong id="addPaymentChildName"></strong></p>
-      <p>Месяц: <strong id="addPaymentMonth"></strong></p>
 
       <form id="addPaymentForm" method="post" action="/payments/add-amount">
         <input type="hidden" name="childId" id="addPaymentChildId">
-        <input type="hidden" name="monthYear" id="addPaymentMonthYear">
+
+        <div style="margin-top: 15px;">
+          <label style="font-weight: bold; display: block; margin-bottom: 5px;">Месяц оплаты:</label>
+          <select name="monthYear" id="addPaymentMonth" required
+                  style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            <option th:each="m : ${allMonths}"
+                    th:value="${#temporals.format(m, 'yyyy-MM')}"
+                    th:text="${#temporals.format(m, 'MMMM yyyy')}"></option>
+          </select>
+        </div>
 
         <div style="margin-top: 15px;">
           <label style="font-weight: bold; display: block; margin-bottom: 5px;">Сумма оплаты (₽):</label>
@@ -170,11 +177,9 @@
 
   <script>
     // === Модальное окно для добавления оплаты ===
-    function openAddPaymentModal(childId, childName, monthYear) {
+    function openAddPaymentModal(childId, childName) {
       document.getElementById('addPaymentChildId').value = childId;
       document.getElementById('addPaymentChildName').textContent = childName;
-      document.getElementById('addPaymentMonthYear').value = monthYear;
-      document.getElementById('addPaymentMonth').textContent = monthYear;
       document.getElementById('addPaymentModal').style.display = 'flex';
 
       setTimeout(function() {
@@ -205,8 +210,7 @@
         btn.addEventListener('click', function() {
           const childId = this.dataset.childId;
           const childName = this.dataset.childName;
-          const month = this.dataset.month;
-          openAddPaymentModal(childId, childName, month);
+          openAddPaymentModal(childId, childName);
         });
       });
 

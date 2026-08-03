@@ -630,8 +630,10 @@ public class PaymentService {
 
         // Отправляем уведомление родителю об успешном подтверждении
         try {
-            String notificationMessage = "✅ Ваша оплата за " +
-                    payment.getMonthYear().format(DateTimeFormatter.ofPattern("MMMM yyyy")) +
+            // Форматируем месяц в формате "MM.yyyy" (например, 09.2026)
+            String monthFormatted = payment.getMonthYear().format(DateTimeFormatter.ofPattern("MM.yyyy"));
+
+            String notificationMessage = "✅ Ваша оплата за " + monthFormatted +
                     " подтверждена!\nСумма: " + amount + " ₽";
 
             String sql = "INSERT INTO pool.payment_notifications " +
