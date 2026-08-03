@@ -33,6 +33,8 @@ public class ReportService {
 
     // ============= ОТЧЕТ ПО ОПЛАТАМ =============
 
+    // ============= ОТЧЕТ ПО ОПЛАТАМ =============
+
     public byte[] generatePaymentsReport(LocalDate startMonth, LocalDate endMonth) throws Exception {
         List<Child> children = childRepository.findAll();
         List<Payment> payments = paymentRepository.findPaymentsInPeriod(startMonth, endMonth);
@@ -80,7 +82,6 @@ public class ReportService {
         titleRun.addBreak();
 
         // ===== ТАБЛИЦА =====
-        // Колонки: №, ФИО, Возраст, Класс, Группа, месяцы, Итого, Долг
         int baseCols = 5; // №, ФИО, Возраст, Класс, Группа
         int colCount = baseCols + months.size() + 2; // +2 для Итого и Долга
 
@@ -92,12 +93,10 @@ public class ReportService {
         XWPFTableRow headerRow = table.getRow(0);
         int col = 0;
 
-        // Фиксированные заголовки
         String[] fixedHeaders = {"№", "ФИО ребенка", "Возраст", "Класс", "Группа"};
         for (String header : fixedHeaders) {
             XWPFTableCell cell = headerRow.getCell(col);
             if (cell == null) {
-                // Если ячейка null, создаем новую
                 cell = headerRow.addNewTableCell();
             }
             cell.setText(header);
@@ -121,16 +120,16 @@ public class ReportService {
         if (totalHeader == null) {
             totalHeader = headerRow.addNewTableCell();
         }
-        totalHeader.setText("Оплачено");
+        totalHeader.setText("Итого (₽)");
         formatHeaderCell(totalHeader);
         col++;
 
-        // Долг
+        // Долг (оставляем для совместимости, но не используем)
         XWPFTableCell debtHeader = headerRow.getCell(col);
         if (debtHeader == null) {
             debtHeader = headerRow.addNewTableCell();
         }
-        debtHeader.setText("Долг");
+        debtHeader.setText("Долг (₽)");
         formatHeaderCell(debtHeader);
 
         // ===== ДАННЫЕ =====
@@ -181,7 +180,7 @@ public class ReportService {
             cellGroup.setText(groupName);
             col++;
 
-            // Месяцы
+            // Месяцы - показываем суммы оплат
             BigDecimal totalPaid = BigDecimal.ZERO;
             BigDecimal totalDebt = BigDecimal.ZERO;
 
@@ -192,23 +191,14 @@ public class ReportService {
                 XWPFTableCell cell = row.getCell(col);
                 if (cell == null) cell = row.addNewTableCell();
 
-                if (payment != null && Boolean.TRUE.equals(payment.getIsPaid())) {
-                    cell.setText("✅");
-                    if (payment.getAmount() != null) {
-                        totalPaid = totalPaid.add(payment.getAmount());
-                    }
-                } else if (payment != null && "PENDING".equals(payment.getStatus())) {
-                    cell.setText("⏳");
-                    if (payment.getAmount() != null) {
-                        totalDebt = totalDebt.add(payment.getAmount());
-                    }
-                } else if (payment != null && "REJECTED".equals(payment.getStatus())) {
-                    cell.setText("❌");
-                    if (payment.getAmount() != null) {
-                        totalDebt = totalDebt.add(payment.getAmount());
-                    }
+                if (payment != null && payment.getTotalPaid() != null && payment.getTotalPaid().compareTo(BigDecimal.ZERO) > 0) {
+                    // Показываем сумму оплаты
+                    String amountStr = payment.getTotalPaid().toString();
+                    cell.setText(amountStr);
+                    totalPaid = totalPaid.add(payment.getTotalPaid());
                 } else {
-                    cell.setText("•");
+                    // Пустая клетка
+                    cell.setText("");
                 }
                 formatCellCenter(cell);
                 col++;
@@ -217,23 +207,35 @@ public class ReportService {
             // Итого оплачено
             XWPFTableCell cellTotal = row.getCell(col);
             if (cellTotal == null) cellTotal = row.addNewTableCell();
-            cellTotal.setText(totalPaid + " ₽");
+            cellTotal.setText(totalPaid.toString());
             formatCellCenter(cellTotal);
             col++;
 
-            // Долг
+            // Долг - считаем как разницу между суммой абонемента и оплаченным
+            BigDecimal monthAmount = BigDecimal.ZERO;
+            BigDecimal totalDebtAmount = BigDecimal.ZERO;
+            for (LocalDate month : months) {
+                Payment payment = childPayments.get(month);
+                if (payment != null) {
+                    BigDecimal amount = payment.getAmount() != null ? payment.getAmount() : BigDecimal.ZERO;
+                    BigDecimal totalPaidMonth = payment.getTotalPaid() != null ? payment.getTotalPaid() : BigDecimal.ZERO;
+                    if (amount.compareTo(BigDecimal.ZERO) > 0 && totalPaidMonth.compareTo(amount) < 0) {
+                        totalDebtAmount = totalDebtAmount.add(amount.subtract(totalPaidMonth));
+                    }
+                }
+            }
+
             XWPFTableCell cellDebt = row.getCell(col);
             if (cellDebt == null) cellDebt = row.addNewTableCell();
-            cellDebt.setText(totalDebt + " ₽");
+            cellDebt.setText(totalDebtAmount.toString());
             formatCellCenter(cellDebt);
 
             grandTotalPaid = grandTotalPaid.add(totalPaid);
-            grandTotalDebt = grandTotalDebt.add(totalDebt);
+            grandTotalDebt = grandTotalDebt.add(totalDebtAmount);
         }
 
         // ===== ИТОГОВАЯ СТРОКА =====
         XWPFTableRow totalRow = table.createRow();
-        // Заполняем все ячейки итоговой строки
         for (int i = 0; i < colCount; i++) {
             XWPFTableCell cell = totalRow.getCell(i);
             if (cell == null) {
@@ -247,13 +249,13 @@ public class ReportService {
                 if (p.getRuns().isEmpty()) p.createRun();
                 p.getRuns().get(0).setBold(true);
             } else if (i == colCount - 2) {
-                cell.setText(grandTotalPaid + " ₽");
+                cell.setText(grandTotalPaid.toString());
                 formatCellCenter(cell);
                 XWPFParagraph p = cell.getParagraphs().get(0);
                 if (p.getRuns().isEmpty()) p.createRun();
                 p.getRuns().get(0).setBold(true);
             } else if (i == colCount - 1) {
-                cell.setText(grandTotalDebt + " ₽");
+                cell.setText(grandTotalDebt.toString());
                 formatCellCenter(cell);
                 XWPFParagraph p = cell.getParagraphs().get(0);
                 if (p.getRuns().isEmpty()) p.createRun();

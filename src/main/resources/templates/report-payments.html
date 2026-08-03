@@ -10,12 +10,16 @@
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
           <div style="flex: 1;">
             <label style="font-weight: bold; display: block; margin-bottom: 5px;">Начало периода:</label>
-            <input type="month" name="startMonth" th:value="${#temporals.format(startMonth, 'yyyy-MM')}"
+            <input type="month" name="startMonth"
+                   th:value="${#temporals.format(startMonth, 'yyyy-MM')}"
+                   min="2026-09"
                    style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            <small style="color: #6c757d;">Не ранее сентября 2026</small>
           </div>
           <div style="flex: 1;">
             <label style="font-weight: bold; display: block; margin-bottom: 5px;">Конец периода:</label>
-            <input type="month" name="endMonth" th:value="${#temporals.format(endMonth, 'yyyy-MM')}"
+            <input type="month" name="endMonth"
+                   th:value="${#temporals.format(endMonth, 'yyyy-MM')}"
                    style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
           </div>
         </div>
@@ -24,14 +28,14 @@
         </button>
       </form>
       <p style="color: #6c757d; font-size: 0.9em; margin-top: 15px;">
-        Отчет включает всех детей и статус оплат за каждый месяц выбранного периода.
+        Отчет включает всех детей и суммы оплат за каждый месяц выбранного периода.
       </p>
     </div>
 
     <div style="margin-top: 30px; padding: 15px; background: #e7f3ff; border: 1px solid #b6d4fe; border-radius: 8px;">
       <p style="margin: 0; color: #084298; font-size: 0.9em;">
-        <strong>ℹ️ Легенда:</strong>
-        ✅ — оплачено, ⏳ — на проверке, ❌ — отклонено, • — не создано
+        <strong>ℹ️ Информация:</strong>
+        В отчете показываются суммы оплат за каждый месяц. Пустая клетка означает отсутствие оплаты.
       </p>
     </div>
   </div>

@@ -25,6 +25,8 @@ import java.util.List;
 @RequestMapping("/reports")
 public class ReportController {
 
+    private static final LocalDate MIN_DATE = LocalDate.of(2026, 9, 1);
+
     @Autowired
     private ReportService reportService;
 
@@ -84,7 +86,11 @@ public class ReportController {
         if (user == null) return "redirect:/login";
 
         LocalDate now = LocalDate.now();
+        // Начало периода - не раньше сентября 2026
         LocalDate startMonth = now.minusMonths(0).withDayOfMonth(1);
+        if (startMonth.isBefore(MIN_DATE)) {
+            startMonth = MIN_DATE;
+        }
         LocalDate endMonth = startMonth.plusMonths(11);
 
         model.addAttribute("startMonth", startMonth);
@@ -109,6 +115,14 @@ public class ReportController {
 
         LocalDate start = LocalDate.parse(startMonth + "-01");
         LocalDate end = LocalDate.parse(endMonth + "-01");
+
+        // Проверяем, что начало периода не раньше сентября 2026
+        if (start.isBefore(MIN_DATE)) {
+            start = MIN_DATE;
+        }
+        if (end.isBefore(start)) {
+            end = start.plusMonths(11);
+        }
 
         byte[] report = reportService.generatePaymentsReport(start, end);
         String filename = "otchet_po_oplatam_" + start.format(DateTimeFormatter.ofPattern("MM_yyyy")) +
@@ -175,10 +189,7 @@ public class ReportController {
 
         byte[] report = reportService.generateAttendanceReport(groupId, year, month);
 
-        // Получаем номер группы вместо ID для понятного имени файла
         String groupNumber = getGroupNumber(groupId);
-
-        // Используем номер группы в имени файла
         String filename = "otchet_poseshchaemosti_group_" + groupNumber + "_" + year + "_" + month;
         sendDocxResponse(response, report, filename);
     }
@@ -191,20 +202,18 @@ public class ReportController {
             if (group != null && group.getNumber() != null) {
                 return String.valueOf(group.getNumber());
             }
-            return String.valueOf(groupId); // fallback на ID, если номер не задан
+            return String.valueOf(groupId);
         } catch (Exception e) {
-            return String.valueOf(groupId); // fallback на ID в случае ошибки
+            return String.valueOf(groupId);
         }
     }
 
     private void sendDocxResponse(HttpServletResponse response, byte[] report, String filename) throws Exception {
         response.setContentType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
-        // Кодируем имя файла для корректной работы с кириллицей
         String encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8.toString())
                 .replace("+", "%20");
 
-        // Используем правильный формат Content-Disposition с поддержкой UTF-8
         String contentDisposition = "attachment; filename*=UTF-8''" + encodedFilename +
                 "_" + LocalDate.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy")) + ".docx";
         response.setHeader("Content-Disposition", contentDisposition);
