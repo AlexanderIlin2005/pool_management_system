@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.repository.GroupJoinRequestRepository;
 import ru.sashil.admin.repository.MessageRepository;
+import ru.sashil.admin.service.PaymentService;
 import ru.sashil.common.service.DatabaseService;
 
 @ControllerAdvice
@@ -20,6 +21,9 @@ public class GlobalControllerAdvice {
 
     @Autowired
     private MessageRepository messageRepository;
+
+    @Autowired
+    private PaymentService paymentService;
 
     @ModelAttribute("unreadCertsCount")
     public Integer getUnreadCertsCount(HttpSession session) {
@@ -64,6 +68,24 @@ public class GlobalControllerAdvice {
             } else if (user.getRole() == AdminUser.Role.COACH) {
                 return messageRepository.findPendingForCoach(user.getId()).size();
             }
+        } catch (Exception e) {
+            // Игнорируем ошибки
+        }
+        return 0;
+    }
+
+    @ModelAttribute("unreadReceiptsCount")
+    public Integer getUnreadReceiptsCount(HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return 0;
+
+        // Доступно для ADMIN и ACCOUNTANT
+        if (user.getRole() != AdminUser.Role.ADMIN && user.getRole() != AdminUser.Role.ACCOUNTANT) {
+            return 0;
+        }
+
+        try {
+            return paymentService.getPendingReceipts().size();
         } catch (Exception e) {
             // Игнорируем ошибки
         }

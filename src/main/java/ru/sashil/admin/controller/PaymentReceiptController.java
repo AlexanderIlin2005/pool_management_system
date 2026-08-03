@@ -24,14 +24,33 @@ public class PaymentReceiptController {
     @Autowired
     private WsNotificationService wsNotificationService;
 
+    /**
+     * Проверяет, имеет ли пользователь доступ к бухгалтерским разделам
+     */
+    private boolean hasAccountingAccess(HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return false;
+        return user.getRole() == AdminUser.Role.ACCOUNTANT || user.getRole() == AdminUser.Role.ADMIN;
+    }
+
+    /**
+     * Проверяет, является ли пользователь бухгалтером
+     */
+    private boolean isAccountant(HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return false;
+        return user.getRole() == AdminUser.Role.ACCOUNTANT;
+    }
+
     @GetMapping
     public String receiptsPage(Model model, HttpSession session,
                                @RequestParam(required = false) String tab) {
 
-        AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+        if (!hasAccountingAccess(session)) {
             return "redirect:/login";
         }
+
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
 
         List<Map<String, Object>> receipts;
         boolean isNewTab = !"archive".equals(tab);
@@ -57,12 +76,15 @@ public class PaymentReceiptController {
                                  @RequestParam BigDecimal amount,
                                  @RequestParam(required = false) String comment,
                                  HttpSession session) {
-        AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null) return "redirect:/login";
+        if (!hasAccountingAccess(session)) {
+            return "redirect:/login";
+        }
 
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             return "redirect:/payment-receipts?error=amount_positive_required";
         }
+
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
 
         try {
             paymentService.approvePaymentWithAmount(id, amount, user.getId(), comment);
@@ -77,8 +99,11 @@ public class PaymentReceiptController {
     public String rejectReceipt(@PathVariable Long id,
                                 @RequestParam(required = false) String comment,
                                 HttpSession session) {
+        if (!hasAccountingAccess(session)) {
+            return "redirect:/login";
+        }
+
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null) return "redirect:/login";
 
         paymentService.rejectPayment(id, user.getId(), comment);
         wsNotificationService.sendUpdateNotification("PAYMENT_REJECTED");

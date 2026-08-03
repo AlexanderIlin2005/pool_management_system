@@ -204,6 +204,17 @@
       document.getElementById('reminderModal').style.display = 'none';
     }
 
+    // === Умное обновление страницы (раз в 30 секунд, только если модальные окна закрыты) ===
+    function isAnyModalOpen() {
+      var modals = document.querySelectorAll('.modal, [id$="Modal"]');
+      for (var i = 0; i < modals.length; i++) {
+        if (modals[i].style.display !== 'none') {
+          return true;
+        }
+      }
+      return false;
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
       // Обработчики для кнопок "Добавить оплату"
       document.querySelectorAll('.add-payment-btn').forEach(btn => {
@@ -236,6 +247,17 @@
           closeReminderModal();
         }
       });
+
+      // Умное обновление каждые 30 секунд
+      setInterval(function() {
+        // Обновляем только если нет открытых модальных окон
+        if (!isAnyModalOpen()) {
+          console.log('🔄 Умное обновление страницы оплат...');
+          location.reload();
+        } else {
+          console.log('⏸️ Обновление отложено (открыто модальное окно)');
+        }
+      }, 30000);
     });
   </script>
 </div>

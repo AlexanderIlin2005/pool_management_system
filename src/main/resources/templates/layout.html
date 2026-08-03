@@ -213,8 +213,14 @@
     <a href="/logs" th:classappend="${activePage == 'logs'} ? 'active'">Логи</a>
   </div>
 
-  <div th:if="${role != null and role.name() == 'ACCOUNTANT'}">
-    <a href="/payments" th:classappend="${activePage == 'payments'} ? 'active'">Оплаты</a>
+  <!-- Бухгалтерские разделы доступны и ADMIN, и ACCOUNTANT -->
+  <div th:if="${role != null and (role.name() == 'ADMIN' or role.name() == 'ACCOUNTANT')}">
+    <a href="/payments" th:classappend="${activePage == 'payments'} ? 'active'" style="position: relative;">
+      Оплаты
+      <span th:if="${unreadReceiptsCount != null and unreadReceiptsCount > 0}"
+            style="position: absolute; top: 5px; right: 10px; background: red; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;"
+            th:text="${unreadReceiptsCount}"></span>
+    </a>
     <a href="/payment-receipts" th:classappend="${activePage == 'payment-receipts'} ? 'active'">Квитанции</a>
     <a href="/payments/settings" th:classappend="${activePage == 'payment-settings'} ? 'active'">Настройка оплат</a>
   </div>

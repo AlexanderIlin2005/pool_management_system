@@ -45,16 +45,44 @@ public class PaymentController {
 
     private static final LocalDate MIN_DATE = LocalDate.of(2026, 9, 1);
 
+    /**
+     * Проверяет, имеет ли пользователь доступ к бухгалтерским разделам
+     */
+    private boolean hasAccountingAccess(HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return false;
+        return user.getRole() == AdminUser.Role.ACCOUNTANT || user.getRole() == AdminUser.Role.ADMIN;
+    }
+
+    /**
+     * Проверяет, является ли пользователь бухгалтером (для операций, доступных только бухгалтеру)
+     */
+    private boolean isAccountant(HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return false;
+        return user.getRole() == AdminUser.Role.ACCOUNTANT;
+    }
+
+    /**
+     * Проверяет, является ли пользователь администратором
+     */
+    private boolean isAdmin(HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return false;
+        return user.getRole() == AdminUser.Role.ADMIN;
+    }
+
     @GetMapping
     public String paymentsPage(Model model, HttpSession session,
                                @RequestParam(required = false) String search,
                                @RequestParam(required = false) Integer year,
                                @RequestParam(required = false) Integer month) {
 
-        AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+        if (!hasAccountingAccess(session)) {
             return "redirect:/login";
         }
+
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
 
         LocalDate startMonth;
         LocalDate endMonth;
@@ -81,7 +109,6 @@ public class PaymentController {
 
         Map<String, Object> data = paymentService.getPaymentTableData(startMonth, endMonth, search);
 
-        // Проверяем, можно ли перейти на год назад (не раньше сентября 2026)
         boolean canGoPrevYear = startMonth.minusYears(1).isAfter(MIN_DATE) ||
                 startMonth.minusYears(1).isEqual(MIN_DATE);
 
@@ -118,6 +145,7 @@ public class PaymentController {
 
     /**
      * Ручное добавление суммы оплаты для конкретного ребенка и месяца
+     * Только для бухгалтера
      */
     @PostMapping("/add-amount")
     public String addPaymentAmount(@RequestParam Long childId,
@@ -125,14 +153,15 @@ public class PaymentController {
                                    @RequestParam BigDecimal amount,
                                    @RequestParam(required = false) String comment,
                                    HttpSession session) {
-        AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+        if (!isAccountant(session)) {
             return "redirect:/login";
         }
 
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             return "redirect:/payments?error=amount_positive_required";
         }
+
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
 
         try {
             LocalDate month = LocalDate.parse(monthYear + "-01");
@@ -145,6 +174,7 @@ public class PaymentController {
 
     /**
      * Установка суммы абонемента для конкретного ребенка и месяца
+     * Только для бухгалтера
      */
     @PostMapping("/set-amount")
     public String setPaymentAmount(@RequestParam Long childId,
@@ -152,14 +182,15 @@ public class PaymentController {
                                    @RequestParam BigDecimal amount,
                                    @RequestParam(required = false) String comment,
                                    HttpSession session) {
-        AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+        if (!isAccountant(session)) {
             return "redirect:/login";
         }
 
         if (amount.compareTo(BigDecimal.ZERO) < 0) {
             return "redirect:/payments?error=amount_negative_required";
         }
+
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
 
         try {
             LocalDate month = LocalDate.parse(monthYear + "-01");
@@ -174,8 +205,11 @@ public class PaymentController {
     public String approvePayment(@PathVariable Long id,
                                  @RequestParam(required = false) String comment,
                                  HttpSession session) {
+        if (!hasAccountingAccess(session)) {
+            return "redirect:/login";
+        }
+
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null) return "redirect:/login";
 
         paymentService.approvePayment(id, user.getId(), comment);
         wsNotificationService.sendUpdateNotification("PAYMENT_APPROVED");
@@ -186,8 +220,11 @@ public class PaymentController {
     public String rejectPayment(@PathVariable Long id,
                                 @RequestParam(required = false) String comment,
                                 HttpSession session) {
+        if (!hasAccountingAccess(session)) {
+            return "redirect:/login";
+        }
+
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null) return "redirect:/login";
 
         paymentService.rejectPayment(id, user.getId(), comment);
         wsNotificationService.sendUpdateNotification("PAYMENT_REJECTED");
@@ -199,8 +236,11 @@ public class PaymentController {
                                 @RequestParam String monthYear,
                                 @RequestParam MultipartFile file,
                                 HttpSession session) {
+        if (!hasAccountingAccess(session)) {
+            return "redirect:/login";
+        }
+
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null) return "redirect:/login";
 
         try {
             LocalDate month = LocalDate.parse(monthYear);
@@ -217,9 +257,11 @@ public class PaymentController {
                                @RequestParam Long childId,
                                @RequestParam(required = false) String comment,
                                HttpSession session) {
+        if (!isAccountant(session)) {
+            return "redirect:/login";
+        }
+
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null) return "redirect:/login";
-        if (user.getRole() != AdminUser.Role.ACCOUNTANT) return "redirect:/login";
 
         PaymentNotification notification = new PaymentNotification();
         notification.setParentVkId(parentVkId);
@@ -249,14 +291,14 @@ public class PaymentController {
 
     /**
      * Массовое обновление суммы абонемента для всех детей на указанный месяц
+     * Только для бухгалтера
      */
     @PostMapping("/update-amount-for-month")
     public String updateAmountForMonth(@RequestParam String monthYear,
                                        @RequestParam BigDecimal amount,
                                        @RequestParam String confirmation,
                                        HttpSession session) {
-        AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+        if (!isAccountant(session)) {
             return "redirect:/login";
         }
 
@@ -267,6 +309,8 @@ public class PaymentController {
         if (amount.compareTo(BigDecimal.ZERO) < 0) {
             return "redirect:/payments?error=amount_negative_required";
         }
+
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
 
         try {
             LocalDate month = LocalDate.parse(monthYear + "-01");
@@ -279,10 +323,11 @@ public class PaymentController {
 
     @GetMapping("/settings")
     public String settingsPage(Model model, HttpSession session) {
-        AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+        if (!isAccountant(session)) {
             return "redirect:/login";
         }
+
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
 
         BigDecimal currentAmount = paymentService.getDefaultAmount();
         model.addAttribute("currentAmount", currentAmount);
@@ -296,10 +341,11 @@ public class PaymentController {
     @PostMapping("/update-default-amount")
     public String updateDefaultAmount(@RequestParam BigDecimal amount,
                                       HttpSession session) {
-        AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+        if (!isAccountant(session)) {
             return "redirect:/login";
         }
+
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
 
         try {
             paymentService.setDefaultAmount(amount, user);
@@ -311,10 +357,11 @@ public class PaymentController {
 
     @GetMapping("/notifications")
     public String notificationsPage(Model model, HttpSession session) {
-        AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+        if (!isAccountant(session)) {
             return "redirect:/login";
         }
+
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
 
         List<PaymentNotification> pendingNotifications = paymentService.getPendingNotifications();
         model.addAttribute("pendingNotifications", pendingNotifications);
@@ -327,8 +374,7 @@ public class PaymentController {
 
     @PostMapping("/notifications/{id}/send")
     public String sendNotification(@PathVariable Long id, HttpSession session) {
-        AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+        if (!isAccountant(session)) {
             return "redirect:/login";
         }
 
