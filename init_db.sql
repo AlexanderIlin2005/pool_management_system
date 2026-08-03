@@ -326,8 +326,12 @@ CREATE TABLE IF NOT EXISTS pool.messages (
     parent_message_id BIGINT,               -- Ссылка на исходное сообщение при ответе
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     read_at TIMESTAMP,
-    replied_at TIMESTAMP
+    replied_at TIMESTAMP,
+    sent_at TIMESTAMP
 );
+
+ALTER TABLE pool.messages DROP CONSTRAINT IF EXISTS messages_status_check;
+ALTER TABLE pool.messages ADD CONSTRAINT messages_status_check CHECK (status IN ('PENDING', 'READ', 'REPLIED', 'SENT'));
 
 -- Индексы для быстрого поиска
 CREATE INDEX idx_messages_status ON pool.messages(status);

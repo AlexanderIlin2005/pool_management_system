@@ -1045,6 +1045,32 @@ public class DatabaseService {
     }
 
 
+    /**
+     * Получает неотправленные сообщения для родителей
+     * Теперь используем таблицу messages вместо payment_notifications
+     */
+    public List<Map<String, Object>> getPendingMessagesForParents() {
+        String sql = "SELECT m.id, m.to_user_id as parent_vk_id, m.message_text, m.from_user_type " +
+                "FROM pool.messages m " +
+                "WHERE m.to_user_type = 'PARENT' AND m.status = 'PENDING' " +
+                "ORDER BY m.created_at ASC";
+        return executeQuery(sql);
+    }
+
+    /**
+     * Помечает сообщение для родителя как отправленное
+     */
+    public void markParentMessageSent(long messageId) {
+        String sql = "UPDATE pool.messages SET status = 'SENT', sent_at = CURRENT_TIMESTAMP WHERE id = ?";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, messageId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
     // === ВСПОМОГАТЕЛЬНЫЙ МЕТОД ===
 
     private List<Map<String, Object>> executeQuery(String sql) {

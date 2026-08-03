@@ -59,7 +59,7 @@ class BotApplication {
                     launch { startNotificationScheduler(bot) }
                     launch { startBroadcastListener(bot, dbUrl, ConfigLoader.get("DB_USER"), ConfigLoader.get("DB_PASSWORD")) }
                     launch { startPendingNotificationSender(bot) }
-                    launch { sendMessageReplies(bot) }
+                    launch { startMessageSender(bot) }
 
                     LOGGER.info("Запуск LongPoll polling...")
                     bot.startLongPolling(groupId, null).collect { update ->
@@ -94,14 +94,14 @@ class BotApplication {
             }
         }
 
-        private suspend fun sendMessageReplies(bot: VkClient) {
+        private suspend fun startMessageSender(bot: VkClient) {
             while (true) {
                 try {
-                    notificationService.sendPendingMessageReplies();
+                    notificationService.sendPendingMessagesToParents()
                 } catch (e: Exception) {
-                    LOGGER.severe("Ошибка в слушателе рассылок: ${e.message}")
+                    LOGGER.severe("Ошибка в отправке сообщений родителям: ${e.message}")
                 }
-                delay(10000)
+                delay(10000) // Каждые 10 секунд
             }
         }
 

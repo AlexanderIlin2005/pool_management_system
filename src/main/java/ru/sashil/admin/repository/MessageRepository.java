@@ -25,6 +25,10 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     @Query("SELECT m FROM Message m WHERE m.toUserId = :coachId AND m.status != 'REPLIED' ORDER BY m.createdAt DESC")
     List<Message> findActiveForCoach(Long coachId);
 
+    // Для родителей - все непрочитанные (для отправки через бота)
+    @Query("SELECT m FROM Message m WHERE m.toUserType = 'PARENT' AND m.status = 'PENDING' ORDER BY m.createdAt ASC")
+    List<Message> findPendingForParents();
+
     @Modifying
     @Transactional
     @Query("UPDATE Message m SET m.status = 'READ', m.readAt = CURRENT_TIMESTAMP WHERE m.id = :messageId")

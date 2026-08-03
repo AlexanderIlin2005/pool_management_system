@@ -70,4 +70,7 @@ public class Message {
 
     @Column(name = "replied_at")
     private LocalDateTime repliedAt;
+
+    @Column(name = "sent_at")
+    private LocalDateTime sentAt;
 }

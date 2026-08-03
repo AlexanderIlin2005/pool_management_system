@@ -11,9 +11,6 @@ class NotificationService(
 ) {
     private val logger = Logger.getLogger(NotificationService::class.java.name)
 
-    /**
-     * Основной метод проверки всех типов уведомлений.
-     */
     suspend fun checkAndSendNotifications() {
         logger.info("Запуск проверки уведомлений...")
         val today = LocalDate.now()
@@ -34,43 +31,50 @@ class NotificationService(
             }
         }
 
-        // Отправка уведомлений об изменении навыков
         sendPendingSkillNotifications()
-
-        // Отправка уведомлений о статусе заявки на запись
         sendPendingJoinRequestNotifications()
-
         sendPendingPaymentNotifications()
-
         sendPendingChildUpdateNotifications()
+        sendPendingMessagesToParents()  // НОВЫЙ МЕТОД
 
         logger.info("Проверка уведомлений завершена.")
     }
 
     /**
-     * Отправляет ответы на сообщения родителям.
-     * Метод public для вызова из BotApplication.
+     * Отправляет сообщения от админов/тренеров родителям
      */
-    suspend fun sendPendingMessageReplies() {
+    suspend fun sendPendingMessagesToParents() {
         try {
-            val notifications = dbService.getPendingMessageReplies()
-            for (notif in notifications) {
-                val vkId = notif["parent_vk_id"] as Long
-                val message = notif["message_text"] as String
-                val notifId = notif["id"] as Long
+            val messages = dbService.getPendingMessagesForParents()
+            for (msg in messages) {
+                val parentVkId = msg["parent_vk_id"] as Long
+                val messageText = msg["message_text"] as String
+                val fromUserType = msg["from_user_type"] as String
+                val messageId = msg["id"] as Long
+
+                val fromName = when (fromUserType) {
+                    "ADMIN" -> "администратора"
+                    "COACH" -> "тренера"
+                    else -> "сотрудника"
+                }
+
+                val fullMessage = "📨 Вы получили сообщение от $fromName:\n\n$messageText"
 
                 try {
-                    sendMessage(vkId, message)
-                    dbService.markMessageReplySent(notifId)
-                    logger.info("Ответ на сообщение отправлен родителю $vkId")
+                    sendMessage(parentVkId, fullMessage)
+                    dbService.markParentMessageSent(messageId)
+                    logger.info("Сообщение #$messageId отправлено родителю $parentVkId")
                 } catch (e: Exception) {
-                    logger.severe("Ошибка отправки ответа родителю $vkId: ${e.message}")
+                    logger.severe("Ошибка отправки сообщения родителю $parentVkId: ${e.message}")
                 }
             }
         } catch (e: Exception) {
-            logger.severe("Ошибка в отправке ответов родителям: ${e.message}")
+            logger.severe("Ошибка в отправке сообщений родителям: ${e.message}")
         }
     }
+
+    // Остальные методы остаются без изменений...
+    // sendPendingSkillNotifications, sendPendingJoinRequestNotifications и т.д.
 
     private suspend fun sendPendingChildUpdateNotifications() {
         val notifications = dbService.getPendingChildUpdateNotifications()
@@ -106,10 +110,6 @@ class NotificationService(
         }
     }
 
-    /**
-     * Отправляет уведомления о статусе заявок на запись в группу.
-     * Использует таблицу join_request_notifications.
-     */
     private suspend fun sendPendingJoinRequestNotifications() {
         val notifications = dbService.getPendingJoinRequestNotifications()
         for (notif in notifications) {

@@ -5,22 +5,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.sashil.admin.model.Message;
 import ru.sashil.admin.repository.MessageRepository;
-import ru.sashil.common.service.DatabaseService;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class MessageService {
 
     @Autowired
     private MessageRepository messageRepository;
-
-    @Autowired
-    private DatabaseService databaseService;
 
     public List<Message> getPendingMessagesForAdmin() {
         return messageRepository.findPendingForAdmins();
@@ -38,6 +31,13 @@ public class MessageService {
         return messageRepository.findActiveForCoach(coachId);
     }
 
+    /**
+     * Получает все непрочитанные сообщения для родителей
+     */
+    public List<Message> getPendingMessagesForParents() {
+        return messageRepository.findPendingForParents();
+    }
+
     @Transactional
     public void markMessageAsRead(Long messageId) {
         messageRepository.markAsRead(messageId);
@@ -50,6 +50,7 @@ public class MessageService {
 
     /**
      * Отправка ответа родителю от тренера/администратора
+     * Сохраняется в таблицу messages
      */
     @Transactional
     public void replyToMessage(Long parentMessageId, Long adminId, String userType, String replyText) {
@@ -61,7 +62,7 @@ public class MessageService {
         Message reply = new Message();
         reply.setFromUserId(adminId);
         reply.setFromUserType(userType);
-        reply.setToUserId(original.getFromUserId());
+        reply.setToUserId(original.getFromUserId()); // VK ID родителя
         reply.setToUserType("PARENT");
         reply.setChild(original.getChild());
         reply.setGroup(original.getGroup());
@@ -74,29 +75,5 @@ public class MessageService {
 
         // Отмечаем исходное сообщение как отвеченное
         markMessageAsReplied(parentMessageId);
-
-        // Отправляем уведомление родителю через VK бота
-        try {
-            String notificationMessage = "Вы получили ответ от " +
-                    (userType.equals("ADMIN") ? "администратора" : "тренера") +
-                    ":\n\n" + replyText;
-
-            String sql = "INSERT INTO pool.payment_notifications " +
-                    "(parent_vk_id, message_text, notification_type, created_at, is_sent) " +
-                    "VALUES (?, ?, 'MESSAGE_REPLY', CURRENT_TIMESTAMP, FALSE)";
-
-            try (Connection conn = databaseService.getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setLong(1, original.getFromUserId());
-                stmt.setString(2, notificationMessage);
-                stmt.executeUpdate();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public Map<String, Object> getMessageWithReplies(Long messageId) {
-        return null;
     }
 }
