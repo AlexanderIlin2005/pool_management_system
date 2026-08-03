@@ -10,6 +10,7 @@ import ru.sashil.bot.util.WebSocketNotifier
 import ru.sashil.common.service.DatabaseService
 import ru.sashil.common.service.MinIOService
 import ru.sashil.common.util.ConfigLoader
+import ru.sashil.common.util.CommandUtils
 import java.sql.DriverManager
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -101,7 +102,7 @@ class BotApplication {
                 } catch (e: Exception) {
                     LOGGER.severe("Ошибка в отправке сообщений родителям: ${e.message}")
                 }
-                delay(10000) // Каждые 10 секунд
+                delay(10000)
             }
         }
 
@@ -185,7 +186,6 @@ class BotApplication {
         private suspend fun CoroutineScope.startPendingNotificationSender(bot: VkClient) {
             while (isActive) {
                 try {
-                    // Уведомления о заявках
                     val joinNotifications = dbService.getPendingJoinRequestNotifications()
                     for (notif in joinNotifications) {
                         val vkId = notif["parent_vk_id"] as Long
@@ -199,7 +199,6 @@ class BotApplication {
                         }
                     }
 
-                    // Уведомления об изменении данных ребенка
                     val childUpdateNotifications = dbService.getPendingChildUpdateNotifications()
                     for (notif in childUpdateNotifications) {
                         val vkId = notif["parent_vk_id"] as Long
@@ -213,7 +212,6 @@ class BotApplication {
                         }
                     }
 
-                    // Уведомления об оплате
                     val paymentNotifications = dbService.getPendingPaymentNotifications()
                     for (notif in paymentNotifications) {
                         val vkId = notif["parent_vk_id"] as Long
@@ -227,7 +225,6 @@ class BotApplication {
                         }
                     }
 
-                    // Уведомления об изменении навыка
                     val skillNotifications = dbService.getPendingSkillNotifications()
                     for (notif in skillNotifications) {
                         val vkId = notif["vk_id"] as Long
@@ -287,7 +284,15 @@ class BotApplication {
                 false
             }
 
-            // Проверяем, не является ли текст командой
+            val normalized = text.trim().lowercase()
+
+            // Проверяем, не запросил ли пользователь меню
+            if (normalized == "меню" || normalized == "команды" || normalized == "все команды" || normalized == "помощь") {
+                sendText(bot, userId, getStartMessage())
+                return
+            }
+
+            // Проверяем, не является ли текст командой (цифра от 1 до 8)
             val commandNumber = text.trim().toIntOrNull()
             val commandType = commandNumber?.let { BotCommandType.fromNumber(it) }
 
@@ -302,21 +307,20 @@ class BotApplication {
                 return
             }
 
-            // Если пользователь не зарегистрирован и команда не "начать" - предлагаем регистрацию
+            // Если пользователь не зарегистрирован и не ввел команду - предлагаем регистрацию
             if (!isRegistered) {
-                sendText(bot, userId, getStartMessage())
+                sendText(bot, userId,
+                    "Добро пожаловать! Для начала работы зарегистрируйтесь.\n\n" +
+                            "Напишите 'начать' или '1' для регистрации ребенка."
+                )
                 return
             }
 
-            // Обработка отмены
-            val normalized = text.trim().lowercase()
-            if (normalized == "отмена" || normalized == "нет" || normalized == "cancel") {
-                sendText(bot, userId, getStartMessage())
-                return
-            }
-
-            // Если текст не является командой - показываем главное меню
-            sendText(bot, userId, getStartMessage())
+            // Если текст не является командой и не запросом меню - сообщаем о неизвестной команде
+            sendText(bot, userId,
+                "❌ Неизвестная команда.\n\n" +
+                        "Напишите 'меню' или 'команды' для просмотра доступных действий."
+            )
         }
 
         private suspend fun handleCommandResult(bot: VkClient, userId: Long, result: CommandResult) {
@@ -325,8 +329,7 @@ class BotApplication {
                     userCommands.remove(userId)
                     commandData.remove(userId)
                     sendText(bot, userId, result.message)
-                    // После завершения показываем главное меню
-                    sendText(bot, userId, getStartMessage())
+                    // Больше не показываем меню автоматически
                 }
                 is CommandResult.Continue -> {
                     sendText(bot, userId, result.message)
@@ -335,7 +338,8 @@ class BotApplication {
                     userCommands.remove(userId)
                     commandData.remove(userId)
                     sendText(bot, userId, result.message)
-                    sendText(bot, userId, getStartMessage())
+                    // После отмены показываем подсказку, но не полное меню
+                    sendText(bot, userId, "Напишите 'меню' для просмотра доступных действий.")
                 }
                 is CommandResult.Error -> {
                     sendText(bot, userId, "❌ " + result.message)
