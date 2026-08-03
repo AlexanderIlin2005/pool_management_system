@@ -33,8 +33,6 @@ public class ReportService {
 
     // ============= ОТЧЕТ ПО ОПЛАТАМ =============
 
-    // ============= ОТЧЕТ ПО ОПЛАТАМ =============
-
     public byte[] generatePaymentsReport(LocalDate startMonth, LocalDate endMonth) throws Exception {
         List<Child> children = childRepository.findAll();
         List<Payment> payments = paymentRepository.findPaymentsInPeriod(startMonth, endMonth);

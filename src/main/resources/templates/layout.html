@@ -23,6 +23,7 @@
         display: flex;
         flex-direction: column;
         box-shadow: 2px 0 5px rgba(0,0,0,0.03);
+        overflow-y: auto;
     }
 
     .sidebar h3 {
@@ -41,12 +42,13 @@
     .sidebar a {
         color: #586069;
         text-decoration: none;
-        padding: 12px 15px;
-        margin-bottom: 5px;
+        padding: 10px 15px;
+        margin-bottom: 3px;
         display: block;
         transition: 0.2s;
         border-radius: 6px;
         font-weight: 500;
+        font-size: 0.95em;
     }
     .sidebar a:hover { background-color: #f1f3f5; color: #0366d6; }
     .sidebar a.active { background-color: #ebf5ff; color: #0366d6; font-weight: 600; }
@@ -205,7 +207,6 @@
             style="position: absolute; top: 5px; right: 10px; background: red; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;"
             th:text="${unreadJoinRequestsCount}"></span>
     </a>
-    <a href="/reports" th:classappend="${activePage == 'reports'} ? 'active'">Отчеты</a>
     <a href="/users" th:classappend="${activePage == 'users'} ? 'active'">Персонал</a>
     <a href="/pools" th:classappend="${activePage == 'pools'} ? 'active'">Бассейны</a>
     <a href="/calendar" th:classappend="${activePage == 'calendar'} ? 'active'">Календарь</a>
@@ -218,12 +219,21 @@
     <a href="/payments" th:classappend="${activePage == 'payments'} ? 'active'" style="position: relative;">
       Оплаты
     </a>
-    <a href="/payment-receipts" th:classappend="${activePage == 'payment-receipts'} ? 'active'">Квитанции
+    <a href="/payment-receipts" th:classappend="${activePage == 'payment-receipts'} ? 'active'">
+      Квитанции
       <span th:if="${unreadReceiptsCount != null and unreadReceiptsCount > 0}"
             style="position: absolute; top: 5px; right: 10px; background: red; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;"
             th:text="${unreadReceiptsCount}"></span>
     </a>
     <a href="/payments/settings" th:classappend="${activePage == 'payment-settings'} ? 'active'">Настройка оплат</a>
+  </div>
+
+  <!-- Отчеты - используем th:class с условием -->
+  <div th:if="${role != null and (role.name() == 'ADMIN' or role.name() == 'ACCOUNTANT')}">
+    <a href="/reports"
+       th:classappend="${(activePage == 'reports' or activePage == 'report-payments') ? 'active' : ''}">
+      📊 Отчеты
+    </a>
   </div>
 
   <div style="margin-top: auto;">

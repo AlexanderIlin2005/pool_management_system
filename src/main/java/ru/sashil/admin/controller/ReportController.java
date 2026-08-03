@@ -36,10 +36,32 @@ public class ReportController {
     @Autowired
     private GroupService groupService;
 
+    /**
+     * Проверяет, имеет ли пользователь доступ к отчетам
+     */
+    private boolean hasReportsAccess(HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return false;
+        return user.getRole() == AdminUser.Role.ADMIN || user.getRole() == AdminUser.Role.ACCOUNTANT;
+    }
+
+    /**
+     * Проверяет, является ли пользователь администратором
+     */
+    private boolean isAdmin(HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return false;
+        return user.getRole() == AdminUser.Role.ADMIN;
+    }
+
     @GetMapping
     public String reportsPage(Model model, HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
+
+        if (!isAdmin(session)) {
+            return "redirect:/reports/payments";
+        }
 
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
@@ -47,12 +69,15 @@ public class ReportController {
         return "reports";
     }
 
-    // ============= ДЕТИ БЕЗ СПРАВКИ =============
+    // ============= ДЕТИ БЕЗ СПРАВКИ (только ADMIN) =============
 
     @GetMapping("/no-certificate/view")
     public String viewNoCertificateReport(Model model, HttpSession session) {
+        if (!isAdmin(session)) {
+            return "redirect:/login";
+        }
+
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null) return "redirect:/login";
 
         List<Child> children = childRepository.findByCertificateReceivedFalse();
 
@@ -68,8 +93,7 @@ public class ReportController {
 
     @GetMapping("/no-certificate/download")
     public void downloadNoCertificateReport(HttpServletResponse response, HttpSession session) throws Exception {
-        AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null) {
+        if (!isAdmin(session)) {
             response.sendRedirect("/login");
             return;
         }
@@ -78,15 +102,17 @@ public class ReportController {
         sendDocxResponse(response, report, "spisok_bez_spravki");
     }
 
-    // ============= ОПЛАТЫ =============
+    // ============= ОПЛАТЫ (доступно для ADMIN и ACCOUNTANT) =============
 
     @GetMapping("/payments")
     public String paymentsReportPage(Model model, HttpSession session) {
+        if (!hasReportsAccess(session)) {
+            return "redirect:/login";
+        }
+
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null) return "redirect:/login";
 
         LocalDate now = LocalDate.now();
-        // Начало периода - не раньше сентября 2026
         LocalDate startMonth = now.minusMonths(0).withDayOfMonth(1);
         if (startMonth.isBefore(MIN_DATE)) {
             startMonth = MIN_DATE;
@@ -97,7 +123,7 @@ public class ReportController {
         model.addAttribute("endMonth", endMonth);
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
-        model.addAttribute("activePage", "reports");
+        model.addAttribute("activePage", "report-payments"); // Для подсветки отчета по оплатам
 
         return "report-payments";
     }
@@ -107,8 +133,7 @@ public class ReportController {
                                        @RequestParam String endMonth,
                                        HttpServletResponse response,
                                        HttpSession session) throws Exception {
-        AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null) {
+        if (!hasReportsAccess(session)) {
             response.sendRedirect("/login");
             return;
         }
@@ -116,7 +141,6 @@ public class ReportController {
         LocalDate start = LocalDate.parse(startMonth + "-01");
         LocalDate end = LocalDate.parse(endMonth + "-01");
 
-        // Проверяем, что начало периода не раньше сентября 2026
         if (start.isBefore(MIN_DATE)) {
             start = MIN_DATE;
         }
@@ -130,15 +154,18 @@ public class ReportController {
         sendDocxResponse(response, report, filename);
     }
 
-    // ============= ПОСЕЩАЕМОСТЬ =============
+    // ============= ПОСЕЩАЕМОСТЬ (только ADMIN) =============
 
     @GetMapping("/attendance")
     public String attendanceReportPage(Model model, HttpSession session,
                                        @RequestParam(required = false) Long groupId,
                                        @RequestParam(required = false) Integer year,
                                        @RequestParam(required = false) Integer month) {
+        if (!isAdmin(session)) {
+            return "redirect:/login";
+        }
+
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null) return "redirect:/login";
 
         List<Group> groups = groupService.getAllGroups();
         model.addAttribute("groups", groups);
@@ -167,8 +194,7 @@ public class ReportController {
                                          @RequestParam(required = false) String monthPicker,
                                          HttpServletResponse response,
                                          HttpSession session) throws Exception {
-        AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null) {
+        if (!isAdmin(session)) {
             response.sendRedirect("/login");
             return;
         }
