@@ -1046,12 +1046,13 @@ public class DatabaseService {
 
 
     /**
-     * Получает неотправленные сообщения для родителей
-     * Теперь используем таблицу messages вместо payment_notifications
+     * Получает неотправленные сообщения для родителей с именем отправителя
      */
     public List<Map<String, Object>> getPendingMessagesForParents() {
-        String sql = "SELECT m.id, m.to_user_id as parent_vk_id, m.message_text, m.from_user_type " +
+        String sql = "SELECT m.id, m.to_user_id as parent_vk_id, m.message_text, m.from_user_type, m.from_user_id, " +
+                "au.full_name as sender_name " +
                 "FROM pool.messages m " +
+                "LEFT JOIN pool.admin_users au ON m.from_user_id = au.id " +
                 "WHERE m.to_user_type = 'PARENT' AND m.status = 'PENDING' " +
                 "ORDER BY m.created_at ASC";
         return executeQuery(sql);
@@ -1068,6 +1069,26 @@ public class DatabaseService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Получает имя тренера по ID группы
+     */
+    public String getTrainerNameByGroupId(Long groupId) {
+        if (groupId == null) return null;
+        String sql = "SELECT au.full_name FROM pool.groups g " +
+                "LEFT JOIN pool.admin_users au ON g.trainer_id = au.id " +
+                "WHERE g.id = ?";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, groupId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("full_name");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
 

@@ -84,8 +84,21 @@ class MessageCoachCommand(
                 data["childId"] = (child["id"] as Number).toString()
                 data["childName"] = (child["lastName"] as String) + " " + (child["firstName"] as String)
                 userSteps[userId] = 2
+
+                // Получаем имя тренера для отображения
+                val groupId = getChildGroupId(data["childId"]!!.toLong())
+                val trainerName = getTrainerName(groupId)
+
+                val trainerInfo = if (trainerName != null && trainerName.isNotEmpty()) {
+                    " ($trainerName)"
+                } else {
+                    ""
+                }
+
                 return CommandResult.Continue(
-                    "Напишите Ваше сообщение для тренера.\n\n(Для отмены напишите 'отмена')"
+                    "Вы выбрали ребенка: ${data["childName"]}\n" +
+                            "Тренер: $trainerInfo\n\n" +
+                            "Напишите Ваше сообщение для тренера.\n\n(Для отмены напишите 'отмена')"
                 )
             }
             2 -> {
@@ -102,8 +115,8 @@ class MessageCoachCommand(
                 try {
                     val groupId = getChildGroupId(childId)
                     val trainerId = getTrainerId(groupId)
+                    val trainerName = getTrainerName(groupId)
 
-                    // ИСПРАВЛЕНО: правильное количество параметров - 8 штук
                     val sql = "INSERT INTO pool.messages " +
                             "(from_user_id, from_user_type, to_user_id, to_user_type, " +
                             "child_id, group_id, message_text, status, created_at) " +
@@ -111,28 +124,24 @@ class MessageCoachCommand(
 
                     dbService.getConnection().use { conn ->
                         conn.prepareStatement(sql).use { stmt ->
-                            val fullMessage = "Сообщение от $parentName (ребенок: $childName):\n\n$text"
+                            val trainerInfo = if (trainerName != null && trainerName.isNotEmpty()) {
+                                " (тренер $trainerName)"
+                            } else {
+                                ""
+                            }
+                            val fullMessage = "Сообщение от $parentName (ребенок: $childName)$trainerInfo:\n\n$text"
 
-                            // Параметры: 1,2,3,4,5,6,7 - всего 7 параметров
-                            // from_user_id
                             stmt.setLong(1, userId)
-                            // from_user_type
                             stmt.setString(2, "PARENT")
-                            // to_user_id
                             stmt.setLong(3, trainerId ?: -1)
-                            // to_user_type
                             stmt.setString(4, "COACH")
-                            // child_id
                             stmt.setLong(5, childId)
-                            // group_id
                             if (groupId != null) {
                                 stmt.setLong(6, groupId)
                             } else {
                                 stmt.setNull(6, java.sql.Types.BIGINT)
                             }
-                            // message_text
                             stmt.setString(7, fullMessage)
-
                             stmt.executeUpdate()
                         }
                     }
@@ -183,6 +192,26 @@ class MessageCoachCommand(
                     stmt.executeQuery().use { rs ->
                         if (rs.next()) {
                             return rs.getLong("trainer_id")
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {}
+        return null
+    }
+
+    private fun getTrainerName(groupId: Long?): String? {
+        if (groupId == null) return null
+        try {
+            val sql = "SELECT au.full_name FROM pool.groups g " +
+                    "LEFT JOIN pool.admin_users au ON g.trainer_id = au.id " +
+                    "WHERE g.id = ?"
+            dbService.getConnection().use { conn ->
+                conn.prepareStatement(sql).use { stmt ->
+                    stmt.setLong(1, groupId)
+                    stmt.executeQuery().use { rs ->
+                        if (rs.next()) {
+                            return rs.getString("full_name")
                         }
                     }
                 }

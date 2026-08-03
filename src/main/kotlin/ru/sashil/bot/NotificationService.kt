@@ -50,11 +50,20 @@ class NotificationService(
                 val parentVkId = msg["parent_vk_id"] as Long
                 val messageText = msg["message_text"] as String
                 val fromUserType = msg["from_user_type"] as String
+                val fromUserId = msg["from_user_id"] as Long?
+                val senderName = msg["sender_name"] as String?
                 val messageId = msg["id"] as Long
 
                 val fromName = when (fromUserType) {
                     "ADMIN" -> "администратора"
-                    "COACH" -> "тренера"
+                    "COACH" -> {
+                        // Если есть имя тренера - используем его
+                        if (senderName != null && senderName.isNotEmpty()) {
+                            "тренера $senderName"
+                        } else {
+                            "тренера"
+                        }
+                    }
                     else -> "сотрудника"
                 }
 
@@ -63,7 +72,7 @@ class NotificationService(
                 try {
                     sendMessage(parentVkId, fullMessage)
                     dbService.markParentMessageSent(messageId)
-                    logger.info("Сообщение #$messageId отправлено родителю $parentVkId")
+                    logger.info("Сообщение #$messageId отправлено родителю $parentVkId от $fromName")
                 } catch (e: Exception) {
                     logger.severe("Ошибка отправки сообщения родителю $parentVkId: ${e.message}")
                 }
@@ -73,8 +82,7 @@ class NotificationService(
         }
     }
 
-    // Остальные методы остаются без изменений...
-    // sendPendingSkillNotifications, sendPendingJoinRequestNotifications и т.д.
+
 
     private suspend fun sendPendingChildUpdateNotifications() {
         val notifications = dbService.getPendingChildUpdateNotifications()
