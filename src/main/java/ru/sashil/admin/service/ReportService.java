@@ -29,7 +29,55 @@ public class ReportService {
     private JdbcTemplate jdbcTemplate;
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-    private static final DateTimeFormatter MONTH_FORMAT = DateTimeFormatter.ofPattern("MMMM yyyy");
+    private static final DateTimeFormatter MONTH_SHORT = DateTimeFormatter.ofPattern("MM.yyyy");
+
+    // Маппинг месяцев для именительного падежа
+    private static final Map<Integer, String> MONTH_NOMINATIVE = new HashMap<>();
+    static {
+        MONTH_NOMINATIVE.put(1, "Январь");
+        MONTH_NOMINATIVE.put(2, "Февраль");
+        MONTH_NOMINATIVE.put(3, "Март");
+        MONTH_NOMINATIVE.put(4, "Апрель");
+        MONTH_NOMINATIVE.put(5, "Май");
+        MONTH_NOMINATIVE.put(6, "Июнь");
+        MONTH_NOMINATIVE.put(7, "Июль");
+        MONTH_NOMINATIVE.put(8, "Август");
+        MONTH_NOMINATIVE.put(9, "Сентябрь");
+        MONTH_NOMINATIVE.put(10, "Октябрь");
+        MONTH_NOMINATIVE.put(11, "Ноябрь");
+        MONTH_NOMINATIVE.put(12, "Декабрь");
+    }
+
+    // Маппинг месяцев для родительного падежа
+    private static final Map<Integer, String> MONTH_GENITIVE = new HashMap<>();
+    static {
+        MONTH_GENITIVE.put(1, "Января");
+        MONTH_GENITIVE.put(2, "Февраля");
+        MONTH_GENITIVE.put(3, "Марта");
+        MONTH_GENITIVE.put(4, "Апреля");
+        MONTH_GENITIVE.put(5, "Мая");
+        MONTH_GENITIVE.put(6, "Июня");
+        MONTH_GENITIVE.put(7, "Июля");
+        MONTH_GENITIVE.put(8, "Августа");
+        MONTH_GENITIVE.put(9, "Сентября");
+        MONTH_GENITIVE.put(10, "Октября");
+        MONTH_GENITIVE.put(11, "Ноября");
+        MONTH_GENITIVE.put(12, "Декабря");
+    }
+
+    /**
+     * Возвращает название месяца в именительном падеже с годом
+     */
+    private String getMonthNominative(LocalDate date) {
+        return MONTH_NOMINATIVE.get(date.getMonthValue()) + " " + date.getYear();
+    }
+
+    /**
+     * Возвращает название месяца в родительном падеже с годом
+     */
+    private String getMonthGenitive(LocalDate date) {
+        return MONTH_GENITIVE.get(date.getMonthValue()) + " " + date.getYear();
+    }
 
     // ============= ОТЧЕТ ПО ОПЛАТАМ =============
 
@@ -75,7 +123,12 @@ public class ReportService {
         titleRun.setBold(false);
         titleRun.setText("Бассейн Гимназии №642 \"Земля и Вселенная\"");
         titleRun.addBreak();
-        titleRun.setText("Период: " + startMonth.format(MONTH_FORMAT) + " — " + endMonth.format(MONTH_FORMAT));
+
+        // Для периода используем родительный падеж для первого месяца и именительный для второго
+        // "с Сентября 2026 по Май 2027"
+        String startMonthStr = getMonthGenitive(startMonth);  // родительный падеж
+        String endMonthStr = getMonthNominative(endMonth);    // именительный падеж
+        titleRun.setText("Период: с " + startMonthStr + " по " + endMonthStr);
         titleRun.addBreak();
         titleRun.addBreak();
 
@@ -102,13 +155,13 @@ public class ReportService {
             col++;
         }
 
-        // Месяцы
+        // Месяцы - формат MM.yyyy
         for (LocalDate month : months) {
             XWPFTableCell cell = headerRow.getCell(col);
             if (cell == null) {
                 cell = headerRow.addNewTableCell();
             }
-            cell.setText(month.format(DateTimeFormatter.ofPattern("MM.yyyy")));
+            cell.setText(month.format(MONTH_SHORT));
             formatHeaderCell(cell);
             col++;
         }
@@ -122,7 +175,7 @@ public class ReportService {
         formatHeaderCell(totalHeader);
         col++;
 
-        // Долг (оставляем для совместимости, но не используем)
+        // Долг
         XWPFTableCell debtHeader = headerRow.getCell(col);
         if (debtHeader == null) {
             debtHeader = headerRow.addNewTableCell();
@@ -180,7 +233,6 @@ public class ReportService {
 
             // Месяцы - показываем суммы оплат
             BigDecimal totalPaid = BigDecimal.ZERO;
-            BigDecimal totalDebt = BigDecimal.ZERO;
 
             Map<LocalDate, Payment> childPayments = paymentMap.getOrDefault(child.getId(), Collections.emptyMap());
 
@@ -190,12 +242,10 @@ public class ReportService {
                 if (cell == null) cell = row.addNewTableCell();
 
                 if (payment != null && payment.getTotalPaid() != null && payment.getTotalPaid().compareTo(BigDecimal.ZERO) > 0) {
-                    // Показываем сумму оплаты
                     String amountStr = payment.getTotalPaid().toString();
                     cell.setText(amountStr);
                     totalPaid = totalPaid.add(payment.getTotalPaid());
                 } else {
-                    // Пустая клетка
                     cell.setText("");
                 }
                 formatCellCenter(cell);
@@ -209,8 +259,7 @@ public class ReportService {
             formatCellCenter(cellTotal);
             col++;
 
-            // Долг - считаем как разницу между суммой абонемента и оплаченным
-            BigDecimal monthAmount = BigDecimal.ZERO;
+            // Долг
             BigDecimal totalDebtAmount = BigDecimal.ZERO;
             for (LocalDate month : months) {
                 Payment payment = childPayments.get(month);
@@ -272,7 +321,6 @@ public class ReportService {
         footerRun.setFontSize(12);
         footerRun.setText("Подпись: ___________________");
         footerRun.addBreak();
-        footerRun.setText("(Администратор)");
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         document.write(baos);
@@ -338,7 +386,10 @@ public class ReportService {
         titleRun.addBreak();
         titleRun.setText("Группа: " + groupName);
         titleRun.addBreak();
-        titleRun.setText("Месяц: " + startDate.format(DateTimeFormatter.ofPattern("MMMM yyyy")));
+
+        // Для одиночного месяца используем именительный падеж
+        String monthStr = getMonthNominative(startDate);
+        titleRun.setText("Месяц: " + monthStr);
         titleRun.addBreak();
         titleRun.addBreak();
 
@@ -508,7 +559,7 @@ public class ReportService {
         titleRun.setBold(false);
         titleRun.setText("Бассейн Гимназии №642 \"Земля и Вселенная\"");
         titleRun.addBreak();
-        titleRun.setText("Дата: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")));
+        titleRun.setText("Дата: " + LocalDate.now().format(DATE_FORMAT));
         titleRun.addBreak();
         titleRun.addBreak();
 
@@ -564,7 +615,6 @@ public class ReportService {
         footerRun.setFontSize(12);
         footerRun.setText("Подпись: ___________________");
         footerRun.addBreak();
-        footerRun.setText("(Администратор)");
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         document.write(baos);
