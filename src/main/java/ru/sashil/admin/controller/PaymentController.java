@@ -55,21 +55,21 @@ public class PaymentController {
     }
 
     /**
-     * Проверяет, является ли пользователь бухгалтером (для операций, доступных только бухгалтеру)
+     * Проверяет, является ли пользователь бухгалтером или админом (для операций с оплатами)
+     */
+    private boolean canManagePayments(HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return false;
+        return user.getRole() == AdminUser.Role.ACCOUNTANT || user.getRole() == AdminUser.Role.ADMIN;
+    }
+
+    /**
+     * Проверяет, является ли пользователь бухгалтером
      */
     private boolean isAccountant(HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return false;
         return user.getRole() == AdminUser.Role.ACCOUNTANT;
-    }
-
-    /**
-     * Проверяет, является ли пользователь администратором
-     */
-    private boolean isAdmin(HttpSession session) {
-        AdminUser user = (AdminUser) session.getAttribute("currentUser");
-        if (user == null) return false;
-        return user.getRole() == AdminUser.Role.ADMIN;
     }
 
     @GetMapping
@@ -145,7 +145,7 @@ public class PaymentController {
 
     /**
      * Ручное добавление суммы оплаты для конкретного ребенка и месяца
-     * Только для бухгалтера
+     * Доступно для ADMIN и ACCOUNTANT
      */
     @PostMapping("/add-amount")
     public String addPaymentAmount(@RequestParam Long childId,
@@ -153,7 +153,7 @@ public class PaymentController {
                                    @RequestParam BigDecimal amount,
                                    @RequestParam(required = false) String comment,
                                    HttpSession session) {
-        if (!isAccountant(session)) {
+        if (!canManagePayments(session)) {
             return "redirect:/login";
         }
 
@@ -174,7 +174,7 @@ public class PaymentController {
 
     /**
      * Установка суммы абонемента для конкретного ребенка и месяца
-     * Только для бухгалтера
+     * Доступно для ADMIN и ACCOUNTANT
      */
     @PostMapping("/set-amount")
     public String setPaymentAmount(@RequestParam Long childId,
@@ -182,7 +182,7 @@ public class PaymentController {
                                    @RequestParam BigDecimal amount,
                                    @RequestParam(required = false) String comment,
                                    HttpSession session) {
-        if (!isAccountant(session)) {
+        if (!canManagePayments(session)) {
             return "redirect:/login";
         }
 
@@ -252,6 +252,9 @@ public class PaymentController {
         }
     }
 
+    /**
+     * Отправка напоминания родителю - доступно только для бухгалтера
+     */
     @PostMapping("/send-reminder/{parentVkId}")
     public String sendReminder(@PathVariable Long parentVkId,
                                @RequestParam Long childId,
@@ -291,7 +294,7 @@ public class PaymentController {
 
     /**
      * Массовое обновление суммы абонемента для всех детей на указанный месяц
-     * Только для бухгалтера
+     * Доступно только для бухгалтера
      */
     @PostMapping("/update-amount-for-month")
     public String updateAmountForMonth(@RequestParam String monthYear,
