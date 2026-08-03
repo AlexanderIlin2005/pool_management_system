@@ -3,6 +3,8 @@ package ru.sashil.bot
 import io.github.blackbaroness.vk.VkClient
 import ru.sashil.common.service.DatabaseService
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import java.util.logging.Logger
 
 class NotificationService(
@@ -13,8 +15,21 @@ class NotificationService(
 
     suspend fun checkAndSendNotifications() {
         logger.info("Запуск проверки уведомлений...")
-        val today = LocalDate.now()
+        val now = LocalDateTime.now()
+        val today = now.toLocalDate()
         val tomorrow = today.plusDays(1)
+
+        // Проверяем, что сейчас вечер (18:00 - 21:00)
+        val currentTime = now.toLocalTime()
+        val isEvening = currentTime.isAfter(LocalTime.of(18, 0)) &&
+                currentTime.isBefore(LocalTime.of(21, 0))
+
+        if (!isEvening) {
+            logger.info("Сейчас не вечернее время (${currentTime}), пропускаем отправку уведомлений")
+            return
+        }
+
+        logger.info("Вечернее время, отправляем уведомления о завтрашних занятиях...")
 
         val parents = getAllParents()
 
@@ -24,20 +39,36 @@ class NotificationService(
 
             try {
                 if (dbService.isRegularNotificationsEnabled(vkId)) {
-                    processRegularNotifications(vkId, parentId, today, tomorrow)
+                    processTomorrowNotifications(vkId, parentId, tomorrow)
                 }
             } catch (e: Exception) {
                 logger.severe("Ошибка при обработке уведомлений для родителя $vkId: ${e.message}")
             }
         }
 
+        // Отправка остальных уведомлений (не зависят от времени)
         sendPendingSkillNotifications()
         sendPendingJoinRequestNotifications()
         sendPendingPaymentNotifications()
         sendPendingChildUpdateNotifications()
-        sendPendingMessagesToParents()  // НОВЫЙ МЕТОД
+        sendPendingMessagesToParents()
 
         logger.info("Проверка уведомлений завершена.")
+    }
+
+    /**
+     * Отправляет уведомления о завтрашних занятиях
+     */
+    private suspend fun processTomorrowNotifications(vkId: Long, parentId: Long, tomorrow: LocalDate) {
+        val tomorrowLessons = dbService.getChildrenScheduleForDate(parentId, tomorrow)
+        for (lesson in tomorrowLessons) {
+            if (lesson["startTime"] != null) {
+                if (!dbService.hasNotificationBeenSent(parentId, lesson["childId"] as Long, "TOMORROW", tomorrow)) {
+                    sendTomorrowReminder(vkId, lesson, tomorrow)
+                    dbService.logNotificationSent(parentId, lesson["childId"] as Long, "TOMORROW", tomorrow)
+                }
+            }
+        }
     }
 
     /**
@@ -57,7 +88,6 @@ class NotificationService(
                 val fromName = when (fromUserType) {
                     "ADMIN" -> "администратора"
                     "COACH" -> {
-                        // Если есть имя тренера - используем его
                         if (senderName != null && senderName.isNotEmpty()) {
                             "тренера $senderName"
                         } else {
@@ -81,8 +111,6 @@ class NotificationService(
             logger.severe("Ошибка в отправке сообщений родителям: ${e.message}")
         }
     }
-
-
 
     private suspend fun sendPendingChildUpdateNotifications() {
         val notifications = dbService.getPendingChildUpdateNotifications()
@@ -156,41 +184,30 @@ class NotificationService(
         }
     }
 
-    private suspend fun processRegularNotifications(vkId: Long, parentId: Long, today: LocalDate, tomorrow: LocalDate) {
-        val tomorrowLessons = dbService.getChildrenScheduleForDate(parentId, tomorrow)
-        for (lesson in tomorrowLessons) {
-            if (lesson["startTime"] != null) {
-                if (!dbService.hasNotificationBeenSent(parentId, lesson["childId"] as Long, "TOMORROW", tomorrow)) {
-                    sendTomorrowReminder(vkId, lesson, tomorrow)
-                    dbService.logNotificationSent(parentId, lesson["childId"] as Long, "TOMORROW", tomorrow)
-                }
-            }
-        }
-
-        val todayLessons = dbService.getChildrenScheduleForDate(parentId, today)
-        for (lesson in todayLessons) {
-            if (lesson["startTime"] != null) {
-                if (!dbService.hasNotificationBeenSent(parentId, lesson["childId"] as Long, "TODAY", today)) {
-                    sendTodayReminder(vkId, lesson, today)
-                    dbService.logNotificationSent(parentId, lesson["childId"] as Long, "TODAY", today)
-                }
-            }
-        }
-    }
-
     private suspend fun sendTomorrowReminder(vkId: Long, lesson: Map<String, Any>, date: LocalDate) {
         val time = lesson["startTime"].toString().substring(0, 5)
         val groupNumber = lesson["groupNumber"]?.toString() ?: lesson["groupName"].toString()
         val childName = getChildName(lesson["childId"] as Long)
-        val text = "Добрый день! Напоминаем, что завтра у $childName занятие в бассейне. Группа $groupNumber в $time.\nЖдем на занятии!"
-        sendMessage(vkId, text)
-    }
 
-    private suspend fun sendTodayReminder(vkId: Long, lesson: Map<String, Any>, date: LocalDate) {
-        val time = lesson["startTime"].toString().substring(0, 5)
-        val groupNumber = lesson["groupNumber"]?.toString() ?: lesson["groupName"].toString()
-        val childName = getChildName(lesson["childId"] as Long)
-        val text = "Добрый день! Напоминаем, что сегодня у $childName занятие в бассейне. Группа $groupNumber в $time.\nЖдем на занятии!"
+        val dateStr = date.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM"))
+
+        val text = """
+            📅 Напоминание о занятии!
+            
+            Уважаемый родитель!
+            
+            Завтра (${dateStr}) у ${childName} занятие в бассейне.
+            
+            Группа: ${groupNumber}
+            Время: ${time}
+            Бассейн: ${lesson["poolName"] ?: "гимназии №642"}
+            
+            Ждем Вашего ребенка на занятии!
+            
+            С уважением,
+            Администрация бассейна гимназии №642 «Земля и Вселенная»
+        """.trimIndent()
+
         sendMessage(vkId, text)
     }
 
