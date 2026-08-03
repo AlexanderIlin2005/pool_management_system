@@ -9,7 +9,7 @@ import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.service.PaymentService;
 import ru.sashil.admin.service.WsNotificationService;
 
-import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -54,14 +54,23 @@ public class PaymentReceiptController {
 
     @PostMapping("/{id}/approve")
     public String approveReceipt(@PathVariable Long id,
+                                 @RequestParam BigDecimal amount,
                                  @RequestParam(required = false) String comment,
                                  HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
-        paymentService.approvePayment(id, user.getId(), comment);
-        wsNotificationService.sendUpdateNotification("PAYMENT_APPROVED");
-        return "redirect:/payment-receipts?success=approved";
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return "redirect:/payment-receipts?error=amount_positive_required";
+        }
+
+        try {
+            paymentService.approvePaymentWithAmount(id, amount, user.getId(), comment);
+            wsNotificationService.sendUpdateNotification("PAYMENT_APPROVED");
+            return "redirect:/payment-receipts?success=approved";
+        } catch (Exception e) {
+            return "redirect:/payment-receipts?error=" + e.getMessage();
+        }
     }
 
     @PostMapping("/{id}/reject")

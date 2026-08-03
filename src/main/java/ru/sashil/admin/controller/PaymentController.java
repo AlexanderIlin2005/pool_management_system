@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.model.Child;
-import ru.sashil.admin.model.Group;
 import ru.sashil.admin.model.PaymentNotification;
 import ru.sashil.admin.model.Payment;
 import ru.sashil.admin.repository.PaymentNotificationRepository;
@@ -43,7 +42,6 @@ public class PaymentController {
     @Autowired
     private AuditLogService auditLogService;
 
-    // Минимальная дата для навигации - сентябрь 2026
     private static final LocalDate MIN_DATE = LocalDate.of(2026, 9, 1);
 
     @GetMapping
@@ -57,7 +55,6 @@ public class PaymentController {
             return "redirect:/login";
         }
 
-        // Если год и месяц не переданы, берем базовый (август 2026)
         LocalDate startMonth;
         LocalDate endMonth;
 
@@ -65,7 +62,6 @@ public class PaymentController {
             startMonth = LocalDate.of(year, month, 1);
             endMonth = startMonth.plusMonths(10);
 
-            // Если начальный месяц раньше MIN_DATE, перенаправляем на MIN_DATE
             if (startMonth.isBefore(MIN_DATE)) {
                 return "redirect:/payments";
             }
@@ -74,7 +70,6 @@ public class PaymentController {
             endMonth = startMonth.plusMonths(10);
         }
 
-        // Генерируем оплаты за период, если их нет
         LocalDate current = startMonth;
         while (!current.isAfter(endMonth)) {
             if (!current.isBefore(LocalDate.now().minusMonths(3).withDayOfMonth(1))) {
@@ -85,7 +80,6 @@ public class PaymentController {
 
         Map<String, Object> data = paymentService.getPaymentTableData(startMonth, endMonth, search);
 
-        // Проверяем, можно ли перейти назад
         boolean canGoBack = startMonth.minusMonths(1).isAfter(MIN_DATE) ||
                 startMonth.minusMonths(1).isEqual(MIN_DATE);
 
@@ -101,10 +95,63 @@ public class PaymentController {
         model.addAttribute("nextStart", startMonth.plusMonths(1));
         model.addAttribute("canGoBack", canGoBack);
         model.addAttribute("monthFormatter", DateTimeFormatter.ofPattern("MMM yyyy"));
-
-        model.addAttribute("defaultAmount", data.get("defaultAmount"));
+        model.addAttribute("defaultAmount", BigDecimal.ZERO); // Всегда 0
 
         return "payments";
+    }
+
+    /**
+     * Ручное добавление суммы оплаты для конкретного ребенка и месяца
+     */
+    @PostMapping("/add-amount")
+    public String addPaymentAmount(@RequestParam Long childId,
+                                   @RequestParam String monthYear,
+                                   @RequestParam BigDecimal amount,
+                                   @RequestParam(required = false) String comment,
+                                   HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+            return "redirect:/login";
+        }
+
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return "redirect:/payments?error=amount_positive_required";
+        }
+
+        try {
+            LocalDate month = LocalDate.parse(monthYear + "-01");
+            paymentService.updatePaymentAmount(childId, month, amount, user, comment);
+            return "redirect:/payments?success=amount_added";
+        } catch (Exception e) {
+            return "redirect:/payments?error=" + e.getMessage();
+        }
+    }
+
+    /**
+     * Установка суммы абонемента для конкретного ребенка и месяца
+     */
+    @PostMapping("/set-amount")
+    public String setPaymentAmount(@RequestParam Long childId,
+                                   @RequestParam String monthYear,
+                                   @RequestParam BigDecimal amount,
+                                   @RequestParam(required = false) String comment,
+                                   HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+            return "redirect:/login";
+        }
+
+        if (amount.compareTo(BigDecimal.ZERO) < 0) {
+            return "redirect:/payments?error=amount_negative_required";
+        }
+
+        try {
+            LocalDate month = LocalDate.parse(monthYear + "-01");
+            paymentService.setPaymentAmount(childId, month, amount, user, comment);
+            return "redirect:/payments?success=amount_set";
+        } catch (Exception e) {
+            return "redirect:/payments?error=" + e.getMessage();
+        }
     }
 
     @PostMapping("/{id}/approve")
@@ -184,6 +231,9 @@ public class PaymentController {
         return "redirect:/payments?success=reminder_sent";
     }
 
+    /**
+     * Массовое обновление суммы абонемента для всех детей на указанный месяц
+     */
     @PostMapping("/update-amount-for-month")
     public String updateAmountForMonth(@RequestParam String monthYear,
                                        @RequestParam BigDecimal amount,
@@ -197,6 +247,10 @@ public class PaymentController {
         // Проверяем подтверждение
         if (!"ПОДТВЕРЖДАЮ".equalsIgnoreCase(confirmation.trim())) {
             return "redirect:/payments?error=confirmation_required";
+        }
+
+        if (amount.compareTo(BigDecimal.ZERO) < 0) {
+            return "redirect:/payments?error=amount_negative_required";
         }
 
         try {
@@ -240,4 +294,40 @@ public class PaymentController {
         }
     }
 
+    /**
+     * Получение списка всех уведомлений об оплате
+     */
+    @GetMapping("/notifications")
+    public String notificationsPage(Model model, HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+            return "redirect:/login";
+        }
+
+        List<PaymentNotification> pendingNotifications = paymentService.getPendingNotifications();
+        model.addAttribute("pendingNotifications", pendingNotifications);
+        model.addAttribute("fullName", user.getFullName());
+        model.addAttribute("role", user.getRole());
+        model.addAttribute("activePage", "payment-notifications");
+
+        return "payment-notifications";
+    }
+
+    /**
+     * Отправка уведомления родителю
+     */
+    @PostMapping("/notifications/{id}/send")
+    public String sendNotification(@PathVariable Long id, HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null || user.getRole() != AdminUser.Role.ACCOUNTANT) {
+            return "redirect:/login";
+        }
+
+        try {
+            paymentService.markNotificationSent(id);
+            return "redirect:/payments/notifications?success=notification_sent";
+        } catch (Exception e) {
+            return "redirect:/payments/notifications?error=" + e.getMessage();
+        }
+    }
 }

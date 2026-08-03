@@ -247,7 +247,10 @@ CREATE TABLE IF NOT EXISTS pool.payments (
     month_year DATE NOT NULL, -- Первое число месяца (например, 2026-09-01)
     is_paid BOOLEAN DEFAULT FALSE,
     paid_at TIMESTAMP,
-    amount DECIMAL(10, 2),
+    amount DECIMAL(10, 2) DEFAULT 0.00,
+    total_paid DECIMAL(10, 2) DEFAULT 0.00,
+    amount_history JSONB DEFAULT '[]'::jsonb,
+    amount_change_comment TEXT,
     payment_method VARCHAR(50), -- 'CASH', 'BANK', 'QR', 'RECEIPT'
     receipt_file_url VARCHAR(500), -- Ссылка на файл квитанции в MinIO
     receipt_original_name VARCHAR(255),
@@ -329,6 +332,11 @@ CREATE TABLE IF NOT EXISTS pool.messages (
     replied_at TIMESTAMP,
     sent_at TIMESTAMP
 );
+
+
+ALTER TABLE pool.payments DROP CONSTRAINT IF EXISTS payments_status_check;
+ALTER TABLE pool.payments ADD CONSTRAINT payments_status_check
+    CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'PAID', 'PARTIAL'));
 
 ALTER TABLE pool.messages DROP CONSTRAINT IF EXISTS messages_status_check;
 ALTER TABLE pool.messages ADD CONSTRAINT messages_status_check CHECK (status IN ('PENDING', 'READ', 'REPLIED', 'SENT'));
