@@ -3,7 +3,16 @@
 <body>
 <div th:fragment="content">
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto;">
-    <h1>Отчет по оплатам абонементов</h1>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h1 style="margin: 0;">Отчет по оплатам абонементов</h1>
+      <!-- Кнопка "Назад" показываем только если пользователь АДМИН (у бухгалтера нет страницы reports) -->
+      <a th:if="${role != null and role.name() == 'ADMIN'}"
+         href="/reports"
+         class="btn"
+         style="background-color: #6c757d;">
+        ← Назад к отчетам
+      </a>
+    </div>
 
     <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
       <form method="get" action="/reports/payments/download" style="display: flex; flex-direction: column; gap: 20px;">
