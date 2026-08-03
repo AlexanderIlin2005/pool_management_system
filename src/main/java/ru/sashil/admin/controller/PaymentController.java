@@ -2,6 +2,7 @@ package ru.sashil.admin.controller;
 
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +12,7 @@ import ru.sashil.admin.model.Child;
 import ru.sashil.admin.model.PaymentNotification;
 import ru.sashil.admin.model.Payment;
 import ru.sashil.admin.repository.PaymentNotificationRepository;
+import ru.sashil.admin.repository.PaymentRepository;
 import ru.sashil.admin.service.GroupService;
 import ru.sashil.admin.service.PaymentService;
 import ru.sashil.admin.service.WsNotificationService;
@@ -20,9 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Controller
 @RequestMapping("/payments")
@@ -30,6 +30,12 @@ public class PaymentController {
 
     @Autowired
     private PaymentService paymentService;
+
+    @Autowired
+    private PaymentRepository paymentRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private GroupService groupService;
@@ -386,6 +392,105 @@ public class PaymentController {
             return "redirect:/payments/notifications?success=notification_sent";
         } catch (Exception e) {
             return "redirect:/payments/notifications?error=" + e.getMessage();
+        }
+    }
+
+    /**
+     * Изменение суммы оплаты для конкретного ребенка и месяца
+     * Может увеличивать или уменьшать уже оплаченную сумму
+     * Доступно для ADMIN и ACCOUNTANT
+     */
+    @PostMapping("/edit-payment")
+    public String editPaymentAmount(@RequestParam Long childId,
+                                    @RequestParam String monthYear,
+                                    @RequestParam BigDecimal amount,
+                                    @RequestParam(required = false) String comment,
+                                    HttpSession session) {
+        if (!canManagePayments(session)) {
+            return "redirect:/login";
+        }
+
+        if (amount.compareTo(BigDecimal.ZERO) < 0) {
+            return "redirect:/payments?error=amount_negative_required";
+        }
+
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+
+        try {
+            LocalDate month = LocalDate.parse(monthYear + "-01");
+
+            // Находим существующую запись через репозиторий
+            Optional<Payment> paymentOpt = paymentRepository.findByChildIdAndMonthYear(childId, month);
+
+            if (paymentOpt.isPresent()) {
+                Payment payment = paymentOpt.get();
+                BigDecimal oldTotalPaid = payment.getTotalPaid() != null ? payment.getTotalPaid() : BigDecimal.ZERO;
+
+                // Обновляем сумму
+                payment.setTotalPaid(amount);
+
+                // Обновляем статус
+                BigDecimal monthAmount = payment.getAmount() != null ? payment.getAmount() : BigDecimal.ZERO;
+                if (amount.compareTo(BigDecimal.ZERO) > 0 && monthAmount.compareTo(BigDecimal.ZERO) > 0 && amount.compareTo(monthAmount) >= 0) {
+                    payment.setIsPaid(true);
+                    payment.setStatus("PAID");
+                    payment.setPaidAt(LocalDateTime.now());
+                } else if (amount.compareTo(BigDecimal.ZERO) > 0) {
+                    payment.setStatus("PARTIAL");
+                    payment.setIsPaid(false);
+                } else {
+                    payment.setStatus("PENDING");
+                    payment.setIsPaid(false);
+                    payment.setPaidAt(null);
+                }
+
+                payment.setVerifiedBy(user);
+                payment.setVerifiedAt(LocalDateTime.now());
+                payment.setAmountChangeComment(comment);
+
+                // Добавляем запись в историю
+                if (payment.getAmountHistory() == null) {
+                    payment.setAmountHistory(new java.util.ArrayList<>());
+                }
+
+                Map<String, Object> historyEntry = new HashMap<>();
+                historyEntry.put("date", LocalDateTime.now().toString());
+                historyEntry.put("actor", user.getFullName());
+                historyEntry.put("oldTotalPaid", oldTotalPaid);
+                historyEntry.put("newTotalPaid", amount);
+                historyEntry.put("comment", comment != null ? comment : "Редактирование оплаты");
+
+                payment.getAmountHistory().add(historyEntry);
+
+                paymentRepository.save(payment);
+
+                String childName = getChildName(childId);
+                auditLogService.log("PAYMENT_EDITED", user,
+                        "Изменена оплата для ребенка \"" + childName + "\" за " +
+                                month.format(DateTimeFormatter.ofPattern("MMMM yyyy")) +
+                                ": " + oldTotalPaid + " ₽ → " + amount + " ₽" +
+                                (comment != null ? " Комментарий: " + comment : ""));
+
+                wsNotificationService.sendUpdateNotification("PAYMENT_EDITED");
+                return "redirect:/payments?success=payment_edited";
+            } else {
+                return "redirect:/payments?error=payment_not_found";
+            }
+        } catch (Exception e) {
+            return "redirect:/payments?error=" + e.getMessage();
+        }
+    }
+
+    /**
+     * Получает имя ребенка по ID
+     */
+    private String getChildName(Long childId) {
+        try {
+            String sql = "SELECT first_name, last_name FROM pool.children WHERE id = ?";
+            Map<String, Object> row = jdbcTemplate.queryForMap(sql, childId);
+            return row.get("first_name") + " " + row.get("last_name");
+        } catch (Exception e) {
+            return "ребенок ID=" + childId;
         }
     }
 }

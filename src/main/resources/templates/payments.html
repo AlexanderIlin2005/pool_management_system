@@ -57,7 +57,7 @@
             th:text="${#temporals.format(month, 'MMM yyyy')}">
         </th>
         <th style="padding: 10px; border: 1px solid #ddd; min-width: 100px; text-align: center; background: #e9ecef;">Итого (₽)</th>
-        <th style="padding: 10px; border: 1px solid #ddd; min-width: 150px;">Действие</th>
+        <th style="padding: 10px; border: 1px solid #ddd; min-width: 200px;">Действие</th>
       </tr>
       </thead>
       <tbody>
@@ -95,6 +95,14 @@
                   th:data-child-id="${row['childId']}"
                   th:data-child-name="${row['childName']}">
             + Добавить оплату
+          </button>
+
+          <!-- Кнопка "Изменить оплату" -->
+          <button class="btn btn-sm btn-primary edit-payment-btn"
+                  style="padding: 4px 8px; font-size: 0.75em; background-color: #007bff; color: white; margin-top: 4px;"
+                  th:data-child-id="${row['childId']}"
+                  th:data-child-name="${row['childName']}">
+            ✏ Изменить оплату
           </button>
 
           <!-- Кнопка для отправки сообщения родителю -->
@@ -155,6 +163,46 @@
     </div>
   </div>
 
+  <!-- Модальное окно для изменения оплаты -->
+  <div id="editPaymentModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 25px; border-radius: 8px; max-width: 500px; width: 90%;">
+      <h3>✏️ Изменить оплату</h3>
+      <p>Ребенок: <strong id="editPaymentChildName"></strong></p>
+
+      <form id="editPaymentForm" method="post" action="/payments/edit-payment">
+        <input type="hidden" name="childId" id="editPaymentChildId">
+
+        <div style="margin-top: 15px;">
+          <label style="font-weight: bold; display: block; margin-bottom: 5px;">Месяц оплаты:</label>
+          <select name="monthYear" id="editPaymentMonth" required
+                  style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            <option th:each="m : ${allMonths}"
+                    th:value="${#temporals.format(m, 'yyyy-MM')}"
+                    th:text="${#temporals.format(m, 'MMMM yyyy')}"></option>
+          </select>
+        </div>
+
+        <div style="margin-top: 15px;">
+          <label style="font-weight: bold; display: block; margin-bottom: 5px;">Новая сумма оплаты (₽):</label>
+          <input type="number" name="amount" id="editPaymentAmount" step="1" min="0" required
+                 style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1em;">
+          <small style="color: #6c757d;">Введите новую сумму оплаты (может быть меньше или больше предыдущей)</small>
+        </div>
+
+        <div style="margin-top: 15px;">
+          <label style="font-weight: bold; display: block; margin-bottom: 5px;">Комментарий (опционально):</label>
+          <textarea name="comment" rows="2" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"
+                    placeholder="Например: корректировка суммы оплаты"></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+          <button type="button" onclick="closeEditPaymentModal()" class="btn" style="background-color: #6c757d;">Отмена</button>
+          <button type="submit" class="btn" style="background-color: #007bff;">✏️ Сохранить изменения</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Модальное окно для отправки напоминания -->
   <div id="reminderModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
     <div style="background: white; padding: 20px; border-radius: 8px; max-width: 500px; width: 90%;">
@@ -192,6 +240,22 @@
       document.getElementById('addPaymentForm').reset();
     }
 
+    // === Модальное окно для изменения оплаты ===
+    function openEditPaymentModal(childId, childName) {
+      document.getElementById('editPaymentChildId').value = childId;
+      document.getElementById('editPaymentChildName').textContent = childName;
+      document.getElementById('editPaymentModal').style.display = 'flex';
+
+      setTimeout(function() {
+        document.getElementById('editPaymentAmount').focus();
+      }, 300);
+    }
+
+    function closeEditPaymentModal() {
+      document.getElementById('editPaymentModal').style.display = 'none';
+      document.getElementById('editPaymentForm').reset();
+    }
+
     // === Модальное окно для отправки напоминания ===
     function openReminderModal(childId, childName, parentVk) {
       document.getElementById('reminderChildId').value = childId;
@@ -225,6 +289,15 @@
         });
       });
 
+      // Обработчики для кнопок "Изменить оплату"
+      document.querySelectorAll('.edit-payment-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const childId = this.dataset.childId;
+          const childName = this.dataset.childName;
+          openEditPaymentModal(childId, childName);
+        });
+      });
+
       // Обработчики для кнопок "Напомнить"
       document.querySelectorAll('.send-reminder-btn').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -242,6 +315,12 @@
         }
       });
 
+      document.getElementById('editPaymentModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+          closeEditPaymentModal();
+        }
+      });
+
       document.getElementById('reminderModal').addEventListener('click', function(e) {
         if (e.target === this) {
           closeReminderModal();
@@ -250,7 +329,6 @@
 
       // Умное обновление каждые 30 секунд
       setInterval(function() {
-        // Обновляем только если нет открытых модальных окон
         if (!isAnyModalOpen()) {
           console.log('🔄 Умное обновление страницы оплат...');
           location.reload();
