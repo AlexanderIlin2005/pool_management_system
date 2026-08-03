@@ -929,6 +929,98 @@ public class DatabaseService {
 
 
 
+    // Добавьте эти методы в DatabaseService.java
+
+    /**
+     * Сохраняет уведомление о пропуске занятия
+     */
+    public void saveAbsenceNotification(long parentVkId, long childId, String type, String message) {
+        Long parentId = getParentIdByVkId(parentVkId);
+        if (parentId == null) return;
+
+        String sql = "INSERT INTO pool.absence_notifications (parent_id, child_id, absence_type, message, status, created_at, updated_at) " +
+                "VALUES (?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, parentId);
+            stmt.setLong(2, childId);
+            stmt.setString(3, type);
+            stmt.setString(4, message);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            LOGGER.severe("Ошибка сохранения уведомления о пропуске: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Получает все уведомления о пропусках для администратора
+     */
+    public List<Map<String, Object>> getAllAbsenceNotifications() {
+        String sql = "SELECT an.id, an.absence_type, an.message, an.status, an.created_at, " +
+                "p.last_name as parent_last_name, p.first_name as parent_first_name, " +
+                "c.last_name as child_last_name, c.first_name as child_first_name " +
+                "FROM pool.absence_notifications an " +
+                "JOIN pool.parents p ON an.parent_id = p.id " +
+                "JOIN pool.children c ON an.child_id = c.id " +
+                "ORDER BY an.created_at DESC";
+        return executeQuery(sql);
+    }
+
+    /**
+     * Получает уведомления о пропусках для конкретного тренера
+     */
+    public List<Map<String, Object>> getAbsenceNotificationsForCoach(Long coachId) {
+        String sql = "SELECT an.id, an.absence_type, an.message, an.status, an.created_at, " +
+                "p.last_name as parent_last_name, p.first_name as parent_first_name, " +
+                "c.last_name as child_last_name, c.first_name as child_first_name " +
+                "FROM pool.absence_notifications an " +
+                "JOIN pool.parents p ON an.parent_id = p.id " +
+                "JOIN pool.children c ON an.child_id = c.id " +
+                "JOIN pool.group_children gc ON c.id = gc.child_id " +
+                "JOIN pool.groups g ON gc.group_id = g.id " +
+                "WHERE g.trainer_id = ? " +
+                "ORDER BY an.created_at DESC";
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, coachId);
+            ResultSet rs = stmt.executeQuery();
+            ResultSetMetaData md = rs.getMetaData();
+            int columns = md.getColumnCount();
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+                for (int i = 1; i <= columns; i++) {
+                    row.put(md.getColumnName(i), rs.getObject(i));
+                }
+                result.add(row);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    /**
+     * Обновляет статус уведомления о пропуске
+     */
+    public void updateAbsenceNotificationStatus(long notificationId, String status, Long adminId) {
+        String sql = "UPDATE pool.absence_notifications SET status = ?, updated_at = CURRENT_TIMESTAMP, processed_by = ? WHERE id = ?";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, status);
+            if (adminId != null) {
+                stmt.setLong(2, adminId);
+            } else {
+                stmt.setNull(2, java.sql.Types.BIGINT);
+            }
+            stmt.setLong(3, notificationId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
     // === ВСПОМОГАТЕЛЬНЫЙ МЕТОД ===
 
     private List<Map<String, Object>> executeQuery(String sql) {

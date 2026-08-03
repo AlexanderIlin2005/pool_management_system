@@ -64,4 +64,22 @@ public class Group {
 
     @Column(name = "skill_2")
     private String skill2;
+
+
+    // Тип абонемента
+    @Column(name = "subscription_type")
+    private String subscriptionType;
+
+    public String getSubscriptionTypeDisplay() {
+        if (subscriptionType == null) return null;
+        return switch (subscriptionType) {
+            case "ONCE_PER_WEEK" -> "1 раз в неделю";
+            case "TWICE_PER_WEEK" -> "2 раза в неделю";
+            case "INDIVIDUAL" -> "Индивидуальные занятия с тренером";
+            case "FAMILY" -> "Семейное плавание";
+            case "AQUA_AEROBICS" -> "Аквааэробика";
+            default -> subscriptionType;
+        };
+    }
+
 }

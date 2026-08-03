@@ -93,7 +93,13 @@ CREATE TABLE pool.groups (
     min_age INTEGER CHECK (min_age BETWEEN 6 AND 18),
     max_age INTEGER CHECK (max_age BETWEEN 6 AND 18),
     skill_1 VARCHAR(50),
-    skill_2 VARCHAR(50)
+    skill_2 VARCHAR(50),
+    subscription_type VARCHAR(50)
+);
+
+ALTER TABLE pool.groups ADD CONSTRAINT chk_subscription_type CHECK (
+    subscription_type IS NULL OR
+    subscription_type IN ('ONCE_PER_WEEK', 'TWICE_PER_WEEK', 'INDIVIDUAL', 'FAMILY', 'AQUA_AEROBICS')
 );
 
 CREATE TABLE pool.group_children (
@@ -291,6 +297,25 @@ CREATE TABLE IF NOT EXISTS pool.child_update_notifications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     sent_at TIMESTAMP
 );
+
+
+-- Таблица для уведомлений о пропусках занятий
+CREATE TABLE IF NOT EXISTS pool.absence_notifications (
+    id BIGSERIAL PRIMARY KEY,
+    parent_id BIGINT REFERENCES pool.parents(id) ON DELETE CASCADE,
+    child_id BIGINT REFERENCES pool.children(id) ON DELETE CASCADE,
+    absence_type VARCHAR(20) NOT NULL CHECK (absence_type IN ('SICK', 'UNWELL', 'OTHER')),
+    message TEXT,
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'SENT', 'READ')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    processed_by BIGINT REFERENCES pool.admin_users(id)
+);
+
+-- Индексы для быстрого поиска
+CREATE INDEX idx_absence_notifications_status ON pool.absence_notifications(status);
+CREATE INDEX idx_absence_notifications_child ON pool.absence_notifications(child_id);
+CREATE INDEX idx_absence_notifications_parent ON pool.absence_notifications(parent_id);
 
 
 CREATE INDEX IF NOT EXISTS idx_children_certificate_received ON pool.children(certificate_received);
