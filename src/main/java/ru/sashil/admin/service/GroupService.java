@@ -11,6 +11,7 @@ import ru.sashil.admin.repository.PoolRepository;
 
 import java.time.Duration;
 import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -64,6 +65,16 @@ public class GroupService {
 
         // --- ВАЛИДАЦИЯ КРИТЕРИЕВ ВСТУПЛЕНИЯ ---
         validateEntryCriteria(group.getMinAge(), group.getMaxAge(), group.getSkill1(), group.getSkill2());
+
+
+        // Валидация типа абонемента (опционально)
+        if (group.getSubscriptionType() != null && !group.getSubscriptionType().isEmpty()) {
+            // Проверяем, что тип абонемента допустимый
+            List<String> validTypes = Arrays.asList("ONCE_PER_WEEK", "TWICE_PER_WEEK", "INDIVIDUAL", "FAMILY", "AQUA_AEROBICS");
+            if (!validTypes.contains(group.getSubscriptionType())) {
+                throw new IllegalArgumentException("Недопустимый тип абонемента: " + group.getSubscriptionType());
+            }
+        }
 
         groupRepository.save(group);
 

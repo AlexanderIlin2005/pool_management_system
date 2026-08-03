@@ -636,10 +636,9 @@ public class DatabaseService {
     // === НОВЫЕ МЕТОДЫ ДЛЯ ЗАПИСИ В ГРУППУ ===
 
     /**
-     * Находит подходящие группы для ребенка по возрасту и навыку.
+     * Находит подходящие группы для ребенка по возрасту, навыку и типу абонемента.
      * Возвращает список групп, отсортированный по приоритету совпадения.
      */
-
     public List<Map<String, Object>> findSuitableGroupsForChild(long childId) {
         String sql = "SELECT c.age, c.skill::text as skill FROM pool.children c WHERE c.id = ?";
         int age = 0;
@@ -660,7 +659,9 @@ public class DatabaseService {
             return java.util.Collections.emptyList();
         }
 
+        // Добавляем subscription_type в запрос
         String groupsSql = "SELECT g.id, g.name, g.number, g.min_age, g.max_age, g.skill_1, g.skill_2, " +
+                "g.subscription_type, " +
                 "g.day_1_start, g.day_1_end, g.day_2_start, g.day_2_end, " +
                 "g.day_3_start, g.day_3_end, g.day_4_start, g.day_4_end, " +
                 "g.day_5_start, g.day_5_end " +
@@ -671,26 +672,37 @@ public class DatabaseService {
         List<Map<String, Object>> fullMatch = new ArrayList<>();
         List<Map<String, Object>> skillMatch = new ArrayList<>();
         List<Map<String, Object>> ageMatch = new ArrayList<>();
+        List<Map<String, Object>> subscriptionMatch = new ArrayList<>();
 
         for (Map<String, Object> g : allGroups) {
             Integer minAge = (Integer) g.get("min_age");
             Integer maxAge = (Integer) g.get("max_age");
             String s1 = (String) g.get("skill_1");
             String s2 = (String) g.get("skill_2");
+            String subscriptionType = (String) g.get("subscription_type");
 
             boolean ageOk = (minAge == null || age >= minAge) && (maxAge == null || age <= maxAge);
             boolean skillOk = (s1 == null && s2 == null) ||
                     (skill != null && (skill.equals(s1) || skill.equals(s2)));
+            // Если тип абонемента не задан (null) - подходит для любого
+            boolean subscriptionOk = subscriptionType == null;
 
-            if (ageOk && skillOk) fullMatch.add(g);
-            else if (skillOk) skillMatch.add(g);
-            else if (ageOk) ageMatch.add(g);
+            if (ageOk && skillOk && subscriptionOk) {
+                fullMatch.add(g);
+            } else if (skillOk && subscriptionOk) {
+                skillMatch.add(g);
+            } else if (ageOk && subscriptionOk) {
+                ageMatch.add(g);
+            } else if (subscriptionOk) {
+                subscriptionMatch.add(g);
+            }
         }
 
         List<Map<String, Object>> result = new ArrayList<>();
         result.addAll(fullMatch);
         result.addAll(skillMatch);
         result.addAll(ageMatch);
+        result.addAll(subscriptionMatch);
         return result;
     }
 

@@ -153,6 +153,7 @@ public class GroupController {
                             @RequestParam(required = false) String skill1,
                             @RequestParam(required = false) String skill2,
                             @RequestParam(required = false) String skill3,
+                            @RequestParam(required = false) String subscriptionType, // ДОБАВЛЯЕМ
                             Model model, HttpSession session) {
 
         if (!isAdmin(session)) return "redirect:/parents";
@@ -167,6 +168,13 @@ public class GroupController {
             if (selectedSkills.size() > 0) group.setSkill1(selectedSkills.get(0));
             if (selectedSkills.size() > 1) group.setSkill2(selectedSkills.get(1));
 
+            // Устанавливаем тип абонемента (если передан)
+            if (subscriptionType != null && !subscriptionType.isEmpty()) {
+                group.setSubscriptionType(subscriptionType);
+            } else {
+                group.setSubscriptionType(null);
+            }
+
             groupService.saveGroup(group);
             wsNotificationService.sendUpdateNotification("GROUP_SAVED");
             return "redirect:/groups?success";
@@ -178,7 +186,6 @@ public class GroupController {
             model.addAttribute("role", ((AdminUser) session.getAttribute("currentUser")).getRole());
             model.addAttribute("activePage", "groups");
             model.addAttribute("isEdit", group.getId() != null);
-            // Возвращаем выбранные навыки обратно в форму, чтобы они не сбросились
             if (group.getSkill1() != null) model.addAttribute("selectedSkill1", group.getSkill1());
             if (group.getSkill2() != null) model.addAttribute("selectedSkill2", group.getSkill2());
             return "new-group";

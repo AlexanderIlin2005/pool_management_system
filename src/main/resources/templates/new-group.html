@@ -27,7 +27,6 @@
         </select>
       </div>
 
-
       <div style="flex: 1; position: relative;">
         <label>Тренер (опционально):</label>
         <input type="text" id="coach-search" placeholder="Начните вводить имя..."
@@ -42,9 +41,24 @@
       </div>
     </div>
 
+    <!-- НОВЫЙ БЛОК: Тип абонемента -->
+    <div style="margin-bottom: 20px;">
+      <label>Тип абонемента:</label>
+      <select th:field="*{subscriptionType}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        <option value="">Не указан (подходит для всех)</option>
+        <option value="ONCE_PER_WEEK">1 раз в неделю</option>
+        <option value="TWICE_PER_WEEK">2 раза в неделю</option>
+        <option value="INDIVIDUAL">Индивидуальные занятия с тренером</option>
+        <option value="FAMILY">Семейное плавание</option>
+        <option value="AQUA_AEROBICS">Аквааэробика</option>
+      </select>
+      <small style="color: #6c757d; display: block; margin-top: 5px;">
+        Если тип не указан, группа будет предлагаться для любого выбранного абонемента.
+      </small>
+    </div>
+
     <h3>Расписание занятий</h3>
     <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">Нажмите на дни, когда проходят занятия:</p>
-
 
     <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
       <button type="button" class="day-toggle" data-day="1" style="padding: 10px 15px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; border-radius: 4px; font-weight: bold;">Пн</button>
@@ -56,7 +70,6 @@
       <button type="button" class="day-toggle" data-day="7" style="padding: 10px 15px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; border-radius: 4px; font-weight: bold;">Вс</button>
     </div>
 
-
     <div id="time-block-1" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Понедельник:</strong>
       <div style="margin-top: 10px;">
@@ -66,7 +79,6 @@
         <input type="time" th:field="*{day1End}" style="margin-left: 10px; padding: 5px;">
       </div>
     </div>
-
 
     <div id="time-block-2" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Вторник:</strong>
@@ -78,7 +90,6 @@
       </div>
     </div>
 
-
     <div id="time-block-3" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Среда:</strong>
       <div style="margin-top: 10px;">
@@ -88,7 +99,6 @@
         <input type="time" th:field="*{day3End}" style="margin-left: 10px; padding: 5px;">
       </div>
     </div>
-
 
     <div id="time-block-4" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Четверг:</strong>
@@ -100,7 +110,6 @@
       </div>
     </div>
 
-
     <div id="time-block-5" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Пятница:</strong>
       <div style="margin-top: 10px;">
@@ -110,7 +119,6 @@
         <input type="time" th:field="*{day5End}" style="margin-left: 10px; padding: 5px;">
       </div>
     </div>
-
 
     <div id="time-block-6" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Суббота:</strong>
@@ -122,7 +130,6 @@
       </div>
     </div>
 
-
     <div id="time-block-7" class="time-block" style="display: none; margin-bottom: 15px; padding: 15px; background: #eef2f5; border-radius: 6px; border-left: 4px solid #007bff;">
       <strong>Воскресенье:</strong>
       <div style="margin-top: 10px;">
@@ -132,8 +139,6 @@
         <input type="time" th:field="*{day7End}" style="margin-left: 10px; padding: 5px;">
       </div>
     </div>
-
-
 
     <h3>Критерии вступления в группу</h3>
     <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">Эти критерии будут использоваться как рекомендательные фильтры при добавлении детей в группу.</p>
@@ -159,7 +164,6 @@
       <small style="color: #dc3545; display: block; margin-top: 5px;">* Комбинация "Не умеет" + "Уверенно плавает" запрещена.</small>
     </div>
 
-
     <p th:if="${error}" style="color: red;" th:text="${error}"></p>
 
     <div style="margin-top: 20px;">
@@ -168,16 +172,13 @@
     </div>
   </form>
 
-
   <script th:inline="javascript">
     /*<![CDATA[*/
     window.coachesList = /*[[${coaches}]]*/ [];
     /*]]>*/
   </script>
 
-
   <script>
-    // Простой скрипт для предотвращения выбора запрещенной комбинации на клиенте
     document.addEventListener('DOMContentLoaded', function() {
         const cb1 = document.querySelector('input[name="skill1"]');
         const cb3 = document.querySelector('input[name="skill3"]');
@@ -198,7 +199,6 @@
         }
     });
   </script>
-
 
   <script src="/js/coach-search.js"></script>
   <script src="/js/schedule-toggle.js"></script>

@@ -23,6 +23,7 @@
                 <th style="padding: 12px; border: 1px solid #ddd;">Название</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Бассейн</th>
                 <th th:if="${role.name() == 'ADMIN'}" style="padding: 12px; border: 1px solid #ddd;">Тренер</th>
+                <th style="padding: 12px; border: 1px solid #ddd;">Тип абонемента</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Расписание</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Количество участников</th>
                 <th style="padding: 12px; border: 1px solid #ddd;">Действия</th>
@@ -32,11 +33,14 @@
             <tr th:each="g : ${groups}" style="border-bottom: 1px solid #eee;">
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.number}"></td>
                 <td style="padding: 12px; border: 1px solid #ddd;">
-                    <!-- По нажатию на имя → просмотр участников -->
                     <a th:href="@{/groups/{id}/members-view(id=${g.id})}" style="color: #007bff; text-decoration: none; font-weight: bold;" th:text="${g.name}"></a>
                 </td>
                 <td style="padding: 12px; border: 1px solid #ddd;" th:text="${g.pool != null ? g.pool.name : '-'}"></td>
                 <td th:if="${role.name() == 'ADMIN'}" style="padding: 12px; border: 1px solid #ddd;" th:text="${g.trainer != null ? g.trainer.fullName : '-'}"></td>
+                <td style="padding: 12px; border: 1px solid #ddd;">
+                    <span th:if="${g.subscriptionType != null}" th:text="${g.getSubscriptionTypeDisplay()}"></span>
+                    <span th:unless="${g.subscriptionType != null}" style="color: #6c757d;">—</span>
+                </td>
                 <td style="padding: 12px; border: 1px solid #ddd;">
                     <span th:if="${g.day1Start != null}" th:text="'Пн ' + ${g.day1Start} + '-' + ${g.day1End}"></span><br>
                     <span th:if="${g.day2Start != null}" th:text="'Вт ' + ${g.day2Start} + '-' + ${g.day2End}"></span><br>
@@ -57,16 +61,9 @@
                     </div>
                 </td>
                 <td style="padding: 12px; border: 1px solid #ddd; display: flex; gap: 5px; flex-wrap: wrap;">
-                    <!-- Кнопка "Редактировать" (только для админа) -->
                     <a th:if="${role.name() == 'ADMIN'}" th:href="@{/groups/edit/{id}(id=${g.id})}" class="btn" style="padding: 5px 10px; font-size: 0.8em; background-color: #ffc107; color: black;">Редактировать</a>
-
-                    <!-- Кнопка "Изменить состав" (только для админа) -->
                     <a th:if="${role.name() == 'ADMIN'}" th:href="@{/groups/{id}/members(id=${g.id})}" class="btn" style="padding: 5px 10px; font-size: 0.8em; background-color: #28a745;">Изменить состав</a>
-
-                    <!-- Кнопка "Посещаемость" для всех -->
                     <a th:href="@{/groups/{id}/attendance(id=${g.id})}" class="btn" style="padding: 5px 10px; font-size: 0.8em; background-color: #17a2b8;">Посещаемость</a>
-
-                    <!-- Кнопка "Удалить" (только для админа) -->
                     <form th:if="${role.name() == 'ADMIN'}" th:action="@{/groups/delete/{id}(id=${g.id})}" method="post" class="delete-group-form">
                         <input type="hidden" name="groupName" th:value="${g.name}">
                         <button type="submit" class="btn btn-danger" style="padding: 5px 10px; font-size: 0.8em;">Удалить</button>
@@ -74,7 +71,7 @@
                 </td>
             </tr>
             <tr th:if="${#lists.isEmpty(groups)}">
-                <td colspan="7" style="text-align: center; padding: 12px; border: 1px solid #ddd;">Групп не найдено</td>
+                <td colspan="8" style="text-align: center; padding: 12px; border: 1px solid #ddd;">Групп не найдено</td>
             </tr>
             </tbody>
         </table>
