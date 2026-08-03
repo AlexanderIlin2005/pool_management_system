@@ -312,6 +312,31 @@ CREATE TABLE IF NOT EXISTS pool.absence_notifications (
     processed_by BIGINT REFERENCES pool.admin_users(id)
 );
 
+-- Таблица для сообщений между родителями и тренерами/администраторами
+CREATE TABLE IF NOT EXISTS pool.messages (
+    id BIGSERIAL PRIMARY KEY,
+    from_user_id BIGINT NOT NULL,           -- VK ID родителя или ID админа/тренера
+    from_user_type VARCHAR(20) NOT NULL,    -- 'PARENT', 'ADMIN', 'COACH'
+    to_user_id BIGINT,                      -- ID админа/тренера (если null - всем админам)
+    to_user_type VARCHAR(20) NOT NULL,      -- 'ADMIN', 'COACH', 'PARENT'
+    child_id BIGINT REFERENCES pool.children(id) ON DELETE SET NULL,
+    group_id BIGINT REFERENCES pool.groups(id) ON DELETE SET NULL,
+    message_text TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'READ', 'REPLIED')),
+    parent_message_id BIGINT,               -- Ссылка на исходное сообщение при ответе
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    read_at TIMESTAMP,
+    replied_at TIMESTAMP
+);
+
+-- Индексы для быстрого поиска
+CREATE INDEX idx_messages_status ON pool.messages(status);
+CREATE INDEX idx_messages_from_user ON pool.messages(from_user_id);
+CREATE INDEX idx_messages_to_user ON pool.messages(to_user_id);
+CREATE INDEX idx_messages_child ON pool.messages(child_id);
+CREATE INDEX idx_messages_group ON pool.messages(group_id);
+CREATE INDEX idx_messages_created ON pool.messages(created_at DESC);
+
 -- Индексы для быстрого поиска
 CREATE INDEX idx_absence_notifications_status ON pool.absence_notifications(status);
 CREATE INDEX idx_absence_notifications_child ON pool.absence_notifications(child_id);

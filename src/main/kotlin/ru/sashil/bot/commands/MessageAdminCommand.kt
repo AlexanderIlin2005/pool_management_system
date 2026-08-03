@@ -28,6 +28,8 @@ class MessageAdminCommand(
         val cmd = CommandUtils.normalize(text)
 
         if (cmd == "отмена" || cmd == "нет") {
+            userSteps.remove(userId)
+            userData.remove(userId)
             return CommandResult.Cancel()
         }
 
@@ -41,16 +43,17 @@ class MessageAdminCommand(
                         "Родитель (VK ID: $userId)"
                     }
 
-                    val sql = """
-                        INSERT INTO pool.broadcast_messages
-                        (sender_id, target_type, message_text, created_at, status)
-                        VALUES (NULL, 'ALL', ?, CURRENT_TIMESTAMP, 'PENDING')
-                    """.trimIndent()
+                    // Сохраняем сообщение в таблицу messages (для всех админов)
+                    val sql = "INSERT INTO pool.messages " +
+                            "(from_user_id, from_user_type, to_user_type, " +
+                            "message_text, status, created_at) " +
+                            "VALUES (?, 'PARENT', 'ADMIN', ?, 'PENDING', CURRENT_TIMESTAMP)"
 
                     dbService.getConnection().use { conn ->
                         conn.prepareStatement(sql).use { stmt ->
                             val fullMessage = "Сообщение от $parentName:\n\n$text"
-                            stmt.setString(1, fullMessage)
+                            stmt.setLong(1, userId)
+                            stmt.setString(2, fullMessage)
                             stmt.executeUpdate()
                         }
                     }
@@ -60,15 +63,23 @@ class MessageAdminCommand(
 
                     return CommandResult.Complete(
                         "✅ Ваше сообщение отправлено администратору.\n\n" +
-                        "Администратор свяжется с Вами в ближайшее время."
+                                "Администратор свяжется с Вами в ближайшее время."
                     )
                 } catch (e: Exception) {
                     return CommandResult.Error("Ошибка отправки сообщения: ${e.message}")
                 }
             }
             else -> {
+                userSteps.remove(userId)
+                userData.remove(userId)
                 return CommandResult.Cancel()
             }
         }
+    }
+
+    override fun cancel(userId: Long): CommandResult {
+        userSteps.remove(userId)
+        userData.remove(userId)
+        return CommandResult.Cancel()
     }
 }

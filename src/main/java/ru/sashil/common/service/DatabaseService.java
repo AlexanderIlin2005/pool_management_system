@@ -1021,6 +1021,30 @@ public class DatabaseService {
 
 
 
+    /**
+     * Получает неотправленные ответы на сообщения
+     */
+    public List<Map<String, Object>> getPendingMessageReplies() {
+        String sql = "SELECT id, parent_vk_id, message_text FROM pool.payment_notifications " +
+                "WHERE notification_type = 'MESSAGE_REPLY' AND is_sent = FALSE " +
+                "ORDER BY created_at ASC";
+        return executeQuery(sql);
+    }
+
+    /**
+     * Помечает ответ на сообщение как отправленный
+     */
+    public void markMessageReplySent(long notifId) {
+        String sql = "UPDATE pool.payment_notifications SET is_sent = TRUE, sent_at = CURRENT_TIMESTAMP WHERE id = ?";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, notifId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
     // === ВСПОМОГАТЕЛЬНЫЙ МЕТОД ===
 
     private List<Map<String, Object>> executeQuery(String sql) {

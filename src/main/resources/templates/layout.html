@@ -180,6 +180,13 @@
     <a href="/groups" th:classappend="${activePage == 'groups'} ? 'active'">Группы</a>
     <a href="/parents" th:classappend="${activePage == 'parents'} ? 'active'">Родители</a>
 
+    <a href="/messages" th:classappend="${activePage == 'messages'} ? 'active'" style="position: relative;">
+      💬 Сообщения
+      <span th:if="${unreadMessagesCount != null and unreadMessagesCount > 0}"
+            style="position: absolute; top: 5px; right: 10px; background: red; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;"
+            th:text="${unreadMessagesCount}"></span>
+    </a>
+
     <a href="/certificates" th:classappend="${activePage == 'certificates'} ? 'active'" style="position: relative;">
       Справки
       <span th:if="${unreadCertsCount != null and unreadCertsCount > 0}"

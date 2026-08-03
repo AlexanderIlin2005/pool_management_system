@@ -47,7 +47,30 @@ class NotificationService(
         logger.info("Проверка уведомлений завершена.")
     }
 
+    /**
+     * Отправляет ответы на сообщения родителям.
+     * Метод public для вызова из BotApplication.
+     */
+    suspend fun sendPendingMessageReplies() {
+        try {
+            val notifications = dbService.getPendingMessageReplies()
+            for (notif in notifications) {
+                val vkId = notif["parent_vk_id"] as Long
+                val message = notif["message_text"] as String
+                val notifId = notif["id"] as Long
 
+                try {
+                    sendMessage(vkId, message)
+                    dbService.markMessageReplySent(notifId)
+                    logger.info("Ответ на сообщение отправлен родителю $vkId")
+                } catch (e: Exception) {
+                    logger.severe("Ошибка отправки ответа родителю $vkId: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            logger.severe("Ошибка в отправке ответов родителям: ${e.message}")
+        }
+    }
 
     private suspend fun sendPendingChildUpdateNotifications() {
         val notifications = dbService.getPendingChildUpdateNotifications()
@@ -66,10 +89,8 @@ class NotificationService(
         }
     }
 
-
-
     private suspend fun sendPendingPaymentNotifications() {
-        val notifications = getPendingPaymentNotifications()
+        val notifications = dbService.getPendingPaymentNotifications()
         for (notif in notifications) {
             val parentVkId = notif["parent_vk_id"] as Long
             val message = notif["message_text"] as String
@@ -77,21 +98,12 @@ class NotificationService(
 
             try {
                 sendMessage(parentVkId, message)
-                markPaymentNotificationSent(notifId)
+                dbService.markPaymentNotificationSent(notifId)
                 logger.info("Уведомление об оплате #$notifId отправлено родителю $parentVkId")
             } catch (e: Exception) {
                 logger.severe("Не удалось отправить уведомление об оплате пользователю $parentVkId: ${e.message}")
             }
         }
-    }
-
-    // Вспомогательные методы (нужно добавить в DatabaseService):
-    private suspend fun getPendingPaymentNotifications(): List<Map<String, Any>> {
-        return dbService.getPendingPaymentNotifications()
-    }
-
-    private suspend fun markPaymentNotificationSent(notifId: Long) {
-        dbService.markPaymentNotificationSent(notifId)
     }
 
     /**
