@@ -9,6 +9,7 @@ import ru.sashil.admin.model.AdminUser;
 import ru.sashil.common.service.DatabaseService;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -21,48 +22,63 @@ public class CertificateController {
 
     @GetMapping
     public String certificatesPage(Model model, HttpSession session,
-                                   @RequestParam(required = false) String tab,
-                                   @RequestParam(required = false) String type) {
+                                   @RequestParam(required = false) String tab) {
 
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
-        List<Map<String, Object>> certificates;
-        boolean isNewTab = !"archive".equals(tab);
-        boolean isAbsence = "absence".equals(type);
+        List<Map<String, Object>> certificates = new ArrayList<>();
+        // Определяем активную вкладку: new, absence или archive
+        String activeTab = (tab != null) ? tab : "new";
 
         try {
-            if (isAbsence) {
-                // Справки о болезни из absence_notifications
-                if (user.getRole() == AdminUser.Role.COACH) {
-                    certificates = databaseService.getAbsenceCertificatesForCoach(user.getId());
-                } else {
-                    certificates = databaseService.getAllAbsenceCertificates();
-                }
-            } else {
-                // Обычные справки о допуске из certificates
-                if (isNewTab) {
+            switch (activeTab) {
+                case "absence":
+                    // Новые справки о болезни
+                    if (user.getRole() == AdminUser.Role.COACH) {
+                        certificates = databaseService.getAbsenceCertificatesForCoach(user.getId());
+                    } else {
+                        certificates = databaseService.getAllAbsenceCertificates();
+                    }
+                    break;
+                case "archive":
+                    // Архив: объединяем обработанные допуски и болезни
+                    List<Map<String, Object>> readRegular = databaseService.getReadCertificates();
+                    List<Map<String, Object>> readAbsence = databaseService.getProcessedAbsenceCertificates();
+
+                    certificates.addAll(readRegular);
+                    certificates.addAll(readAbsence);
+
+                    // Сортируем по дате загрузки (новые сверху)
+                    certificates.sort((a, b) -> {
+                        java.sql.Timestamp t1 = (java.sql.Timestamp) a.get("uploaded_at");
+                        java.sql.Timestamp t2 = (java.sql.Timestamp) b.get("uploaded_at");
+                        if (t1 == null && t2 == null) return 0;
+                        if (t1 == null) return 1;
+                        if (t2 == null) return -1;
+                        return t2.compareTo(t1);
+                    });
+                    break;
+                case "new":
+                default:
+                    // Новые справки о допуске
                     if (user.getRole() == AdminUser.Role.COACH) {
                         certificates = databaseService.getUnreadCertificatesForCoach(user.getId());
                     } else {
                         certificates = databaseService.getUnreadCertificates();
                     }
-                } else {
-                    certificates = databaseService.getReadCertificates();
-                }
+                    break;
             }
         } catch (Exception e) {
             e.printStackTrace();
             model.addAttribute("error", "Ошибка загрузки справок: " + e.getMessage());
-            certificates = List.of(); // Пустой список при ошибке, чтобы не было NPE в шаблоне
         }
 
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "certificates");
         model.addAttribute("certificates", certificates);
-        model.addAttribute("currentTab", isNewTab ? "new" : "archive");
-        model.addAttribute("certType", isAbsence ? "absence" : "regular");
+        model.addAttribute("currentTab", activeTab);
 
         return "certificates";
     }
@@ -79,16 +95,14 @@ public class CertificateController {
 
         try {
             if ("absence".equals(certType)) {
-                // Для справок о болезни - даты обязательны
                 if (dateFrom == null || dateTo == null) {
-                    return "redirect:/certificates?type=absence&error=date_required";
+                    return "redirect:/certificates?tab=absence&error=date_required";
                 }
                 databaseService.processAbsenceCertificate(certId, user.getId(), status, dateFrom, dateTo);
-                return "redirect:/certificates?type=absence&success=true";
+                return "redirect:/certificates?tab=absence&success=true";
             } else {
-                // Обычная справка о допуске - даты не нужны, просто меняем статус и is_read
                 databaseService.processRegularCertificate(certId, user.getId(), status);
-                return "redirect:/certificates?tab=archive&success=true";
+                return "redirect:/certificates?tab=new&success=true";
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -107,10 +121,10 @@ public class CertificateController {
         try {
             if ("absence".equals(certType)) {
                 databaseService.rejectAbsenceCertificate(certId, user.getId(), comment);
-                return "redirect:/certificates?type=absence&success=rejected";
+                return "redirect:/certificates?tab=absence&success=rejected";
             } else {
                 databaseService.rejectCertificate(certId, user.getId(), comment);
-                return "redirect:/certificates?success=rejected";
+                return "redirect:/certificates?tab=new&success=rejected";
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -128,7 +142,7 @@ public class CertificateController {
         try {
             if ("absence".equals(certType)) {
                 databaseService.resetAbsenceCertificate(certId);
-                return "redirect:/certificates?type=absence&reset=true";
+                return "redirect:/certificates?tab=absence&reset=true";
             } else {
                 databaseService.resetCertificateReadStatus(certId);
                 return "redirect:/certificates?tab=new&reset=true";

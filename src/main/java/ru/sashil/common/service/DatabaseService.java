@@ -1418,12 +1418,7 @@ public class DatabaseService {
         }
     }
 
-    /**
-     * Обрабатывает обычную справку о допуске (устанавливает certificate_received = true)
-     */
-    /**
-     * Обрабатывает обычную справку о допуске (устанавливает certificate_received = true)
-     */
+
     /**
      * Обрабатывает обычную справку о допуске (устанавливает certificate_received = true)
      */
@@ -1466,6 +1461,29 @@ public class DatabaseService {
             e.printStackTrace();
         }
     }
+
+
+    /**
+     * Получает обработанные справки о болезни (архив)
+     */
+    public List<Map<String, Object>> getProcessedAbsenceCertificates() {
+        String sql = "SELECT an.id, an.created_at as uploaded_at, an.certificate_url as file_url, " +
+                "an.status, an.absence_type, an.message, an.certificate_file_name, " +
+                "p.last_name || ' ' || p.first_name as parent_name, " +
+                "c.last_name || ' ' || c.first_name as child_name, " +
+                "au.full_name as processed_by_name, " +
+                "'absence' as cert_type, " +
+                "NULL as date_from, NULL as date_to " + // Даты хранятся в attendance, здесь просто заглушка для совместимости шаблона
+                "FROM pool.absence_notifications an " +
+                "JOIN pool.parents p ON an.parent_id = p.id " +
+                "JOIN pool.children c ON an.child_id = c.id " +
+                "LEFT JOIN pool.admin_users au ON an.processed_by = au.id " +
+                "WHERE an.certificate_url IS NOT NULL AND an.status = 'READ' " +
+                "ORDER BY an.updated_at DESC";
+        return executeQuery(sql);
+    }
+
+
 
 
 }
