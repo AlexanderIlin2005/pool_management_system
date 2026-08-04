@@ -1134,6 +1134,55 @@ public class DatabaseService {
     }
 
 
+
+
+    // Добавьте эти методы в DatabaseService.java
+
+    /**
+     * Сохраняет родителя с возможными null значениями
+     */
+    public void saveParentNullable(long vkId, String firstName, String lastName, String middleName, String email, String phone) throws SQLException {
+        String sql = "INSERT INTO pool.parents (vk_id, first_name, last_name, middle_name, email, phone) " +
+                "VALUES (?, ?, ?, ?, ?, ?) " +
+                "ON CONFLICT (vk_id) DO UPDATE SET " +
+                "first_name = EXCLUDED.first_name, " +
+                "last_name = EXCLUDED.last_name, " +
+                "middle_name = EXCLUDED.middle_name, " +
+                "email = EXCLUDED.email, " +
+                "phone = EXCLUDED.phone";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, vkId);
+            stmt.setString(2, firstName != null ? firstName : "");
+            stmt.setString(3, lastName != null ? lastName : "");
+            stmt.setString(4, middleName != null ? middleName : "");
+            stmt.setString(5, email != null ? email : "");
+            stmt.setString(6, phone != null ? phone : "");
+            stmt.executeUpdate();
+            LOGGER.info("✅ Родитель VK:" + vkId + " сохранен/обновлен.");
+        }
+    }
+
+    /**
+     * Обновляет родителя с возможными null значениями
+     */
+    public void updateParentNullable(long vkId, String firstName, String lastName, String middleName, String email, String phone) throws SQLException {
+        String sql = "UPDATE pool.parents SET first_name = ?, last_name = ?, middle_name = ?, email = ?, phone = ? WHERE vk_id = ?";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, firstName != null ? firstName : "");
+            stmt.setString(2, lastName != null ? lastName : "");
+            stmt.setString(3, middleName != null ? middleName : "");
+            stmt.setString(4, email != null ? email : "");
+            stmt.setString(5, phone != null ? phone : "");
+            stmt.setLong(6, vkId);
+            stmt.executeUpdate();
+            LOGGER.info("✅ Данные родителя VK:" + vkId + " обновлены.");
+        }
+    }
+
+
+
+
+
     // === ВСПОМОГАТЕЛЬНЫЙ МЕТОД ===
 
     private List<Map<String, Object>> executeQuery(String sql) {

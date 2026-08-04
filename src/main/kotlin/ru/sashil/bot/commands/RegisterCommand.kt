@@ -15,6 +15,20 @@ class RegisterCommand(
     private val userData = ConcurrentHashMap<Long, MutableMap<String, String>>()
 
     override fun start(userId: Long): CommandResult {
+        // Проверяем, зарегистрирован ли родитель
+        val isParentRegistered = try {
+            dbService.isParentRegistered(userId)
+        } catch (e: Exception) {
+            false
+        }
+
+        if (!isParentRegistered) {
+            return CommandResult.Complete(
+                "⚠️ Для регистрации ребенка необходимо сначала зарегистрироваться как родитель.\n\n" +
+                        "Напишите 'начать' для регистрации."
+            )
+        }
+
         userSteps[userId] = 1
         userData[userId] = mutableMapOf()
         return CommandResult.Continue(
@@ -40,7 +54,7 @@ class RegisterCommand(
                 if (cmd != "да") {
                     return CommandResult.Continue(
                         "Для возврата в главное меню напишите 'нет'.\n\n" +
-                        "Вы хотите зарегистрировать ребенка для занятий в бассейне гимназии №642 «Земля и Вселенная» по адресу Морская набережная, 5?"
+                                "Вы хотите зарегистрировать ребенка для занятий в бассейне гимназии №642 «Земля и Вселенная» по адресу Морская набережная, 5?"
                     )
                 }
                 userSteps[userId] = 2
@@ -83,9 +97,9 @@ class RegisterCommand(
                 userSteps[userId] = 5
                 return CommandResult.Continue(
                     "Спасибо! Уточните уровень владения плавательными навыками (напишите цифру): \n" +
-                    "1. Уверенно плавает\n" +
-                    "2. Держится на воде\n" +
-                    "3. Не умеет плавать"
+                            "1. Уверенно плавает\n" +
+                            "2. Держится на воде\n" +
+                            "3. Не умеет плавать"
                 )
             }
             5 -> {
@@ -96,13 +110,39 @@ class RegisterCommand(
                     else -> {
                         return CommandResult.Continue(
                             "Пожалуйста, введите цифру от 1 до 3.\n" +
-                            "1. Уверенно плавает\n" +
-                            "2. Держится на воде\n" +
-                            "3. Не умеет плавать"
+                                    "1. Уверенно плавает\n" +
+                                    "2. Держится на воде\n" +
+                                    "3. Не умеет плавать"
                         )
                     }
                 }
                 data["skill"] = skill
+
+                // Показываем подтверждение
+                val lastName = data["lastName"] ?: ""
+                val firstName = data["firstName"] ?: ""
+                val middleName = data["middleName"] ?: ""
+                val birthDate = data["birthDate"] ?: ""
+                val gradeName = data["gradeName"] ?: ""
+                val gradeNumber = data["gradeNumber"] ?: ""
+
+                userSteps[userId] = 6
+                return CommandResult.Continue(
+                    "Проверьте введенные данные:\n\n" +
+                            "ФИО: $lastName $firstName $middleName\n" +
+                            "Дата рождения: ${formatDate(birthDate)}\n" +
+                            "Класс: $gradeName ($gradeNumber)\n" +
+                            "Навык: $skill\n\n" +
+                            "Всё верно?\n" +
+                            "Напишите 'да' для сохранения или 'нет' для отмены."
+                )
+            }
+            6 -> {
+                if (cmd != "да") {
+                    userSteps.remove(userId)
+                    userData.remove(userId)
+                    return CommandResult.Cancel("Регистрация ребенка отменена.")
+                }
 
                 try {
                     dbService.addChild(
@@ -113,13 +153,13 @@ class RegisterCommand(
                         data["birthDate"]!!,
                         data["gradeNumber"]!!.toInt(),
                         data["gradeName"]!!,
-                        skill
+                        data["skill"]!!
                     )
                     userSteps.remove(userId)
                     userData.remove(userId)
                     return CommandResult.Complete(
                         "✅ Ваш ребенок успешно зарегистрирован для занятий в бассейне.\n\n" +
-                        "Нажмите 1 если Вы хотите зарегистрировать еще одного ребенка."
+                                "Напишите 'меню' для просмотра доступных действий."
                     )
                 } catch (e: Exception) {
                     return CommandResult.Error("Ошибка сохранения данных: ${e.message}")
@@ -143,5 +183,21 @@ class RegisterCommand(
             }
         } catch (_: Exception) {}
         return null
+    }
+
+    private fun formatDate(dateStr: String): String {
+        try {
+            val parts = dateStr.split("-")
+            if (parts.size == 3) {
+                return "${parts[2]}.${parts[1]}.${parts[0]}"
+            }
+        } catch (_: Exception) {}
+        return dateStr
+    }
+
+    override fun cancel(userId: Long): CommandResult {
+        userSteps.remove(userId)
+        userData.remove(userId)
+        return CommandResult.Cancel()
     }
 }

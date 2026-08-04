@@ -286,18 +286,26 @@ class BotApplication {
 
             val normalized = text.trim().lowercase()
 
-            // Проверяем, не запросил ли пользователь меню
+            // Проверяем запрос меню
             if (normalized == "меню" || normalized == "команды" || normalized == "все команды" || normalized == "помощь") {
                 sendText(bot, userId, getStartMessage())
                 return
             }
 
-            // Проверяем, не является ли текст командой (цифра от 1 до 8)
+            // Проверяем, является ли текст командой (цифра)
             val commandNumber = text.trim().toIntOrNull()
             val commandType = commandNumber?.let { BotCommandType.fromNumber(it) }
 
             if (commandType != null) {
-                // Запускаем команду
+                // Если родитель не зарегистрирован - разрешаем только регистрацию родителя и помощь
+                if (!isRegistered && commandType != BotCommandType.REGISTER_PARENT && commandType != BotCommandType.HELP) {
+                    sendText(bot, userId,
+                        "⚠️ Для выполнения этой команды необходимо сначала зарегистрироваться.\n\n" +
+                                "Напишите '1' для регистрации."
+                    )
+                    return
+                }
+
                 val command = CommandFactory.createCommand(commandType, dbService, minioService)
                 userCommands[userId] = command
                 commandData[userId] = mutableMapOf()
@@ -307,20 +315,32 @@ class BotApplication {
                 return
             }
 
-            // Если пользователь не зарегистрирован и не ввел команду - предлагаем регистрацию
+            // Если пользователь не зарегистрирован - предлагаем регистрацию
             if (!isRegistered) {
                 sendText(bot, userId,
                     "Добро пожаловать! Для начала работы зарегистрируйтесь.\n\n" +
-                            "Напишите 'начать' или '1' для регистрации ребенка."
+                            "Напишите '1' для регистрации."
                 )
                 return
             }
 
-            // Если текст не является командой и не запросом меню - сообщаем о неизвестной команде
+            // Неизвестная команда
             sendText(bot, userId,
                 "❌ Неизвестная команда.\n\n" +
-                        "Напишите 'меню' или 'команды' для просмотра доступных действий."
+                        "Напишите 'меню' для просмотра доступных действий."
             )
+        }
+
+        private fun getStartMessage(): String {
+            return """
+        Здравствуйте! Вас приветствует чат-бот бассейна гимназии №642 «Земля и Вселенная». С помощью бота Вы можете: 
+
+        ${BotCommandType.getCommandsList()}
+
+        Если Ваш ребенок посещает занятия в бассейне, Вы будете получать уведомления-напоминания о занятии, уведомление о необходимости оплатить абонемент, уведомления об изменении графика работы бассейна.
+
+        Выберите нужное действие. Напишите соответствующую цифру.
+    """.trimIndent()
         }
 
         private suspend fun handleCommandResult(bot: VkClient, userId: Long, result: CommandResult) {
@@ -347,17 +367,6 @@ class BotApplication {
             }
         }
 
-        private fun getStartMessage(): String {
-            return """
-                Здравствуйте! Вас приветствует чат-бот бассейна гимназии №642 «Земля и Вселенная». С помощью бота Вы можете: 
-
-                ${BotCommandType.getCommandsList()}
-
-                Если Ваш ребенок посещает занятия в бассейне, Вы будете получать уведомления-напоминания о занятии, уведомление о необходимости оплатить абонемент, уведомления об изменении графика работы бассейна.
-
-                Выберите нужное действие. Напишите соответствующую цифру.
-            """.trimIndent()
-        }
 
         private suspend fun sendText(bot: VkClient, userId: Long, text: String) {
             try {

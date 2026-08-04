@@ -4,37 +4,49 @@ enum class BotCommandType(
     val displayName: String,
     val description: String
 ) {
-    REGISTER(
-        displayName = "Зарегистрировать ребенка в бассейн",
+    REGISTER_PARENT(
+        displayName = "Зарегистрироваться как родитель",
+        description = "Регистрация родителя в системе"
+    ),
+    REGISTER_CHILD(
+        displayName = "Зарегистрировать ребенка",
         description = "Регистрация нового ребенка для занятий"
     ),
     SELECT_GROUP(
-        displayName = "Выбрать группу для занятий в бассейне",
+        displayName = "Выбрать группу для занятий",
         description = "Подбор группы по возрасту и навыкам"
     ),
     UPLOAD_CERTIFICATE(
-        displayName = "Прикрепить справку о допуске в бассейн",
+        displayName = "Прикрепить справку",
         description = "Загрузка медицинской справки"
     ),
     REPORT_ABSENCE(
-        displayName = "Сообщить о пропуске занятия тренеру",
+        displayName = "Сообщить о пропуске занятия",
         description = "Уведомление о пропуске занятия"
     ),
     UPLOAD_RECEIPT(
-        displayName = "Сообщить об оплате абонемента",
+        displayName = "Сообщить об оплате",
         description = "Загрузка квитанции об оплате"
     ),
     MESSAGE_ADMIN(
-        displayName = "Написать сообщение администратору",
+        displayName = "Написать администратору",
         description = "Связь с администрацией"
     ),
     MESSAGE_COACH(
-        displayName = "Написать сообщение тренеру",
+        displayName = "Написать тренеру",
         description = "Связь с тренером"
     ),
+    EDIT_PARENT(
+        displayName = "Редактировать свои данные",
+        description = "Изменение личных данных родителя"
+    ),
+    EDIT_CHILD(
+        displayName = "Редактировать ребенка",
+        description = "Изменение данных ребенка"
+    ),
     HELP(
-        displayName = "Проблемы при регистрации и выборе группы",
-        description = "Помощь в решении проблем"
+        displayName = "Помощь",
+        description = "Проблемы при регистрации и выборе группы"
     );
 
     companion object {
