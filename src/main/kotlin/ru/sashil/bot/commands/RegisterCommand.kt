@@ -15,7 +15,6 @@ class RegisterCommand(
     private val userData = ConcurrentHashMap<Long, MutableMap<String, String>>()
 
     override fun start(userId: Long): CommandResult {
-        // Проверяем, зарегистрирован ли родитель
         val isParentRegistered = try {
             dbService.isParentRegistered(userId)
         } catch (e: Exception) {
@@ -25,7 +24,7 @@ class RegisterCommand(
         if (!isParentRegistered) {
             return CommandResult.Complete(
                 "⚠️ Для регистрации ребенка необходимо сначала зарегистрироваться как родитель.\n\n" +
-                        "Напишите 'начать' для регистрации."
+                        "Напишите 'меню' для регистрации."
             )
         }
 
@@ -59,7 +58,7 @@ class RegisterCommand(
                 }
                 userSteps[userId] = 2
                 return CommandResult.Continue(
-                    "Для регистрации Вашего ребенка и дальнейшего выбора группы напишите, пожалуйста, Фамилию Имя Отчество ребенка в такой последовательности.\n\n(Иванов Иван Иванович)"
+                    "Для регистрации Вашего ребенка напишите, пожалуйста, Фамилию Имя Отчество ребенка в такой последовательности.\n\n(Иванов Иван Иванович)"
                 )
             }
             2 -> {
@@ -73,28 +72,37 @@ class RegisterCommand(
                 data["firstName"] = parts[1]
                 data["middleName"] = parts.drop(2).joinToString(" ")
                 userSteps[userId] = 3
-                return CommandResult.Continue("Спасибо! Введите дату рождения ребенка.\n\n(31.10.2015)")
+                return CommandResult.Continue("Спасибо! Введите дату рождения ребенка.\n\n(Например 31.10.2015)")
             }
             3 -> {
                 val birthDate = parseDate(text)
                 if (birthDate == null) {
-                    return CommandResult.Continue("Неверный формат даты. Используйте ДД.ММ.ГГГГ\n\n(31.10.2015)")
+                    return CommandResult.Continue("Неверный формат даты. Используйте ДД.ММ.ГГГГ")
                 }
                 data["birthDate"] = birthDate
                 userSteps[userId] = 4
                 return CommandResult.Continue(
-                    "Спасибо! Укажите класс на текущий учебный год (Пример: 2-3, 5 ЕН, 3 гамма, 10А)\n\n(5 ЕН)"
+                    "Спасибо! Введите номер класса (цифрой от 1 до 11):"
                 )
             }
             4 -> {
-                data["gradeName"] = text.trim()
-                val gradeNumber = text.trim().replace(Regex("\\D.*"), "").toIntOrNull()
-                if (gradeNumber != null && gradeNumber in 1..11) {
+                try {
+                    val gradeNumber = text.trim().toInt()
+                    if (gradeNumber !in 1..11) {
+                        return CommandResult.Continue("Номер класса должен быть от 1 до 11. Попробуйте снова:")
+                    }
                     data["gradeNumber"] = gradeNumber.toString()
-                } else {
-                    data["gradeNumber"] = "0"
+                    userSteps[userId] = 5
+                    return CommandResult.Continue(
+                        "Спасибо! Введите полное название класса (например, 5 ЕН, 3 гамма, 10А):"
+                    )
+                } catch (e: NumberFormatException) {
+                    return CommandResult.Continue("Пожалуйста, введите номер класса цифрой от 1 до 11:")
                 }
-                userSteps[userId] = 5
+            }
+            5 -> {
+                data["gradeName"] = text.trim()
+                userSteps[userId] = 6
                 return CommandResult.Continue(
                     "Спасибо! Уточните уровень владения плавательными навыками (напишите цифру): \n" +
                             "1. Уверенно плавает\n" +
@@ -102,7 +110,7 @@ class RegisterCommand(
                             "3. Не умеет плавать"
                 )
             }
-            5 -> {
+            6 -> {
                 val skill = when (text.trim()) {
                     "1" -> "уверенно плавает"
                     "2" -> "держится на воде"
@@ -118,15 +126,14 @@ class RegisterCommand(
                 }
                 data["skill"] = skill
 
-                // Показываем подтверждение
-                val lastName = data["lastName"] ?: ""
-                val firstName = data["firstName"] ?: ""
-                val middleName = data["middleName"] ?: ""
-                val birthDate = data["birthDate"] ?: ""
-                val gradeName = data["gradeName"] ?: ""
-                val gradeNumber = data["gradeNumber"] ?: ""
+                val lastName = data["lastName"].orEmpty()
+                val firstName = data["firstName"].orEmpty()
+                val middleName = data["middleName"].orEmpty()
+                val birthDate = data["birthDate"].orEmpty()
+                val gradeName = data["gradeName"].orEmpty()
+                val gradeNumber = data["gradeNumber"].orEmpty()
 
-                userSteps[userId] = 6
+                userSteps[userId] = 7
                 return CommandResult.Continue(
                     "Проверьте введенные данные:\n\n" +
                             "ФИО: $lastName $firstName $middleName\n" +
@@ -137,7 +144,7 @@ class RegisterCommand(
                             "Напишите 'да' для сохранения или 'нет' для отмены."
                 )
             }
-            6 -> {
+            7 -> {
                 if (cmd != "да") {
                     userSteps.remove(userId)
                     userData.remove(userId)
@@ -147,13 +154,13 @@ class RegisterCommand(
                 try {
                     dbService.addChild(
                         userId,
-                        data["firstName"]!!,
-                        data["lastName"]!!,
-                        data["middleName"],
-                        data["birthDate"]!!,
-                        data["gradeNumber"]!!.toInt(),
-                        data["gradeName"]!!,
-                        data["skill"]!!
+                        data["firstName"].orEmpty(),
+                        data["lastName"].orEmpty(),
+                        data["middleName"].orEmpty(),
+                        data["birthDate"].orEmpty(),
+                        data["gradeNumber"].orEmpty().toInt(),
+                        data["gradeName"].orEmpty(),
+                        data["skill"].orEmpty()
                     )
                     userSteps.remove(userId)
                     userData.remove(userId)

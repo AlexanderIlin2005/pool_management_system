@@ -85,7 +85,6 @@ class EditChildCommand(
             return CommandResult.Cancel()
         }
 
-        // Если ребенок еще не выбран - выбираем
         if (!editingChildId.containsKey(userId) && step == 1) {
             val children = try {
                 dbService.getChildrenByParentVkId(userId)
@@ -214,7 +213,6 @@ class EditChildCommand(
                 try {
                     val childId = editingChildId[userId] ?: return CommandResult.Error("Ребенок не найден")
 
-                    // Явное приведение к non-null String
                     val firstName = data["firstName"].orEmpty()
                     val lastName = data["lastName"].orEmpty()
                     val middleName = data["middleName"].orEmpty()
