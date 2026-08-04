@@ -1214,7 +1214,9 @@ public class DatabaseService {
      */
     public List<Map<String, Object>> getAllAbsenceCertificates() {
         String sql = "SELECT an.id, an.created_at as uploaded_at, an.certificate_url as file_url, " +
-                "an.absence_type as status, an.message, an.certificate_file_name, " +
+                "an.status, " + // <--- ТЕПЕРЬ ЭТО СТАТУС ОБРАБОТКИ (PENDING)
+                "an.absence_type, " + // <--- А ЭТО ТИП ПРОПУСКА (SICK/UNWELL)
+                "an.message, an.certificate_file_name, " +
                 "p.last_name || ' ' || p.first_name as parent_name, " +
                 "c.last_name || ' ' || c.first_name as child_name, " +
                 "au.full_name as processed_by_name, " +
@@ -1225,17 +1227,20 @@ public class DatabaseService {
                 "JOIN pool.parents p ON an.parent_id = p.id " +
                 "JOIN pool.children c ON an.child_id = c.id " +
                 "LEFT JOIN pool.admin_users au ON an.processed_by = au.id " +
-                "WHERE an.certificate_url IS NOT NULL AND an.status != 'PROCESSED' " +
+                "WHERE an.certificate_url IS NOT NULL AND an.status = 'PENDING' " +
                 "ORDER BY an.created_at DESC";
         return executeQuery(sql);
     }
+
 
     /**
      * Получает справки о болезни для тренера
      */
     public List<Map<String, Object>> getAbsenceCertificatesForCoach(Long coachId) {
         String sql = "SELECT an.id, an.created_at as uploaded_at, an.certificate_url as file_url, " +
-                "an.absence_type as status, an.message, an.certificate_file_name, " +
+                "an.status, " + // <--- СТАТУС ОБРАБОТКИ
+                "an.absence_type, " + // <--- ТИП ПРОПУСКА
+                "an.message, an.certificate_file_name, " +
                 "p.last_name || ' ' || p.first_name as parent_name, " +
                 "c.last_name || ' ' || c.first_name as child_name, " +
                 "au.full_name as processed_by_name, " +
@@ -1248,7 +1253,7 @@ public class DatabaseService {
                 "LEFT JOIN pool.admin_users au ON an.processed_by = au.id " +
                 "JOIN pool.group_children gc ON c.id = gc.child_id " +
                 "JOIN pool.groups g ON gc.group_id = g.id " +
-                "WHERE an.certificate_url IS NOT NULL AND g.trainer_id = ? AND an.status != 'PROCESSED' " +
+                "WHERE an.certificate_url IS NOT NULL AND g.trainer_id = ? AND an.status = 'PENDING' " +
                 "GROUP BY an.id, p.last_name, p.first_name, c.last_name, c.first_name, au.full_name " +
                 "ORDER BY an.created_at DESC";
 
@@ -1256,13 +1261,21 @@ public class DatabaseService {
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setLong(1, coachId);
             ResultSet rs = stmt.executeQuery();
-            ResultSetMetaData md = rs.getMetaData();
-            int columns = md.getColumnCount();
             while (rs.next()) {
                 Map<String, Object> row = new HashMap<>();
-                for (int i = 1; i <= columns; i++) {
-                    row.put(md.getColumnName(i), rs.getObject(i));
-                }
+                row.put("id", rs.getLong("id"));
+                row.put("uploaded_at", rs.getTimestamp("uploaded_at"));
+                row.put("file_url", rs.getString("file_url"));
+                row.put("status", rs.getString("status"));           // PENDING
+                row.put("absence_type", rs.getString("absence_type")); // SICK
+                row.put("message", rs.getString("message"));
+                row.put("certificate_file_name", rs.getString("certificate_file_name"));
+                row.put("parent_name", rs.getString("parent_name"));
+                row.put("child_name", rs.getString("child_name"));
+                row.put("processed_by_name", rs.getString("processed_by_name"));
+                row.put("cert_type", "absence");
+                row.put("date_from", null);
+                row.put("date_to", null);
                 result.add(row);
             }
         } catch (SQLException e) {
@@ -1275,20 +1288,12 @@ public class DatabaseService {
      * Обрабатывает справку о болезни из absence_notifications
      */
     public void processAbsenceCertificate(Long certId, Long adminId, String status, LocalDate dateFrom, LocalDate dateTo) {
-        if (dateFrom == null || dateTo == null) return;
-
-        // Обновляем статус в absence_notifications
-        String updateSql = "UPDATE pool.absence_notifications SET status = 'PROCESSED', processed_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
-        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(updateSql)) {
-            stmt.setLong(1, adminId);
-            stmt.setLong(2, certId);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
+        if (dateFrom == null || dateTo == null) {
+            LOGGER.warning("❌ processAbsenceCertificate: даты не переданы для certId=" + certId);
             return;
         }
 
-        // Получаем child_id из absence_notifications
+        // Получаем child_id ПЕРЕД транзакцией
         String getChildSql = "SELECT child_id FROM pool.absence_notifications WHERE id = ?";
         Long childId = null;
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(getChildSql)) {
@@ -1298,15 +1303,20 @@ public class DatabaseService {
                 childId = rs.getLong("child_id");
             }
         } catch (SQLException e) {
+            LOGGER.severe("❌ Ошибка получения child_id для absence_notifications ID=" + certId + ": " + e.getMessage());
             e.printStackTrace();
             return;
         }
 
-        if (childId == null) return;
+        if (childId == null) {
+            LOGGER.warning("❌ child_id не найден для absence_notifications ID=" + certId);
+            return;
+        }
 
-        // Обновляем посещаемость (как в processCertificate)
+        // Определяем статус для attendance
         String dbStatus = "APPROVED_SICK".equals(status) ? "SICK" : "EXCUSED";
 
+        // Формируем комментарий
         String processorName = "Администратор";
         String sqlGetName = "SELECT full_name, role FROM pool.admin_users WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sqlGetName)) {
@@ -1322,8 +1332,11 @@ public class DatabaseService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-
         String comment = "Справку о болезни подтвердил: " + processorName;
+
+        // SQL запросы
+        // ИСПРАВЛЕНО: статус изменен с 'PROCESSED' на 'READ'
+        String updateNotifSql = "UPDATE pool.absence_notifications SET status = 'READ', processed_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
 
         String updateAttendanceSql = "INSERT INTO pool.attendance (lesson_id, child_id, status, marked_by, marked_at, comment) " +
                 "SELECT pl.id, gc.child_id, ?, ?, CURRENT_TIMESTAMP, ? " +
@@ -1333,15 +1346,41 @@ public class DatabaseService {
                 "AND pl.lesson_date BETWEEN ? AND ? " +
                 "ON CONFLICT (lesson_id, child_id) DO UPDATE SET status = EXCLUDED.status, comment = EXCLUDED.comment";
 
-        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(updateAttendanceSql)) {
-            stmt.setString(1, dbStatus);
-            stmt.setLong(2, adminId);
-            stmt.setString(3, comment);
-            stmt.setLong(4, childId);
-            stmt.setDate(5, Date.valueOf(dateFrom));
-            stmt.setDate(6, Date.valueOf(dateTo));
-            stmt.executeUpdate();
+        // === ТРАНЗАКЦИЯ ===
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                // 1. Обновляем статус уведомления о пропуске
+                try (PreparedStatement stmt1 = conn.prepareStatement(updateNotifSql)) {
+                    stmt1.setLong(1, adminId);
+                    stmt1.setLong(2, certId);
+                    int rows1 = stmt1.executeUpdate();
+                    LOGGER.info("✅ absence_notifications ID=" + certId + " обновлена (статус READ), rows=" + rows1);
+                }
+
+                // 2. Обновляем посещаемость
+                try (PreparedStatement stmt2 = conn.prepareStatement(updateAttendanceSql)) {
+                    stmt2.setString(1, dbStatus);
+                    stmt2.setLong(2, adminId);
+                    stmt2.setString(3, comment);
+                    stmt2.setLong(4, childId);
+                    stmt2.setDate(5, Date.valueOf(dateFrom));
+                    stmt2.setDate(6, Date.valueOf(dateTo));
+                    int rows2 = stmt2.executeUpdate();
+                    LOGGER.info("✅ attendance обновлена для child_id=" + childId + ", период=" + dateFrom + ".." + dateTo + ", rows=" + rows2);
+                }
+
+                conn.commit();
+                LOGGER.info("✅ Транзакция успешно зафиксирована для справки о болезни ID=" + certId);
+            } catch (Exception e) {
+                conn.rollback();
+                LOGGER.severe("❌ Ошибка транзакции для справки о болезни ID=" + certId + ": " + e.getMessage());
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
         } catch (SQLException e) {
+            LOGGER.severe("❌ Критическая ошибка обработки справки о болезни ID=" + certId + ": " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -1350,12 +1389,15 @@ public class DatabaseService {
      * Отклоняет справку о болезни из absence_notifications
      */
     public void rejectAbsenceCertificate(Long certId, Long adminId, String comment) {
-        String sql = "UPDATE pool.absence_notifications SET status = 'PROCESSED', processed_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+        // ИСПРАВЛЕНО: статус изменен с 'PROCESSED' на 'READ'
+        String sql = "UPDATE pool.absence_notifications SET status = 'READ', processed_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setLong(1, adminId);
             stmt.setLong(2, certId);
             stmt.executeUpdate();
+            LOGGER.info("✅ Справка о болезни ID=" + certId + " отклонена (статус READ).");
         } catch (SQLException e) {
+            LOGGER.severe("❌ Ошибка отклонения справки о болезни ID=" + certId + ": " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -1364,11 +1406,14 @@ public class DatabaseService {
      * Сбрасывает справку о болезни в PENDING
      */
     public void resetAbsenceCertificate(Long certId) {
+        // Здесь уже верно используется 'PENDING'
         String sql = "UPDATE pool.absence_notifications SET status = 'PENDING', processed_by = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setLong(1, certId);
             stmt.executeUpdate();
+            LOGGER.info("✅ Справка о болезни ID=" + certId + " возвращена в PENDING.");
         } catch (SQLException e) {
+            LOGGER.severe("❌ Ошибка сброса справки о болезни ID=" + certId + ": " + e.getMessage());
             e.printStackTrace();
         }
     }

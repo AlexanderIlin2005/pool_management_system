@@ -60,7 +60,12 @@
           <td style="padding: 10px; border: 1px solid #ddd;" th:text="${cert.parent_name}"></td>
           <td style="padding: 10px; border: 1px solid #ddd;" th:text="${cert.child_name}"></td>
           <td style="padding: 10px; border: 1px solid #ddd;">
-            <span th:if="${cert.cert_type == 'absence'}">📋 Справка о болезни</span>
+            <span th:if="${cert.cert_type == 'absence'}">
+                📋 Справка о болезни
+                <span th:if="${cert.absence_type == 'SICK'}" style="color: #d63384; font-weight: bold;">(Болезнь)</span>
+                <span th:if="${cert.absence_type == 'UNWELL'}" style="color: #fd7e14;">(Недомогание)</span>
+                <span th:if="${cert.absence_type == 'OTHER'}" style="color: #6c757d;">(Другое)</span>
+            </span>
             <span th:unless="${cert.cert_type == 'absence'}">📄 Справка о допуске</span>
           </td>
           <td style="padding: 10px; border: 1px solid #ddd;">
@@ -76,31 +81,36 @@
             <a th:href="${cert.file_url}" target="_blank" class="btn" style="background-color: #17a2b8; font-size: 0.8em;">📎 Открыть</a>
           </td>
           <td style="padding: 10px; border: 1px solid #ddd;">
-            <!-- Для новых справок -->
+
+            <!-- === ФОРМЫ ДЛЯ НОВЫХ СПРАВОК (status == PENDING) === -->
             <div th:if="${cert.status == 'PENDING'}">
+
+              <!-- 1. ФОРМА ПОДТВЕРЖДЕНИЯ -->
               <form th:action="@{/certificates/process}" method="post" style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 5px;">
                 <input type="hidden" name="certId" th:value="${cert.id}">
                 <input type="hidden" name="certType" th:value="${cert.cert_type}">
 
-                <!-- Для справок о болезни - один вариант -->
+                <!-- ВЫБОР СТАТУСА -->
+                <!-- Для справки о болезни: выбираем между Больничным и Уважительной -->
                 <select th:if="${cert.cert_type == 'absence'}" name="status" required style="padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
-                  <option value="APPROVED_SICK">✅ Подтвердить справку о болезни</option>
+                  <option value="APPROVED_SICK">Больничный</option>
+                  <option value="APPROVED_EXCUSED">Уважительная</option>
                 </select>
 
-                <!-- Для справок о допуске - один вариант -->
-                <select th:unless="${cert.cert_type == 'absence'}" name="status" required style="padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
-                  <option value="APPROVED">✅ Подтвердить справку о допуске</option>
-                </select>
+                <!-- Для справки о допуске: статус фиксирован APPROVED -->
+                <input th:unless="${cert.cert_type == 'absence'}" type="hidden" name="status" value="APPROVED">
+                <span th:unless="${cert.cert_type == 'absence'}" style="font-size: 0.9em; color: #555;">Подтвердить допуск</span>
 
-                <!-- Поля ввода дат ТОЛЬКО для справок о болезни -->
+                <!-- ПОЛЯ ДАТ (ОБЯЗАТЕЛЬНЫ ТОЛЬКО ДЛЯ БОЛЕЗНИ) -->
                 <div th:if="${cert.cert_type == 'absence'}" style="display: flex; gap: 5px;">
-                  <input type="date" name="dateFrom" required style="padding: 5px; flex: 1; border: 1px solid #ccc; border-radius: 4px;">
-                  <input type="date" name="dateTo" required style="padding: 5px; flex: 1; border: 1px solid #ccc; border-radius: 4px;">
+                  <input type="date" name="dateFrom" required title="Дата начала болезни" style="padding: 5px; flex: 1; border: 1px solid #ccc; border-radius: 4px;">
+                  <input type="date" name="dateTo" required title="Дата окончания болезни" style="padding: 5px; flex: 1; border: 1px solid #ccc; border-radius: 4px;">
                 </div>
 
                 <button type="submit" class="btn" style="background-color: #28a745; font-size: 0.8em;">✅ Подтвердить</button>
               </form>
 
+              <!-- 2. ФОРМА ОТКЛОНЕНИЯ -->
               <form th:action="@{/certificates/reject}" method="post" style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px; border-top: 1px dashed #ddd; padding-top: 5px;">
                 <input type="hidden" name="certId" th:value="${cert.id}">
                 <input type="hidden" name="certType" th:value="${cert.cert_type}">
@@ -109,7 +119,7 @@
               </form>
             </div>
 
-            <!-- Для обработанных справок -->
+            <!-- === ФОРМА ДЛЯ ОБРАБОТАННЫХ СПРАВОК === -->
             <div th:if="${cert.status != 'PENDING'}">
               <form th:action="@{/certificates/reset}" method="post">
                 <input type="hidden" name="certId" th:value="${cert.id}">
@@ -117,6 +127,7 @@
                 <button type="submit" class="btn" style="background-color: #ffc107; color: black; font-size: 0.8em;">↩️ Вернуть в новые</button>
               </form>
             </div>
+
           </td>
         </tr>
         </tbody>
