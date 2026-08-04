@@ -27,8 +27,8 @@ public class AbsenceNotification {
 
     public enum Status {
         PENDING("Ожидает"),
-        SENT("Отправлено"),
-        READ("Прочитано");
+        READ("Прочитано"),
+        PROCESSED("Обработано");
 
         private final String displayName;
 
@@ -58,6 +58,12 @@ public class AbsenceNotification {
 
     @Column(columnDefinition = "TEXT")
     private String message;
+
+    @Column(name = "certificate_url")
+    private String certificateUrl;
+
+    @Column(name = "certificate_file_name")
+    private String certificateFileName;
 
     @Column(name = "status")
     private String status = "PENDING";

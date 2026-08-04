@@ -201,7 +201,7 @@ CREATE TABLE IF NOT EXISTS pool.certificates (
     file_url VARCHAR(500) NOT NULL, -- Ссылка на файл в MinIO
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_read BOOLEAN DEFAULT FALSE, -- Прочитана ли админом/тренером
-    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED_SICK', 'APPROVED_EXCUSED', 'REJECTED')),
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED_SICK', 'APPROVED_EXCUSED', 'REJECTED', 'APPROVED')),
     date_from DATE, -- Дата начала действия справки
     date_to DATE,   -- Дата окончания действия справки
     processed_by BIGINT REFERENCES pool.admin_users(id), -- Кто обработал справку
@@ -312,7 +312,10 @@ CREATE TABLE IF NOT EXISTS pool.absence_notifications (
     status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'SENT', 'READ')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    processed_by BIGINT REFERENCES pool.admin_users(id)
+    processed_by BIGINT REFERENCES pool.admin_users(id),
+    -- Добавляем колонки для хранения справки в absence_notifications
+    certificate_url VARCHAR(500),
+    certificate_file_name VARCHAR(255)
 );
 
 -- Таблица для сообщений между родителями и тренерами/администраторами

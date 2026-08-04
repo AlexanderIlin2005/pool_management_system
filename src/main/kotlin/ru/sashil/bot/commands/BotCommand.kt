@@ -34,7 +34,7 @@ object CommandFactory {
             BotCommandType.REGISTER_CHILD -> RegisterCommand(dbService)
             BotCommandType.SELECT_GROUP -> SelectGroupCommand(dbService)
             BotCommandType.UPLOAD_CERTIFICATE -> UploadCertificateCommand(dbService, minioService!!)
-            BotCommandType.REPORT_ABSENCE -> ReportAbsenceCommand(dbService)
+            BotCommandType.REPORT_ABSENCE -> ReportAbsenceCommand(dbService, minioService!!)
             BotCommandType.UPLOAD_RECEIPT -> UploadReceiptCommand(dbService, minioService!!)
             BotCommandType.MESSAGE_ADMIN -> MessageAdminCommand(dbService)
             BotCommandType.MESSAGE_COACH -> MessageCoachCommand(dbService)

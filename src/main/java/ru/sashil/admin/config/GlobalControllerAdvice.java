@@ -31,11 +31,21 @@ public class GlobalControllerAdvice {
         if (user == null) return 0;
 
         try {
+            int total = 0;
+
             if (user.getRole() == AdminUser.Role.COACH) {
-                return databaseService.getUnreadCertificatesForCoach(user.getId()).size();
+                // Справки о допуске для тренера
+                total += databaseService.getUnreadCertificatesForCoach(user.getId()).size();
+                // Справки о болезни для тренера
+                total += databaseService.getAbsenceCertificatesForCoach(user.getId()).size();
             } else if (user.getRole() == AdminUser.Role.ADMIN) {
-                return databaseService.getUnreadCertificates().size();
+                // Справки о допуске для админа
+                total += databaseService.getUnreadCertificates().size();
+                // Справки о болезни для админа
+                total += databaseService.getAllAbsenceCertificates().size();
             }
+
+            return total;
         } catch (Exception e) {
             // Игнорируем ошибки, просто возвращаем 0
         }

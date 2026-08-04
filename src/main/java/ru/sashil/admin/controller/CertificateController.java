@@ -21,22 +21,40 @@ public class CertificateController {
 
     @GetMapping
     public String certificatesPage(Model model, HttpSession session,
-                                   @RequestParam(required = false) String tab) {
+                                   @RequestParam(required = false) String tab,
+                                   @RequestParam(required = false) String type) {
 
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
         List<Map<String, Object>> certificates;
         boolean isNewTab = !"archive".equals(tab);
+        boolean isAbsence = "absence".equals(type);
 
-        if (isNewTab) {
-            if (user.getRole() == AdminUser.Role.COACH) {
-                certificates = databaseService.getUnreadCertificatesForCoach(user.getId());
+        try {
+            if (isAbsence) {
+                // Справки о болезни из absence_notifications
+                if (user.getRole() == AdminUser.Role.COACH) {
+                    certificates = databaseService.getAbsenceCertificatesForCoach(user.getId());
+                } else {
+                    certificates = databaseService.getAllAbsenceCertificates();
+                }
             } else {
-                certificates = databaseService.getUnreadCertificates();
+                // Обычные справки о допуске из certificates
+                if (isNewTab) {
+                    if (user.getRole() == AdminUser.Role.COACH) {
+                        certificates = databaseService.getUnreadCertificatesForCoach(user.getId());
+                    } else {
+                        certificates = databaseService.getUnreadCertificates();
+                    }
+                } else {
+                    certificates = databaseService.getReadCertificates();
+                }
             }
-        } else {
-            certificates = databaseService.getReadCertificates();
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Ошибка загрузки справок: " + e.getMessage());
+            certificates = List.of(); // Пустой список при ошибке, чтобы не было NPE в шаблоне
         }
 
         model.addAttribute("fullName", user.getFullName());
@@ -44,6 +62,7 @@ public class CertificateController {
         model.addAttribute("activePage", "certificates");
         model.addAttribute("certificates", certificates);
         model.addAttribute("currentTab", isNewTab ? "new" : "archive");
+        model.addAttribute("certType", isAbsence ? "absence" : "regular");
 
         return "certificates";
     }
@@ -53,32 +72,70 @@ public class CertificateController {
                                      @RequestParam String status,
                                      @RequestParam(required = false) LocalDate dateFrom,
                                      @RequestParam(required = false) LocalDate dateTo,
+                                     @RequestParam(required = false) String certType,
                                      HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
-        databaseService.processCertificate(certId, user.getId(), status, dateFrom, dateTo);
-        return "redirect:/certificates?success=true";
+        try {
+            if ("absence".equals(certType)) {
+                // Для справок о болезни - даты обязательны
+                if (dateFrom == null || dateTo == null) {
+                    return "redirect:/certificates?type=absence&error=date_required";
+                }
+                databaseService.processAbsenceCertificate(certId, user.getId(), status, dateFrom, dateTo);
+                return "redirect:/certificates?type=absence&success=true";
+            } else {
+                // Обычная справка о допуске - даты не нужны, просто меняем статус и is_read
+                databaseService.processRegularCertificate(certId, user.getId(), status);
+                return "redirect:/certificates?tab=archive&success=true";
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "redirect:/certificates?error=" + e.getMessage();
+        }
     }
 
-    // НОВЫЙ МЕТОД ДЛЯ ОТКЛОНЕНИЯ
     @PostMapping("/reject")
     public String rejectCertificate(@RequestParam Long certId,
                                     @RequestParam(required = false) String comment,
+                                    @RequestParam(required = false) String certType,
                                     HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
-        databaseService.rejectCertificate(certId, user.getId(), comment);
-        return "redirect:/certificates?success=rejected";
+        try {
+            if ("absence".equals(certType)) {
+                databaseService.rejectAbsenceCertificate(certId, user.getId(), comment);
+                return "redirect:/certificates?type=absence&success=rejected";
+            } else {
+                databaseService.rejectCertificate(certId, user.getId(), comment);
+                return "redirect:/certificates?success=rejected";
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "redirect:/certificates?error=" + e.getMessage();
+        }
     }
 
     @PostMapping("/reset")
-    public String resetCertificate(@RequestParam Long certId, HttpSession session) {
+    public String resetCertificate(@RequestParam Long certId,
+                                   @RequestParam(required = false) String certType,
+                                   HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
-        databaseService.resetCertificateReadStatus(certId);
-        return "redirect:/certificates?tab=archive&reset=true";
+        try {
+            if ("absence".equals(certType)) {
+                databaseService.resetAbsenceCertificate(certId);
+                return "redirect:/certificates?type=absence&reset=true";
+            } else {
+                databaseService.resetCertificateReadStatus(certId);
+                return "redirect:/certificates?tab=new&reset=true";
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "redirect:/certificates?error=" + e.getMessage();
+        }
     }
 }
