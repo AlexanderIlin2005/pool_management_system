@@ -4,14 +4,36 @@
 <div th:fragment="content">
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto;">
 
-    <h2 style="margin-bottom: 20px;">📢 Уведомления о пропусках (без справок)</h2>
+    <!-- Вкладки -->
+    <div style="margin-bottom: 20px; border-bottom: 1px solid #eee; display: flex; gap: 5px; flex-wrap: wrap;">
+      <a th:href="@{/absences(tab=new)}"
+         th:class="${currentTab == 'new' or currentTab == null} ? 'btn' : 'btn'"
+         th:style="${currentTab == 'new' or currentTab == null} ? 'background-color: #007bff; color: white;' : 'background-color: #f8f9fa; color: #333;'">
+        🆕 Новые уведомления
+      </a>
+      <a th:href="@{/absences(tab=archive)}"
+         th:class="${currentTab == 'archive'} ? 'btn' : 'btn'"
+         th:style="${currentTab == 'archive'} ? 'background-color: #6c757d; color: white;' : 'background-color: #f8f9fa; color: #333;'">
+        🗂️ Обработанные
+      </a>
+    </div>
 
-    <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+    <h2 style="margin-bottom: 20px;">
+      <span th:if="${currentTab == 'archive'}">🗂️ Обработанные уведомления о пропусках</span>
+      <span th:unless="${currentTab == 'archive'}">📢 Новые уведомления о пропусках (без справок)</span>
+    </h2>
+
+    <!-- Уведомление об успехе (с анимацией исчезновения) -->
+    <div id="success-banner" th:if="${param.success}"
+         style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px; transition: all 0.8s ease-out;">
       ✅ Уведомление успешно обработано!
     </div>
 
     <div th:if="${#lists.isEmpty(notifications)}" style="text-align: center; padding: 40px; color: #6c757d;">
-      <p style="font-size: 1.2em;">🎉 Нет новых уведомлений о пропусках</p>
+      <p style="font-size: 1.2em;">
+        <span th:if="${currentTab == 'archive'}">📭 Нет обработанных уведомлений</span>
+        <span th:unless="${currentTab == 'archive'}">🎉 Нет новых уведомлений о пропусках</span>
+      </p>
     </div>
 
     <div th:unless="${#lists.isEmpty(notifications)}">
@@ -22,12 +44,13 @@
           <th style="padding: 10px; border: 1px solid #ddd;">Родитель</th>
           <th style="padding: 10px; border: 1px solid #ddd;">Ребенок</th>
           <th style="padding: 10px; border: 1px solid #ddd;">Причина</th>
-          <th style="padding: 10px; border: 1px solid #ddd;">Сообщение</th>
+          <th th:if="${currentTab == 'archive'}" style="padding: 10px; border: 1px solid #ddd;">Кем обработано</th>
           <th style="padding: 10px; border: 1px solid #ddd;">Действия</th>
         </tr>
         </thead>
         <tbody>
-        <tr th:each="notif : ${notifications}">
+        <tr th:each="notif : ${notifications}" class="notification-row" th:id="'notif-' + ${notif.id}"
+            style="transition: all 0.6s ease-out;">
           <td style="padding: 10px; border: 1px solid #ddd;" th:text="${#dates.format(notif.created_at, 'dd.MM.yyyy HH:mm')}"></td>
           <td style="padding: 10px; border: 1px solid #ddd;" th:text="${notif.parent_name}"></td>
           <td style="padding: 10px; border: 1px solid #ddd;" th:text="${notif.child_name}"></td>
@@ -35,17 +58,63 @@
             <span th:if="${notif.absence_type == 'UNWELL'}" style="color: #fd7e14; font-weight: bold;">Недомогание</span>
             <span th:if="${notif.absence_type == 'OTHER'}" style="color: #6c757d; font-weight: bold;">Другая причина</span>
           </td>
-          <td style="padding: 10px; border: 1px solid #ddd; max-width: 300px; word-wrap: break-word;" th:text="${notif.message}"></td>
+          <td th:if="${currentTab == 'archive'}" style="padding: 10px; border: 1px solid #ddd;"
+              th:text="${notif.processed_by_name != null ? notif.processed_by_name : '-'}"></td>
           <td style="padding: 10px; border: 1px solid #ddd;">
-            <form th:action="@{/absences/mark-read/{id}(id=${notif.id})}" method="post">
+            <!-- Кнопка только для новых уведомлений -->
+            <form th:if="${currentTab != 'archive'}"
+                  th:action="@{/absences/mark-read/{id}(id=${notif.id})}"
+                  method="post"
+                  onsubmit="return animateAndSubmit(this, 'notif-' + '${notif.id}')">
               <button type="submit" class="btn" style="background-color: #28a745; font-size: 0.8em;">✅ Отметить прочитанным</button>
             </form>
+            <!-- Для архива - просто метка -->
+            <span th:if="${currentTab == 'archive'}" style="color: green; font-size: 0.85em;">✅ Обработано</span>
           </td>
         </tr>
         </tbody>
       </table>
     </div>
   </div>
+
+  <!-- Скрипт анимации -->
+  <script>
+    // Анимация исчезновения баннера успеха
+    document.addEventListener('DOMContentLoaded', function() {
+      var banner = document.getElementById('success-banner');
+      if (banner) {
+        setTimeout(function() {
+          banner.style.opacity = '0';
+          banner.style.transform = 'translateY(-20px)';
+          banner.style.maxHeight = '0';
+          banner.style.padding = '0';
+          banner.style.marginBottom = '0';
+          banner.style.overflow = 'hidden';
+          setTimeout(function() { banner.remove(); }, 800);
+        }, 2000);
+      }
+    });
+
+    // Анимация строки перед отправкой формы
+    function animateAndSubmit(form, rowId) {
+      var row = document.getElementById(rowId);
+      if (row) {
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(50px)';
+        row.style.maxHeight = '0';
+        row.style.padding = '0';
+        row.style.overflow = 'hidden';
+
+        // Небольшая задержка чтобы анимация успела отобразиться
+        setTimeout(function() {
+          form.submit();
+        }, 400);
+
+        return false; // Предотвращаем немедленную отправку
+      }
+      return true;
+    }
+  </script>
 </div>
 </body>
 </html>

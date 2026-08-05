@@ -1554,5 +1554,92 @@ public class DatabaseService {
     }
 
 
+    /**
+     * Получает ОБРАБОТАННЫЕ уведомления о пропусках БЕЗ справок для администратора
+     */
+    public List<Map<String, Object>> getProcessedAbsenceNotificationsWithoutCertificate() {
+        String sql = "SELECT an.id, an.created_at, an.absence_type, an.message, an.status, " +
+                "p.last_name || ' ' || p.first_name as parent_name, " +
+                "c.last_name || ' ' || c.first_name as child_name, " +
+                "au.full_name as processed_by_name " +
+                "FROM pool.absence_notifications an " +
+                "JOIN pool.parents p ON an.parent_id = p.id " +
+                "JOIN pool.children c ON an.child_id = c.id " +
+                "LEFT JOIN pool.admin_users au ON an.processed_by = au.id " +
+                "WHERE an.certificate_url IS NULL AND an.status = 'READ' " +
+                "ORDER BY an.updated_at DESC";
+        return executeQuery(sql);
+    }
+
+    /**
+     * Получает ОБРАБОТАННЫЕ уведомления о пропусках БЕЗ справок для тренера
+     */
+    public List<Map<String, Object>> getProcessedAbsenceNotificationsForCoachWithoutCertificate(Long coachId) {
+        String sql = "SELECT an.id, an.created_at, an.absence_type, an.message, an.status, " +
+                "p.last_name || ' ' || p.first_name as parent_name, " +
+                "c.last_name || ' ' || c.first_name as child_name, " +
+                "au.full_name as processed_by_name " +
+                "FROM pool.absence_notifications an " +
+                "JOIN pool.parents p ON an.parent_id = p.id " +
+                "JOIN pool.children c ON an.child_id = c.id " +
+                "LEFT JOIN pool.admin_users au ON an.processed_by = au.id " +
+                "JOIN pool.group_children gc ON c.id = gc.child_id " +
+                "JOIN pool.groups g ON gc.group_id = g.id " +
+                "WHERE an.certificate_url IS NULL AND an.status = 'READ' AND g.trainer_id = ? " +
+                "GROUP BY an.id, p.last_name, p.first_name, c.last_name, c.first_name, au.full_name " +
+                "ORDER BY an.updated_at DESC";
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, coachId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("id", rs.getLong("id"));
+                row.put("created_at", rs.getTimestamp("created_at"));
+                row.put("absence_type", rs.getString("absence_type"));
+                row.put("message", rs.getString("message"));
+                row.put("status", rs.getString("status"));
+                row.put("parent_name", rs.getString("parent_name"));
+                row.put("child_name", rs.getString("child_name"));
+                row.put("processed_by_name", rs.getString("processed_by_name"));
+                result.add(row);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    /**
+     * Считает количество НЕОБРАБОТАННЫХ уведомлений о пропусках (без справок)
+     */
+    public int countPendingAbsenceNotificationsWithoutCertificate(Long coachId) {
+        String sql;
+        if (coachId != null) {
+            sql = "SELECT COUNT(*) FROM pool.absence_notifications an " +
+                    "JOIN pool.group_children gc ON an.child_id = gc.child_id " +
+                    "JOIN pool.groups g ON gc.group_id = g.id " +
+                    "WHERE an.certificate_url IS NULL AND an.status = 'PENDING' AND g.trainer_id = ?";
+        } else {
+            sql = "SELECT COUNT(*) FROM pool.absence_notifications " +
+                    "WHERE certificate_url IS NULL AND status = 'PENDING'";
+        }
+
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            if (coachId != null) {
+                stmt.setLong(1, coachId);
+            }
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+
 
 }

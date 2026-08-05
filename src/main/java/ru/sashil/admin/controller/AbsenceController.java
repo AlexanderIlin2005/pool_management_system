@@ -19,16 +19,31 @@ public class AbsenceController {
     private DatabaseService databaseService;
 
     @GetMapping
-    public String absencesPage(Model model, HttpSession session) {
+    public String absencesPage(Model model, HttpSession session,
+                               @RequestParam(required = false) String tab) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return "redirect:/login";
 
+        String activeTab = (tab != null) ? tab : "new";
         List<Map<String, Object>> notifications;
+
         try {
-            if (user.getRole() == AdminUser.Role.COACH) {
-                notifications = databaseService.getAbsenceNotificationsForCoachWithoutCertificate(user.getId());
+            boolean isArchive = "archive".equals(activeTab);
+
+            if (isArchive) {
+                // Обработанные уведомления
+                if (user.getRole() == AdminUser.Role.COACH) {
+                    notifications = databaseService.getProcessedAbsenceNotificationsForCoachWithoutCertificate(user.getId());
+                } else {
+                    notifications = databaseService.getProcessedAbsenceNotificationsWithoutCertificate();
+                }
             } else {
-                notifications = databaseService.getAbsenceNotificationsWithoutCertificate();
+                // Новые уведомления
+                if (user.getRole() == AdminUser.Role.COACH) {
+                    notifications = databaseService.getAbsenceNotificationsForCoachWithoutCertificate(user.getId());
+                } else {
+                    notifications = databaseService.getAbsenceNotificationsWithoutCertificate();
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -40,6 +55,7 @@ public class AbsenceController {
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "absences");
         model.addAttribute("notifications", notifications);
+        model.addAttribute("currentTab", activeTab);
 
         return "absences";
     }
