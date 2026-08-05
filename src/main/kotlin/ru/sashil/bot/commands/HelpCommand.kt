@@ -13,13 +13,16 @@ class HelpCommand : BotCommand {
     }
 
     private fun getHelpMessage(): String {
+        val adminNumber = BotCommandType.MESSAGE_ADMIN.getCommandNumber()
+        val coachNumber = BotCommandType.MESSAGE_COACH.getCommandNumber()
+
         return """
             Если у Вас возникли проблемы при регистрации или выборе группы:
 
             • Проверьте, что Вы правильно ввели все данные
             • Убедитесь, что Ваш ребенок соответствует возрастным критериям
-            • Свяжитесь с администратором через команду 6
-            • Свяжитесь с тренером через команду 7
+            • Свяжитесь с администратором через команду $adminNumber
+            • Свяжитесь с тренером через команду $coachNumber
 
             Для возврата в главное меню напишите "отмена" или "нет".
         """.trimIndent()

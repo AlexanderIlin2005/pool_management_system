@@ -188,7 +188,7 @@ class NotificationService(
         val time = lesson["startTime"].toString().substring(0, 5)
         val childName = getChildName(lesson["childId"] as Long)
 
-        val text = "Уведомление о занятии в бассейне: $childName завтра в $time записана в бассейн. Ждем на занятии!"
+        val text = "Уведомление о занятии в бассейне: $childName завтра в $time записан(а) в бассейн. Ждем на занятии!"
 
         sendMessage(vkId, text)
     }

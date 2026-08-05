@@ -60,4 +60,6 @@ enum class BotCommandType(
             }
         }
     }
+
+    fun getCommandNumber(): Int = this.ordinal + 1
 }
