@@ -25,6 +25,7 @@ public class GlobalControllerAdvice {
     @Autowired
     private PaymentService paymentService;
 
+    // Счетчик ТОЛЬКО для справок (допуск + болезнь со справкой)
     @ModelAttribute("unreadCertsCount")
     public Integer getUnreadCertsCount(HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
@@ -32,22 +33,34 @@ public class GlobalControllerAdvice {
 
         try {
             int total = 0;
-
             if (user.getRole() == AdminUser.Role.COACH) {
-                // Справки о допуске для тренера
                 total += databaseService.getUnreadCertificatesForCoach(user.getId()).size();
-                // Справки о болезни для тренера
                 total += databaseService.getAbsenceCertificatesForCoach(user.getId()).size();
             } else if (user.getRole() == AdminUser.Role.ADMIN) {
-                // Справки о допуске для админа
                 total += databaseService.getUnreadCertificates().size();
-                // Справки о болезни для админа
                 total += databaseService.getAllAbsenceCertificates().size();
             }
-
             return total;
         } catch (Exception e) {
-            // Игнорируем ошибки, просто возвращаем 0
+            // Игнорируем ошибки
+        }
+        return 0;
+    }
+
+    // ОТДЕЛЬНЫЙ счетчик для пропусков БЕЗ справок (UNWELL, OTHER)
+    @ModelAttribute("unreadAbsencesCount")
+    public Integer getUnreadAbsencesCount(HttpSession session) {
+        AdminUser user = (AdminUser) session.getAttribute("currentUser");
+        if (user == null) return 0;
+
+        try {
+            if (user.getRole() == AdminUser.Role.COACH) {
+                return databaseService.countPendingAbsenceNotificationsWithoutCertificate(user.getId());
+            } else if (user.getRole() == AdminUser.Role.ADMIN) {
+                return databaseService.countPendingAbsenceNotificationsWithoutCertificate(null);
+            }
+        } catch (Exception e) {
+            // Игнорируем ошибки
         }
         return 0;
     }
@@ -62,7 +75,7 @@ public class GlobalControllerAdvice {
                 return joinRequestRepository.countByStatus("PENDING");
             }
         } catch (Exception e) {
-            // Игнорируем ошибки, просто возвращаем 0
+            // Игнорируем ошибки
         }
         return 0;
     }
@@ -89,7 +102,6 @@ public class GlobalControllerAdvice {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         if (user == null) return 0;
 
-        // Доступно для ADMIN и ACCOUNTANT
         if (user.getRole() != AdminUser.Role.ADMIN && user.getRole() != AdminUser.Role.ACCOUNTANT) {
             return 0;
         }
