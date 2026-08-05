@@ -197,6 +197,10 @@
             th:text="${unreadCertsCount}"></span>
     </a>
 
+    <a href="/absences" th:classappend="${activePage == 'absences'} ? 'active'" style="position: relative;">
+      Пропуски (без справок)
+    </a>
+
     <a href="/broadcast" th:classappend="${activePage == 'broadcast'} ? 'active'">Рассылка</a>
   </div>
 
