@@ -2,13 +2,40 @@
 <html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Сообщения', ~{::content})}">
 <body>
 <div th:fragment="content">
+    <style>
+        .reply-form {
+            display: none;
+            margin-top: 12px;
+            padding: 15px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            opacity: 0;
+            transition: opacity 0.15s ease-in-out;
+        }
+
+        .reply-form.visible {
+            display: block;
+            opacity: 1;
+        }
+
+        .reply-form textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+    </style>
+
     <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h1>💬 Сообщения</h1>
             <span th:if="${messages != null and #lists.size(messages) > 0}"
                   style="background: #dc3545; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9em;">
-        <span th:text="${#lists.size(messages)}"></span> новых
-      </span>
+                <span th:text="${#lists.size(messages)}"></span> новых
+            </span>
         </div>
 
         <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
@@ -42,18 +69,18 @@
                         </div>
                     </div>
                     <div>
-            <span th:if="${msg.status == 'PENDING'}"
-                  style="background: #ffc107; color: #000; padding: 3px 12px; border-radius: 12px; font-size: 0.8em; font-weight: bold;">
-              ⏳ Ожидает
-            </span>
+                        <span th:if="${msg.status == 'PENDING'}"
+                              style="background: #ffc107; color: #000; padding: 3px 12px; border-radius: 12px; font-size: 0.8em; font-weight: bold;">
+                            ⏳ Ожидает
+                        </span>
                         <span th:if="${msg.status == 'READ'}"
                               style="background: #17a2b8; color: #fff; padding: 3px 12px; border-radius: 12px; font-size: 0.8em; font-weight: bold;">
-              📖 Прочитано
-            </span>
+                            📖 Прочитано
+                        </span>
                         <span th:if="${msg.status == 'REPLIED'}"
                               style="background: #28a745; color: #fff; padding: 3px 12px; border-radius: 12px; font-size: 0.8em; font-weight: bold;">
-              ✅ Отвечено
-            </span>
+                            ✅ Отвечено
+                        </span>
                     </div>
                 </div>
 
@@ -71,19 +98,21 @@
                     </form>
 
                     <button type="button"
-                            th:attr="onclick='showReplyForm(' + ${msg.id} + ')'"
-                            class="btn" style="background-color: #28a745; padding: 6px 15px; font-size: 0.85em; border: none; cursor: pointer;">
+                            th:attr="data-msg-id=${msg.id}"
+                            class="btn btn-reply"
+                            style="background-color: #28a745; padding: 6px 15px; font-size: 0.85em; border: none; cursor: pointer;">
                         ✉ Ответить
                     </button>
                 </div>
 
                 <div th:id="'reply-form-' + ${msg.id}"
-                     style="display: none; margin-top: 12px; padding: 15px; background: white; border: 1px solid #dee2e6; border-radius: 6px;">
-                    <form th:action="@{/messages/{id}/reply(id=${msg.id})}" method="post">
+                     class="reply-form">
+                    <form th:action="@{/messages/{id}/reply(id=${msg.id})}" method="post" th:id="'reply-form-element-' + ${msg.id}">
                         <div style="margin-bottom: 10px;">
                             <label style="font-weight: bold; display: block; margin-bottom: 5px;">Ваш ответ:</label>
                             <textarea name="replyText" rows="4"
-                                      style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-family: inherit;"
+                                      th:id="'reply-text-' + ${msg.id}"
+                                      style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-family: inherit; box-sizing: border-box;"
                                       placeholder="Введите текст ответа..."></textarea>
                         </div>
                         <div style="display: flex; gap: 10px;">
@@ -91,8 +120,9 @@
                                 📨 Отправить ответ
                             </button>
                             <button type="button"
-                                    th:attr="onclick='hideReplyForm(' + ${msg.id} + ')'"
-                                    class="btn" style="background-color: #6c757d; padding: 8px 25px; border: none; cursor: pointer;">
+                                    th:attr="data-msg-id=${msg.id}"
+                                    class="btn btn-cancel-reply"
+                                    style="background-color: #6c757d; padding: 8px 25px; border: none; cursor: pointer;">
                                 Отмена
                             </button>
                         </div>
@@ -103,31 +133,183 @@
     </div>
 
     <script>
-        function showReplyForm(messageId) {
-          // Скрываем все открытые формы ответа
-          document.querySelectorAll('[id^="reply-form-"]').forEach(function(el) {
-            el.style.display = 'none';
-          });
-          // Показываем нужную форму
-          var form = document.getElementById('reply-form-' + messageId);
-          if (form) {
-            form.style.display = 'block';
-            // Прокручиваем к форме
-            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            // Фокусируемся на текстовом поле
-            var textarea = form.querySelector('textarea');
-            if (textarea) {
-              setTimeout(function() { textarea.focus(); }, 300);
+        // Ключи для sessionStorage
+        const STORAGE_KEY_OPEN_FORM = 'openReplyFormId';
+        const STORAGE_KEY_TEXT_PREFIX = 'replyText_';
+
+        // Функция сохранения состояния открытой формы
+        function saveOpenFormState(messageId) {
+            if (messageId) {
+                sessionStorage.setItem(STORAGE_KEY_OPEN_FORM, messageId.toString());
+            } else {
+                sessionStorage.removeItem(STORAGE_KEY_OPEN_FORM);
             }
-          }
         }
 
-        function hideReplyForm(messageId) {
-          var form = document.getElementById('reply-form-' + messageId);
-          if (form) {
-            form.style.display = 'none';
-          }
+        // Функция сохранения текста ответа
+        function saveReplyText(messageId, text) {
+            if (messageId) {
+                sessionStorage.setItem(STORAGE_KEY_TEXT_PREFIX + messageId, text);
+            }
         }
+
+        // Функция получения сохраненного текста
+        function getSavedReplyText(messageId) {
+            return sessionStorage.getItem(STORAGE_KEY_TEXT_PREFIX + messageId) || '';
+        }
+
+        // Функция очистки сохраненного текста после отправки
+        function clearReplyText(messageId) {
+            if (messageId) {
+                sessionStorage.removeItem(STORAGE_KEY_TEXT_PREFIX + messageId);
+            }
+        }
+
+        // Функция показа формы ответа
+        function showReplyForm(messageId) {
+            // Сначала скрываем все формы
+            document.querySelectorAll('.reply-form').forEach(function(el) {
+                el.classList.remove('visible');
+            });
+
+            // Показываем нужную форму
+            var form = document.getElementById('reply-form-' + messageId);
+            if (form) {
+                // Принудительно показываем форму
+                form.style.display = 'block';
+                // Добавляем класс visible для анимации
+                requestAnimationFrame(function() {
+                    form.classList.add('visible');
+                });
+
+                // Восстанавливаем сохраненный текст
+                var textarea = document.getElementById('reply-text-' + messageId);
+                if (textarea) {
+                    var savedText = getSavedReplyText(messageId);
+                    if (savedText) {
+                        textarea.value = savedText;
+                    }
+                    // Фокусируемся на текстовом поле
+                    setTimeout(function() {
+                        textarea.focus();
+                        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+                    }, 150);
+                }
+
+                // Сохраняем состояние открытой формы
+                saveOpenFormState(messageId);
+
+                // Прокручиваем к форме
+                setTimeout(function() {
+                    form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 200);
+            }
+        }
+
+        // Функция скрытия формы ответа
+        function hideReplyForm(messageId) {
+            var form = document.getElementById('reply-form-' + messageId);
+            if (form) {
+                form.classList.remove('visible');
+                // Скрываем после анимации
+                setTimeout(function() {
+                    form.style.display = 'none';
+                }, 150);
+
+                var savedId = sessionStorage.getItem(STORAGE_KEY_OPEN_FORM);
+                if (savedId && parseInt(savedId) === messageId) {
+                    saveOpenFormState(null);
+                }
+            }
+        }
+
+        // Обработчики для кнопок
+        document.addEventListener('DOMContentLoaded', function() {
+            // Обработчики для кнопок "Ответить"
+            document.querySelectorAll('.btn-reply').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    var messageId = parseInt(this.getAttribute('data-msg-id'));
+                    showReplyForm(messageId);
+                });
+            });
+
+            // Обработчики для кнопок "Отмена"
+            document.querySelectorAll('.btn-cancel-reply').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    var messageId = parseInt(this.getAttribute('data-msg-id'));
+                    hideReplyForm(messageId);
+                });
+            });
+
+            // Восстанавливаем открытую форму при загрузке страницы
+            var savedOpenFormId = sessionStorage.getItem(STORAGE_KEY_OPEN_FORM);
+            if (savedOpenFormId) {
+                var messageId = parseInt(savedOpenFormId);
+                var form = document.getElementById('reply-form-' + messageId);
+                if (form) {
+                    form.style.display = 'block';
+                    requestAnimationFrame(function() {
+                        form.classList.add('visible');
+                    });
+
+                    var textarea = document.getElementById('reply-text-' + messageId);
+                    if (textarea) {
+                        var savedText = getSavedReplyText(messageId);
+                        if (savedText) {
+                            textarea.value = savedText;
+                        }
+                    }
+                } else {
+                    saveOpenFormState(null);
+                }
+            }
+
+            // Добавляем обработчики для всех текстовых полей
+            document.querySelectorAll('[id^="reply-text-"]').forEach(function(textarea) {
+                var messageId = parseInt(textarea.id.replace('reply-text-', ''));
+
+                textarea.addEventListener('input', function() {
+                    saveReplyText(messageId, this.value);
+                });
+
+                textarea.addEventListener('blur', function() {
+                    saveReplyText(messageId, this.value);
+                });
+            });
+
+            // Обработчики для форм - очищаем сохраненный текст после отправки
+            document.querySelectorAll('[id^="reply-form-element-"]').forEach(function(form) {
+                var messageId = parseInt(form.id.replace('reply-form-element-', ''));
+                form.addEventListener('submit', function() {
+                    clearReplyText(messageId);
+                    saveOpenFormState(null);
+                });
+            });
+
+            // Если есть параметр success - очищаем все сохраненные данные
+            var urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('success')) {
+                Object.keys(sessionStorage).forEach(function(key) {
+                    if (key.startsWith(STORAGE_KEY_TEXT_PREFIX)) {
+                        sessionStorage.removeItem(key);
+                    }
+                });
+                saveOpenFormState(null);
+            }
+        });
+
+        // Сохраняем состояние при закрытии страницы
+        window.addEventListener('beforeunload', function() {
+            var savedOpenFormId = sessionStorage.getItem(STORAGE_KEY_OPEN_FORM);
+            if (savedOpenFormId) {
+                var textarea = document.getElementById('reply-text-' + savedOpenFormId);
+                if (textarea) {
+                    saveReplyText(parseInt(savedOpenFormId), textarea.value);
+                }
+            }
+        });
     </script>
 </div>
 </body>
