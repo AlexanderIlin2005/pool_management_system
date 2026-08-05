@@ -186,41 +186,26 @@ class NotificationService(
 
     private suspend fun sendTomorrowReminder(vkId: Long, lesson: Map<String, Any>, date: LocalDate) {
         val time = lesson["startTime"].toString().substring(0, 5)
-        val groupNumber = lesson["groupNumber"]?.toString() ?: lesson["groupName"].toString()
         val childName = getChildName(lesson["childId"] as Long)
 
-        val dateStr = date.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM"))
-
-        val text = """
-            📅 Напоминание о занятии!
-            
-            Уважаемый родитель!
-            
-            Завтра (${dateStr}) у ${childName} занятие в бассейне.
-            
-            Группа: ${groupNumber}
-            Время: ${time}
-            Бассейн: ${lesson["poolName"] ?: "гимназии №642"}
-            
-            Ждем Вашего ребенка на занятии!
-            
-            С уважением,
-            Администрация бассейна гимназии №642 «Земля и Вселенная»
-        """.trimIndent()
+        val text = "Уведомление о занятии в бассейне: $childName завтра в $time записана в бассейн. Ждем на занятии!"
 
         sendMessage(vkId, text)
     }
 
     private fun getChildName(childId: Long): String {
         var name = "ребенка"
-        val sql = "SELECT first_name FROM pool.children WHERE id = ?"
+        val sql = "SELECT first_name, last_name FROM pool.children WHERE id = ?"
         dbService.getConnection().use { conn ->
             conn.prepareStatement(sql).use { stmt ->
                 stmt.setLong(1, childId)
                 stmt.executeQuery().use { rs ->
                     if (rs.next()) {
                         val firstName = rs.getString("first_name")
-                        if (firstName != null) {
+                        val lastName = rs.getString("last_name")
+                        if (firstName != null && lastName != null) {
+                            name = "$firstName $lastName"
+                        } else if (firstName != null) {
                             name = firstName
                         }
                     }
