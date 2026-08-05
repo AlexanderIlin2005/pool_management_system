@@ -17,7 +17,7 @@ enum class BotCommandType(
         description = "Подбор группы по возрасту и навыкам"
     ),
     UPLOAD_CERTIFICATE(
-        displayName = "Прикрепить справку",
+        displayName = "Прикрепить справку о допуске",
         description = "Загрузка медицинской справки"
     ),
     REPORT_ABSENCE(
@@ -41,7 +41,7 @@ enum class BotCommandType(
         description = "Изменение личных данных родителя"
     ),
     EDIT_CHILD(
-        displayName = "Редактировать ребенка",
+        displayName = "Редактировать данные ребенка",
         description = "Изменение данных ребенка"
     ),
     HELP(
