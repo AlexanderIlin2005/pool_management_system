@@ -210,8 +210,12 @@ CREATE TABLE IF NOT EXISTS pool.certificates (
 
 ALTER TABLE pool.groups
 ADD CONSTRAINT chk_skills_valid CHECK (
-    (skill_1 IS NULL AND skill_2 IS NULL) OR
-    (skill_1 != skill_2 AND NOT (skill_1 = 'не умеет' AND skill_2 = 'уверенно плавает') AND NOT (skill_1 = 'уверенно плавает' AND skill_2 = 'не умеет'))
+    (skill_1 IS NULL AND skill_2 IS NULL) OR          -- Ничего не выбрано
+    (skill_2 IS NULL AND skill_1 IS NOT NULL) OR      -- Выбран только один навык (в skill_1)
+    (skill_1 IS NOT NULL AND skill_2 IS NOT NULL      -- Выбрано два навыка
+     AND skill_1 != skill_2
+     AND NOT (skill_1 = 'не умеет' AND skill_2 = 'уверенно плавает')
+     AND NOT (skill_1 = 'уверенно плавает' AND skill_2 = 'не умеет'))
 );
 
 -- Таблица заявок на вступление в группу

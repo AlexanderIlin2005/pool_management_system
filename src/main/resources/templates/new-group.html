@@ -181,20 +181,58 @@
   <script>
     document.addEventListener('DOMContentLoaded', function() {
         const cb1 = document.querySelector('input[name="skill1"]');
+        const cb2 = document.querySelector('input[name="skill2"]');
         const cb3 = document.querySelector('input[name="skill3"]');
 
-        if (cb1 && cb3) {
-            cb1.addEventListener('change', function() {
-                if (this.checked && cb3.checked) {
+        // Функция проверки конфликта
+        function checkConflict(triggeredCheckbox) {
+            if (cb1 && cb3) {
+                // Проверяем только конфликт между skill1 и skill3
+                if (cb1.checked && cb3.checked) {
                     alert('Нельзя одновременно выбрать "Не умеет" и "Уверенно плавает"');
-                    this.checked = false;
+                    // Снимаем галочку с того чекбокса, который вызвал событие
+                    if (triggeredCheckbox) {
+                        triggeredCheckbox.checked = false;
+                    } else {
+                        // Если вызвано не из события, снимаем с skill3
+                        cb3.checked = false;
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Проверка при загрузке (если оба уже выбраны)
+        if (cb1 && cb3 && cb1.checked && cb3.checked) {
+            // Снимаем skill3 по умолчанию
+            cb3.checked = false;
+        }
+
+        // Обработчик для skill1
+        if (cb1) {
+            cb1.addEventListener('change', function() {
+                if (this.checked) {
+                    checkConflict(this);
                 }
             });
+        }
+
+        // Обработчик для skill3
+        if (cb3) {
             cb3.addEventListener('change', function() {
-                if (this.checked && cb1.checked) {
-                    alert('Нельзя одновременно выбрать "Не умеет" и "Уверенно плавает"');
-                    this.checked = false;
+                if (this.checked) {
+                    checkConflict(this);
                 }
+            });
+        }
+
+        // Обработчик для skill2 (ничего не блокируем, но можно добавить логирование)
+        if (cb2) {
+            cb2.addEventListener('change', function() {
+                // skill2 может быть выбран в любой комбинации с skill1 и/или skill3
+                // Никаких ограничений
+                console.log('Skill2 выбран:', this.checked);
             });
         }
     });

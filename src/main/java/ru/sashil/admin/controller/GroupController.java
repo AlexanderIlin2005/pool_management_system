@@ -153,22 +153,39 @@ public class GroupController {
                             @RequestParam(required = false) String skill1,
                             @RequestParam(required = false) String skill2,
                             @RequestParam(required = false) String skill3,
-                            @RequestParam(required = false) String subscriptionType, // ДОБАВЛЯЕМ
+                            @RequestParam(required = false) String subscriptionType,
                             Model model, HttpSession session) {
 
         if (!isAdmin(session)) return "redirect:/parents";
 
         try {
-            // Собираем выбранные навыки в поля модели
+            // Собираем выбранные навыки в список
             List<String> selectedSkills = new ArrayList<>();
             if ("не умеет".equals(skill1)) selectedSkills.add("не умеет");
             if ("держится на воде".equals(skill2)) selectedSkills.add("держится на воде");
             if ("уверенно плавает".equals(skill3)) selectedSkills.add("уверенно плавает");
 
-            if (selectedSkills.size() > 0) group.setSkill1(selectedSkills.get(0));
-            if (selectedSkills.size() > 1) group.setSkill2(selectedSkills.get(1));
+            // Очищаем поля навыков
+            group.setSkill1(null);
+            group.setSkill2(null);
 
-            // Устанавливаем тип абонемента (если передан)
+            // Заполняем в зависимости от количества выбранных навыков
+            if (selectedSkills.size() == 1) {
+                // Если выбран только один навык - сохраняем его в skill_1
+                group.setSkill1(selectedSkills.get(0));
+                group.setSkill2(null); // skill_2 должен быть NULL
+            } else if (selectedSkills.size() == 2) {
+                // Если выбрано два навыка - сохраняем в skill_1 и skill_2
+                // Проверяем, что это не запрещенная комбинация
+                if ((selectedSkills.contains("не умеет") && selectedSkills.contains("уверенно плавает"))) {
+                    throw new IllegalArgumentException("Нельзя сочетать крайние навыки: 'не умеет' и 'уверенно плавает'.");
+                }
+                group.setSkill1(selectedSkills.get(0));
+                group.setSkill2(selectedSkills.get(1));
+            }
+            // Если выбрано 0 навыков - оба поля остаются NULL
+
+            // Устанавливаем тип абонемента
             if (subscriptionType != null && !subscriptionType.isEmpty()) {
                 group.setSubscriptionType(subscriptionType);
             } else {
@@ -186,6 +203,7 @@ public class GroupController {
             model.addAttribute("role", ((AdminUser) session.getAttribute("currentUser")).getRole());
             model.addAttribute("activePage", "groups");
             model.addAttribute("isEdit", group.getId() != null);
+            // Восстанавливаем выбранные навыки для чекбоксов
             if (group.getSkill1() != null) model.addAttribute("selectedSkill1", group.getSkill1());
             if (group.getSkill2() != null) model.addAttribute("selectedSkill2", group.getSkill2());
             return "new-group";

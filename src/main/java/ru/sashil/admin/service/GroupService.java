@@ -95,11 +95,8 @@ public class GroupService {
             throw new IllegalArgumentException("Минимальный возраст не может быть больше максимального.");
         }
 
-        // Валидация навыков
+        // Валидация навыков - только запрещенная комбинация
         if (skill1 != null && skill2 != null) {
-            if (skill1.equals(skill2)) {
-                throw new IllegalArgumentException("Навыки не должны совпадать.");
-            }
             // Запрещенная комбинация крайностей
             boolean isExtremeCombo =
                     ("не умеет".equals(skill1) && "уверенно плавает".equals(skill2)) ||
