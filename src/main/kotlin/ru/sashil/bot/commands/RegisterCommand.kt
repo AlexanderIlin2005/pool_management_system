@@ -1,7 +1,7 @@
 package ru.sashil.bot.commands
 
+import ru.sashil.bot.util.CommandUtils
 import ru.sashil.common.service.DatabaseService
-import ru.sashil.common.util.CommandUtils
 import java.util.concurrent.ConcurrentHashMap
 
 class RegisterCommand(
@@ -40,12 +40,10 @@ class RegisterCommand(
         val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
         val cmd = CommandUtils.normalize(text)
 
-        if (cmd == "нет" || cmd == "отмена") {
-            if (step == 1) {
-                return CommandResult.Cancel()
-            } else {
-                return CommandResult.Cancel()
-            }
+        if (CommandUtils.isCancelCommand(text)) {
+            userSteps.remove(userId)
+            userData.remove(userId)
+            return CommandResult.Cancel()
         }
 
         when (step) {

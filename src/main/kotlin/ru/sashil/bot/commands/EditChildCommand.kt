@@ -1,7 +1,7 @@
 package ru.sashil.bot.commands
 
+import ru.sashil.bot.util.CommandUtils
 import ru.sashil.common.service.DatabaseService
-import ru.sashil.common.util.CommandUtils
 import ru.sashil.common.util.DateUtils
 import java.time.LocalDate
 import java.util.concurrent.ConcurrentHashMap
@@ -56,7 +56,7 @@ class EditChildCommand(
 
             return CommandResult.Continue(
                 "Редактирование ребенка: ${data["childName"]}\n" +
-                        "Введите новую фамилию (или напишите 'пропустить'):"
+                        "Введите новую фамилию (или '-'(тире/минус) для пропуска):"
             )
         } else {
             val sb = StringBuilder("Выберите ребенка для редактирования:\n")
@@ -78,7 +78,7 @@ class EditChildCommand(
         val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
         val cmd = CommandUtils.normalize(text)
 
-        if (cmd == "отмена" || cmd == "нет") {
+        if (CommandUtils.isCancelCommand(text)) {
             userSteps.remove(userId)
             userData.remove(userId)
             editingChildId.remove(userId)
@@ -111,7 +111,7 @@ class EditChildCommand(
             userSteps[userId] = 2
             return CommandResult.Continue(
                 "Редактирование ребенка: ${data["childName"]}\n" +
-                        "Введите новую фамилию (или напишите 'пропустить'):"
+                        "Введите новую фамилию (или '-'(тире/минус) для пропуска):"
             )
         }
 
@@ -120,30 +120,30 @@ class EditChildCommand(
                 return CommandResult.Continue("Пожалуйста, введите номер ребенка.")
             }
             2 -> {
-                if (cmd != "пропустить") {
+                if (!CommandUtils.isSkipCommand(text)) {
                     if (text.trim().length < 2) return CommandResult.Continue("Фамилия должна содержать минимум 2 символа.")
                     data["lastName"] = text.trim()
                 }
                 userSteps[userId] = 3
-                return CommandResult.Continue("Введите новое имя (или 'пропустить'):")
+                return CommandResult.Continue("Введите новое имя (или '-'(тире/минус) для пропуска):")
             }
             3 -> {
-                if (cmd != "пропустить") {
+                if (!CommandUtils.isSkipCommand(text)) {
                     if (text.trim().length < 2) return CommandResult.Continue("Имя должно содержать минимум 2 символа.")
                     data["firstName"] = text.trim()
                 }
                 userSteps[userId] = 4
-                return CommandResult.Continue("Введите новое отчество (или 'пропустить'):")
+                return CommandResult.Continue("Введите новое отчество (или '-'(тире/минус) для пропуска):")
             }
             4 -> {
-                if (cmd != "пропустить") {
-                    data["middleName"] = if (cmd == "нет") "" else text.trim()
+                if (!CommandUtils.isSkipCommand(text)) {
+                    data["middleName"] = text.trim()
                 }
                 userSteps[userId] = 5
-                return CommandResult.Continue("Введите новую дату рождения (ДД.ММ.ГГГГ) или 'пропустить':")
+                return CommandResult.Continue("Введите новую дату рождения (ДД.ММ.ГГГГ) или '-'(тире/минус) для пропуска:")
             }
             5 -> {
-                if (cmd != "пропустить") {
+                if (!CommandUtils.isSkipCommand(text)) {
                     val sqlDate = DateUtils.normalizeDate(text)
                     if (sqlDate == null) {
                         return CommandResult.Continue("Неверный формат даты. Используйте ДД.ММ.ГГГГ")
@@ -154,10 +154,10 @@ class EditChildCommand(
                     data["birthDate"] = sqlDate
                 }
                 userSteps[userId] = 6
-                return CommandResult.Continue("Введите новый номер класса (1-11) или 'пропустить':")
+                return CommandResult.Continue("Введите новый номер класса (1-11) или '-'(тире/минус) для пропуска:")
             }
             6 -> {
-                if (cmd != "пропустить") {
+                if (!CommandUtils.isSkipCommand(text)) {
                     try {
                         val grade = text.trim().toInt()
                         if (grade !in 1..11) return CommandResult.Continue("Класс должен быть от 1 до 11.")
@@ -167,10 +167,10 @@ class EditChildCommand(
                     }
                 }
                 userSteps[userId] = 7
-                return CommandResult.Continue("Введите полное название класса (или 'пропустить'):")
+                return CommandResult.Continue("Введите полное название класса (или '-'(тире/минус) для пропуска):")
             }
             7 -> {
-                if (cmd != "пропустить") {
+                if (!CommandUtils.isSkipCommand(text)) {
                     data["gradeName"] = text.trim()
                 }
                 userSteps[userId] = 8
@@ -179,11 +179,11 @@ class EditChildCommand(
                             "1. Уверенно плавает\n" +
                             "2. Держится на воде\n" +
                             "3. Не умеет плавать\n" +
-                            "(Введите номер или 'пропустить')"
+                            "(Введите номер или '-'(тире/минус) для пропуска)"
                 )
             }
             8 -> {
-                if (cmd != "пропустить") {
+                if (!CommandUtils.isSkipCommand(text)) {
                     val skill = when (text.trim()) {
                         "1" -> "уверенно плавает"
                         "2" -> "держится на воде"

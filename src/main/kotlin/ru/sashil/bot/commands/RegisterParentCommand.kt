@@ -1,7 +1,7 @@
 package ru.sashil.bot.commands
 
+import ru.sashil.bot.util.CommandUtils
 import ru.sashil.common.service.DatabaseService
-import ru.sashil.common.util.CommandUtils
 import java.util.concurrent.ConcurrentHashMap
 import java.util.regex.Pattern
 
@@ -39,7 +39,7 @@ class RegisterParentCommand(
         val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
         val cmd = CommandUtils.normalize(text)
 
-        if (cmd == "отмена" || cmd == "нет") {
+        if (CommandUtils.isCancelCommand(text)) {
             userSteps.remove(userId)
             userData.remove(userId)
             return CommandResult.Cancel()
@@ -60,30 +60,30 @@ class RegisterParentCommand(
                 }
                 data["firstName"] = text.trim()
                 userSteps[userId] = 3
-                return CommandResult.Continue("Введите Ваше отчество (или напишите 'нет', если нет):")
+                return CommandResult.Continue("Введите Ваше отчество (или нажмите пробел, если нет):")
             }
             3 -> {
-                val middleName = if (cmd == "нет") "" else text.trim()
+                val middleName = if (CommandUtils.isSkipCommand(text)) "" else text.trim()
                 data["middleName"] = middleName
                 userSteps[userId] = 4
-                return CommandResult.Continue("Введите Ваш email (или напишите 'пропустить'):")
+                return CommandResult.Continue("Введите Ваш email (или '-'(тире/минус) для пропуска):")
             }
             4 -> {
-                if (cmd != "пропустить") {
+                if (!CommandUtils.isSkipCommand(text)) {
                     if (!emailPattern.matcher(text).matches()) {
-                        return CommandResult.Continue("❌ Неверный формат email. Попробуйте снова или напишите 'пропустить'.")
+                        return CommandResult.Continue("❌ Неверный формат email. Попробуйте снова или '-'(тире/минус) для пропуска.")
                     }
                     data["email"] = text.trim()
                 }
                 userSteps[userId] = 5
-                return CommandResult.Continue("Введите Ваш номер телефона (формат: +7XXXXXXXXXX или 8XXXXXXXXXX):\nИли напишите 'пропустить'.")
+                return CommandResult.Continue("Введите Ваш номер телефона (формат: +7XXXXXXXXXX или 8XXXXXXXXXX):\nили '-'(тире/минус) для пропуска.")
             }
             5 -> {
-                if (cmd != "пропустить") {
+                if (!CommandUtils.isSkipCommand(text)) {
                     val phone = text.trim()
                     val cleaned = phone.replace(Regex("\\D"), "")
                     if (cleaned.length !in 10..11) {
-                        return CommandResult.Continue("❌ Неверный формат телефона. Используйте +7XXXXXXXXXX или 8XXXXXXXXXX.\nИли напишите 'пропустить'.")
+                        return CommandResult.Continue("❌ Неверный формат телефона. Используйте +7XXXXXXXXXX или 8XXXXXXXXXX.\nили '-'(тире/минус) для пропуска.")
                     }
                     data["phone"] = phone
                 }
@@ -113,7 +113,6 @@ class RegisterParentCommand(
                     return CommandResult.Cancel("Регистрация отменена.")
                 }
                 try {
-                    // Явное приведение к non-null String для Java-метода
                     val firstName = data["firstName"].orEmpty()
                     val lastName = data["lastName"].orEmpty()
                     val middleName = data["middleName"].orEmpty()

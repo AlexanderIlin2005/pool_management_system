@@ -1,7 +1,7 @@
 package ru.sashil.bot.commands
 
+import ru.sashil.bot.util.CommandUtils
 import ru.sashil.common.service.DatabaseService
-import ru.sashil.common.util.CommandUtils
 import java.util.concurrent.ConcurrentHashMap
 import java.util.regex.Pattern
 
@@ -47,7 +47,7 @@ class EditParentCommand(
         return CommandResult.Continue(
             "Редактирование профиля:\n" +
                     "Текущая фамилия: ${data["lastName"]}\n" +
-                    "Введите новую фамилию (или напишите 'пропустить'):"
+                    "Введите новую фамилию (или '-'(тире/минус) для пропуска):"
         )
     }
 
@@ -56,7 +56,7 @@ class EditParentCommand(
         val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
         val cmd = CommandUtils.normalize(text)
 
-        if (cmd == "отмена" || cmd == "нет") {
+        if (CommandUtils.isCancelCommand(text)) {
             userSteps.remove(userId)
             userData.remove(userId)
             return CommandResult.Cancel()
@@ -64,44 +64,44 @@ class EditParentCommand(
 
         when (step) {
             1 -> {
-                if (cmd != "пропустить") {
+                if (!CommandUtils.isSkipCommand(text)) {
                     if (text.trim().length < 2) return CommandResult.Continue("Фамилия должна содержать минимум 2 символа.")
                     data["lastName"] = text.trim()
                 }
                 userSteps[userId] = 2
-                return CommandResult.Continue("Введите новое имя (или напишите 'пропустить'):")
+                return CommandResult.Continue("Введите новое имя (или '-'(тире/минус) для пропуска):")
             }
             2 -> {
-                if (cmd != "пропустить") {
+                if (!CommandUtils.isSkipCommand(text)) {
                     if (text.trim().length < 2) return CommandResult.Continue("Имя должно содержать минимум 2 символа.")
                     data["firstName"] = text.trim()
                 }
                 userSteps[userId] = 3
-                return CommandResult.Continue("Введите новое отчество (или напишите 'пропустить'):")
+                return CommandResult.Continue("Введите новое отчество (или '-'(тире/минус) для пропуска):")
             }
             3 -> {
-                if (cmd != "пропустить") {
-                    data["middleName"] = if (cmd == "нет") "" else text.trim()
+                if (!CommandUtils.isSkipCommand(text)) {
+                    data["middleName"] = text.trim()
                 }
                 userSteps[userId] = 4
-                return CommandResult.Continue("Введите новый email (или напишите 'пропустить'):")
+                return CommandResult.Continue("Введите новый email (или '-'(тире/минус) для пропуска):")
             }
             4 -> {
-                if (cmd != "пропустить") {
+                if (!CommandUtils.isSkipCommand(text)) {
                     if (!emailPattern.matcher(text).matches()) {
-                        return CommandResult.Continue("❌ Неверный формат email. Попробуйте снова или напишите 'пропустить'.")
+                        return CommandResult.Continue("❌ Неверный формат email. Попробуйте снова или '-'(тире/минус) для пропуска.")
                     }
                     data["email"] = text.trim()
                 }
                 userSteps[userId] = 5
-                return CommandResult.Continue("Введите новый телефон (формат: +7XXXXXXXXXX или 8XXXXXXXXXX):\nИли напишите 'пропустить'.")
+                return CommandResult.Continue("Введите новый телефон (формат: +7XXXXXXXXXX или 8XXXXXXXXXX):\nили '-'(тире/минус) для пропуска.")
             }
             5 -> {
-                if (cmd != "пропустить") {
+                if (!CommandUtils.isSkipCommand(text)) {
                     val phone = text.trim()
                     val cleaned = phone.replace(Regex("\\D"), "")
                     if (cleaned.length !in 10..11) {
-                        return CommandResult.Continue("❌ Неверный формат телефона. Используйте +7XXXXXXXXXX или 8XXXXXXXXXX.\nИли напишите 'пропустить'.")
+                        return CommandResult.Continue("❌ Неверный формат телефона. Используйте +7XXXXXXXXXX или 8XXXXXXXXXX.\nили '-'(тире/минус) для пропуска.")
                     }
                     data["phone"] = phone
                 }
@@ -125,7 +125,6 @@ class EditParentCommand(
                     return CommandResult.Cancel("Редактирование отменено.")
                 }
                 try {
-                    // Безопасное получение non-null значений
                     val firstName = data["firstName"].orEmpty()
                     val lastName = data["lastName"].orEmpty()
                     val middleName = data["middleName"].orEmpty()
