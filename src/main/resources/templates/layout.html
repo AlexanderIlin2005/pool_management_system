@@ -202,7 +202,7 @@
     <a href="/parents" th:classappend="${activePage == 'parents'} ? 'active'">Родители</a>
 
     <a href="/messages" th:classappend="${activePage == 'messages'} ? 'active'">
-      💬 Сообщения
+      Сообщения
       <span th:if="${unreadMessagesCount != null and unreadMessagesCount > 0}"
             class="badge-counter"
             th:text="${unreadMessagesCount}"></span>
@@ -216,7 +216,7 @@
     </a>
 
     <a href="/absences" th:classappend="${activePage == 'absences'} ? 'active'">
-      📢 Пропуски (без справок)
+      Пропуски (без справок)
       <span th:if="${unreadAbsencesCount != null and unreadAbsencesCount > 0}"
             class="badge-counter"
             th:text="${unreadAbsencesCount}"></span>
@@ -257,7 +257,7 @@
   <div th:if="${role != null and (role.name() == 'ADMIN' or role.name() == 'ACCOUNTANT')}">
     <a href="/reports"
        th:classappend="${(activePage == 'reports' or activePage == 'report-payments') ? 'active' : ''}">
-      📊 Отчеты
+      Отчеты
     </a>
   </div>
 

@@ -9,18 +9,18 @@
       <a th:href="@{/absences(tab=new)}"
          th:class="${currentTab == 'new' or currentTab == null} ? 'btn' : 'btn'"
          th:style="${currentTab == 'new' or currentTab == null} ? 'background-color: #007bff; color: white;' : 'background-color: #f8f9fa; color: #333;'">
-        🆕 Новые уведомления
+        Новые уведомления
       </a>
       <a th:href="@{/absences(tab=archive)}"
          th:class="${currentTab == 'archive'} ? 'btn' : 'btn'"
          th:style="${currentTab == 'archive'} ? 'background-color: #6c757d; color: white;' : 'background-color: #f8f9fa; color: #333;'">
-        🗂️ Обработанные
+        Обработанные
       </a>
     </div>
 
     <h2 style="margin-bottom: 20px;">
-      <span th:if="${currentTab == 'archive'}">🗂️ Обработанные уведомления о пропусках</span>
-      <span th:unless="${currentTab == 'archive'}">📢 Новые уведомления о пропусках (без справок)</span>
+      <span th:if="${currentTab == 'archive'}">Обработанные уведомления о пропусках</span>
+      <span th:unless="${currentTab == 'archive'}">Новые уведомления о пропусках (без справок)</span>
     </h2>
 
     <!-- Уведомление об успехе (с анимацией исчезновения) -->
@@ -31,8 +31,8 @@
 
     <div th:if="${#lists.isEmpty(notifications)}" style="text-align: center; padding: 40px; color: #6c757d;">
       <p style="font-size: 1.2em;">
-        <span th:if="${currentTab == 'archive'}">📭 Нет обработанных уведомлений</span>
-        <span th:unless="${currentTab == 'archive'}">🎉 Нет новых уведомлений о пропусках</span>
+        <span th:if="${currentTab == 'archive'}">Нет обработанных уведомлений</span>
+        <span th:unless="${currentTab == 'archive'}">Нет новых уведомлений о пропусках</span>
       </p>
     </div>
 
