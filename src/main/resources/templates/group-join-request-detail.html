@@ -13,6 +13,88 @@
       <p><strong>Вместимость группы:</strong> <span th:text="${memberCount}"></span> / <span th:text="${request.group.capacity}"></span></p>
     </div>
 
+    <!-- НОВЫЙ БЛОК: Соответствие критериям -->
+    <div style="margin-bottom: 25px; padding: 15px; background: #f0f7ff; border-radius: 4px; border-left: 4px solid #007bff;">
+      <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1em;">📋 Соответствие критериям группы</h3>
+
+      <!-- Возраст -->
+      <div style="display: flex; align-items: center; margin-bottom: 8px;">
+        <span style="font-weight: bold; min-width: 80px;">Возраст:</span>
+        <span th:text="${request.child.age}"></span>
+        <span style="margin: 0 10px;">/</span>
+        <span th:if="${request.group.minAge != null and request.group.maxAge != null}">
+          <span th:text="${request.group.minAge}"></span> - <span th:text="${request.group.maxAge}"></span> лет
+        </span>
+        <span th:if="${request.group.minAge != null and request.group.maxAge == null}">
+          от <span th:text="${request.group.minAge}"></span> лет
+        </span>
+        <span th:if="${request.group.minAge == null and request.group.maxAge != null}">
+          до <span th:text="${request.group.maxAge}"></span> лет
+        </span>
+        <span th:if="${request.group.minAge == null and request.group.maxAge == null}">
+          не задан
+        </span>
+
+        <!-- Иконка статуса -->
+        <span th:if="${request.group.minAge == null and request.group.maxAge == null}"
+              style="margin-left: 15px; color: #6c757d; font-size: 0.9em;">
+          ⚪ критерий не задан
+        </span>
+        <span th:if="${(request.group.minAge != null or request.group.maxAge != null) and criteriaMatch.ageOk}"
+              style="margin-left: 15px; color: #28a745; font-weight: bold;">
+          ✅ соответствует
+        </span>
+        <span th:if="${(request.group.minAge != null or request.group.maxAge != null) and not criteriaMatch.ageOk}"
+              style="margin-left: 15px; color: #dc3545; font-weight: bold;">
+          ❌ не соответствует
+        </span>
+      </div>
+
+      <!-- Навык плавания -->
+      <div style="display: flex; align-items: center; margin-bottom: 8px;">
+        <span style="font-weight: bold; min-width: 80px;">Навык:</span>
+        <span th:text="${request.child.skill?.dbValue ?: 'не указан'}"></span>
+        <span style="margin: 0 10px;">/</span>
+        <span th:if="${request.group.skill1 != null or request.group.skill2 != null}">
+          <span th:if="${request.group.skill1 != null}" th:text="${request.group.skill1}"></span>
+          <span th:if="${request.group.skill1 != null and request.group.skill2 != null}">, </span>
+          <span th:if="${request.group.skill2 != null}" th:text="${request.group.skill2}"></span>
+        </span>
+        <span th:if="${request.group.skill1 == null and request.group.skill2 == null}">
+          не задан
+        </span>
+
+        <!-- Иконка статуса -->
+        <span th:if="${request.group.skill1 == null and request.group.skill2 == null}"
+              style="margin-left: 15px; color: #6c757d; font-size: 0.9em;">
+          ⚪ критерий не задан
+        </span>
+        <span th:if="${(request.group.skill1 != null or request.group.skill2 != null) and criteriaMatch.skillOk}"
+              style="margin-left: 15px; color: #28a745; font-weight: bold;">
+          ✅ соответствует
+        </span>
+        <span th:if="${(request.group.skill1 != null or request.group.skill2 != null) and not criteriaMatch.skillOk}"
+              style="margin-left: 15px; color: #dc3545; font-weight: bold;">
+          ❌ не соответствует
+        </span>
+      </div>
+
+      <!-- Итоговый вердикт -->
+      <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #dee2e6;">
+        <span style="font-weight: bold;">Итог: </span>
+
+        <span th:if="${criteriaMatch.fullyMatches}" style="color: #28a745; font-weight: bold;">
+          ✅ Ребенок полностью соответствует критериям группы
+        </span>
+        <span th:if="${not criteriaMatch.fullyMatches}" style="color: #dc3545; font-weight: bold;">
+          ⚠️ Ребенок не полностью соответствует критериям группы
+        </span>
+        <span style="display: block; font-size: 0.85em; color: #6c757d; margin-top: 3px;">
+          (рекомендация для администратора)
+        </span>
+      </div>
+    </div>
+
     <form th:action="@{/join-requests/{id}/process(id=${request.id})}" method="post">
       <div style="margin-bottom: 15px;">
         <label style="font-weight: bold; display: block; margin-bottom: 5px;">Решение:</label>

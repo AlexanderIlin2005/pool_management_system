@@ -11,6 +11,8 @@ import ru.sashil.admin.service.GroupJoinService;
 import ru.sashil.admin.service.GroupMemberService;
 
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 @Controller
 @RequestMapping("/join-requests")
@@ -39,7 +41,6 @@ public class GroupJoinController {
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "join-requests");
         model.addAttribute("currentTab", isNewTab ? "new" : "archive");
-        // unreadJoinRequestsCount теперь добавляется через GlobalControllerAdvice
 
         return "group-join-requests";
     }
@@ -53,12 +54,44 @@ public class GroupJoinController {
 
         int memberCount = memberService.getMemberCount(req.getGroup().getId());
 
+        // Вычисляем соответствие критериям на Java
+        Map<String, Object> criteriaMatch = new HashMap<>();
+
+        // Возраст
+        boolean ageOk = true;
+        if (req.getGroup().getMinAge() != null && req.getChild().getAge() < req.getGroup().getMinAge()) {
+            ageOk = false;
+        }
+        if (req.getGroup().getMaxAge() != null && req.getChild().getAge() > req.getGroup().getMaxAge()) {
+            ageOk = false;
+        }
+        criteriaMatch.put("ageOk", ageOk);
+
+        // Навык
+        boolean skillOk = false;
+        String childSkill = req.getChild().getSkill() != null ? req.getChild().getSkill().getDbValue() : null;
+        String groupSkill1 = req.getGroup().getSkill1();
+        String groupSkill2 = req.getGroup().getSkill2();
+
+        // Если у группы не заданы навыки - любой подходит
+        if (groupSkill1 == null && groupSkill2 == null) {
+            skillOk = true;
+        } else if (childSkill != null) {
+            if (childSkill.equals(groupSkill1) || childSkill.equals(groupSkill2)) {
+                skillOk = true;
+            }
+        }
+        criteriaMatch.put("skillOk", skillOk);
+
+        // Итоговый вердикт
+        criteriaMatch.put("fullyMatches", ageOk && skillOk);
+
         model.addAttribute("request", req);
         model.addAttribute("memberCount", memberCount);
+        model.addAttribute("criteriaMatch", criteriaMatch);
         model.addAttribute("fullName", user.getFullName());
         model.addAttribute("role", user.getRole());
         model.addAttribute("activePage", "join-requests");
-        // unreadJoinRequestsCount теперь добавляется через GlobalControllerAdvice
 
         return "group-join-request-detail";
     }
