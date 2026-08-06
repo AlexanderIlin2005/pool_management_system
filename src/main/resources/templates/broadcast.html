@@ -214,7 +214,16 @@
         sessionStorage.removeItem(STORAGE_BROADCAST_SENT);
     }
 
-    // Плавное исчезновение уведомления (увеличенное время)
+    // Функция удаления параметра success из URL
+    function removeSuccessParam() {
+        if (window.history && window.history.replaceState) {
+            var url = new URL(window.location.href);
+            url.searchParams.delete('success');
+            window.history.replaceState({}, document.title, url.toString());
+        }
+    }
+
+    // Плавное исчезновение уведомления
     function fadeOutSuccessAlert() {
         var alert = document.getElementById('successAlert');
         if (alert) {
@@ -224,17 +233,21 @@
                 // Удаляем элемент после завершения анимации
                 setTimeout(function() {
                     alert.style.display = 'none';
+                    // Удаляем параметр success из URL после того как уведомление скрылось
+                    removeSuccessParam();
                 }, 1500);
             }, 3000);
+        } else {
+            // Если уведомления нет, но параметр есть - удаляем его
+            removeSuccessParam();
         }
     }
 
     // Инициализация при загрузке страницы
     document.addEventListener('DOMContentLoaded', function() {
-        // Отключаем автозаполнение через JS (дополнительная защита)
+        // Отключаем автозаполнение через JS
         document.querySelectorAll('input, select, textarea').forEach(function(el) {
             el.setAttribute('autocomplete', 'off');
-            // Для старых браузеров
             el.setAttribute('autocorrect', 'off');
             el.setAttribute('autocapitalize', 'off');
             el.setAttribute('spellcheck', 'false');
@@ -247,7 +260,7 @@
         if (wasSent === 'true' || hasSuccess) {
             // Очищаем состояние
             clearBroadcastState();
-            // Очищаем поля формы с принудительным сбросом
+            // Очищаем поля формы
             var targetSelect = document.getElementById('targetType');
             targetSelect.value = 'GROUP';
             var groupSelect = document.getElementById('groupId');
@@ -256,7 +269,6 @@
             }
             var messageText = document.getElementById('messageText');
             messageText.value = '';
-            // Принудительно сбрасываем сохраненные значения браузера
             messageText.defaultValue = '';
             toggleGroupSelect();
             // Убираем флаг
