@@ -2,15 +2,36 @@
 <html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Рассылка сообщений', ~{::content})}">
 <body>
 <div th:fragment="content">
+  <style>
+    .alert-success {
+        background: #d4edda;
+        color: #155724;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        transition: opacity 0.5s ease-in-out;
+    }
+    .alert-success.fade-out {
+        opacity: 0;
+    }
+    .alert-error {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+    }
+  </style>
+
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto;">
     <h1>Рассылка сообщений</h1>
 
-    <div th:if="${param.error}" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-      Ошибка: Тренеры не могут делать общую рассылку всем родителям. Выберите конкретную группу.
+    <div id="successAlert" th:if="${param.success}" class="alert-success">
+      ✅ Рассылка успешно отправлена!
     </div>
 
-    <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-      ✅ Рассылка успешно отправлена!
+    <div th:if="${param.error}" class="alert-error">
+      Ошибка: Тренеры не могут делать общую рассылку всем родителям. Выберите конкретную группу.
     </div>
 
     <form th:action="@{/broadcast/send}" method="post" id="broadcastForm" style="margin-bottom: 30px;">
@@ -90,11 +111,18 @@
   </div>
 
   <script>
-    // Ключи для sessionStorage
-    const STORAGE_BROADCAST_TARGET = 'broadcastTargetType';
-    const STORAGE_BROADCAST_GROUP = 'broadcastGroupId';
-    const STORAGE_BROADCAST_MESSAGE = 'broadcastMessageText';
-    const STORAGE_BROADCAST_SENT = 'broadcastWasSent';
+    // Получаем userId из атрибутов сессии (передаем через Thymeleaf)
+    const userId = /*[[${session.currentUser.id}]]*/ null;
+
+    // Ключи для sessionStorage с привязкой к пользователю
+    function getStorageKey(baseKey) {
+        return userId ? 'user_' + userId + '_' + baseKey : baseKey;
+    }
+
+    const STORAGE_BROADCAST_TARGET = getStorageKey('broadcastTargetType');
+    const STORAGE_BROADCAST_GROUP = getStorageKey('broadcastGroupId');
+    const STORAGE_BROADCAST_MESSAGE = getStorageKey('broadcastMessageText');
+    const STORAGE_BROADCAST_SENT = getStorageKey('broadcastWasSent');
 
     // Функция сохранения состояния формы
     function saveBroadcastState() {
@@ -181,16 +209,29 @@
         sessionStorage.removeItem(STORAGE_BROADCAST_SENT);
     }
 
+    // Плавное исчезновение уведомления
+    function fadeOutSuccessAlert() {
+        var alert = document.getElementById('successAlert');
+        if (alert) {
+            // Добавляем класс для анимации исчезновения
+            alert.classList.add('fade-out');
+            // Удаляем элемент после завершения анимации
+            setTimeout(function() {
+                alert.style.display = 'none';
+            }, 500);
+        }
+    }
+
     // Инициализация при загрузке страницы
     document.addEventListener('DOMContentLoaded', function() {
-        // Проверяем, была ли успешная отправка
+        // Проверяем флаг отправки
         var wasSent = sessionStorage.getItem(STORAGE_BROADCAST_SENT);
         var hasSuccess = new URLSearchParams(window.location.search).has('success');
 
         if (wasSent === 'true' || hasSuccess) {
-            // Если была отправка - очищаем всё
+            // Очищаем состояние
             clearBroadcastState();
-            // Сбрасываем поля на дефолтные значения
+            // Очищаем поля формы
             document.getElementById('targetType').value = 'GROUP';
             var groupSelect = document.getElementById('groupId');
             if (groupSelect.options.length > 0) {
@@ -198,14 +239,17 @@
             }
             document.getElementById('messageText').value = '';
             toggleGroupSelect();
-            // Убираем флаг, чтобы при следующем reload не очищалось
+            // Убираем флаг
             sessionStorage.removeItem(STORAGE_BROADCAST_SENT);
+
+            // Запускаем плавное исчезновение уведомления
+            fadeOutSuccessAlert();
         } else {
-            // Если не было отправки - восстанавливаем состояние
+            // Восстанавливаем состояние
             restoreBroadcastState();
         }
 
-        // Добавляем обработчики для автоматического сохранения
+        // Добавляем обработчики для автосохранения
         var targetSelect = document.getElementById('targetType');
         var groupSelect = document.getElementById('groupId');
         var messageText = document.getElementById('messageText');
@@ -213,7 +257,6 @@
         if (targetSelect) {
             targetSelect.addEventListener('change', function() {
                 toggleGroupSelect();
-                // Сохраняем только если не было отправки
                 if (sessionStorage.getItem(STORAGE_BROADCAST_SENT) !== 'true') {
                     saveBroadcastState();
                 }
@@ -243,22 +286,16 @@
 
         // Обработчик отправки формы
         var form = document.getElementById('broadcastForm');
-        var sendButton = document.getElementById('sendButton');
-
         if (form) {
-            form.addEventListener('submit', function(e) {
-                // Устанавливаем флаг, что отправка была выполнена
+            form.addEventListener('submit', function() {
                 sessionStorage.setItem(STORAGE_BROADCAST_SENT, 'true');
-                // Очищаем состояние сразу
                 clearBroadcastState();
-                // Разрешаем отправку
                 return true;
             });
         }
 
-        // Сохраняем состояние при закрытии страницы
+        // Сохраняем состояние при закрытии
         window.addEventListener('beforeunload', function() {
-            // Сохраняем только если не было отправки
             if (sessionStorage.getItem(STORAGE_BROADCAST_SENT) !== 'true') {
                 saveBroadcastState();
             }
