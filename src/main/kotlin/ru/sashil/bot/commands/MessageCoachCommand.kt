@@ -14,6 +14,9 @@ class MessageCoachCommand(
     private val userSteps = ConcurrentHashMap<Long, Int>()
     private val userData = ConcurrentHashMap<Long, MutableMap<String, String>>()
 
+    // Динамически получаем номер команды "Написать администратору"
+    private val adminCommandNumber = BotCommandType.MESSAGE_ADMIN.getCommandNumber()
+
     override fun start(userId: Long): CommandResult {
         userSteps[userId] = 1
         userData[userId] = mutableMapOf()
@@ -27,7 +30,7 @@ class MessageCoachCommand(
         if (children.isEmpty()) {
             userSteps.remove(userId)
             return CommandResult.Complete(
-                "У Вас пока нет зарегистрированных детей. Сначала зарегистрируйте ребенка (команда 1)."
+                "У Вас пока нет зарегистрированных детей. Сначала зарегистрируйте ребенка (команда ${BotCommandType.REGISTER_CHILD.getCommandNumber()})."
             )
         }
 
@@ -36,14 +39,13 @@ class MessageCoachCommand(
             val childId = (child["id"] as Number).toLong()
             val childName = "${child["lastName"]} ${child["firstName"]}"
 
-            // Получаем уникальных тренеров ребенка
             val trainers = getUniqueTrainersForChild(childId)
 
             if (trainers.isEmpty()) {
                 userSteps.remove(userId)
                 return CommandResult.Complete(
                     "⚠️ Ваш ребенок ($childName) пока не зачислен ни в одну группу или у групп не назначены тренеры.\n\n" +
-                            "Пожалуйста, свяжитесь с администратором через команду 6."
+                            "Пожалуйста, свяжитесь с администратором через команду $adminCommandNumber."
                 )
             }
 
@@ -52,7 +54,6 @@ class MessageCoachCommand(
             data["childName"] = childName
 
             if (trainers.size == 1) {
-                // Один тренер — сразу к сообщению
                 data["trainerId"] = trainers[0].first.toString()
                 data["trainerName"] = trainers[0].second
                 userSteps[userId] = 3
@@ -62,7 +63,6 @@ class MessageCoachCommand(
                             "Напишите Ваше сообщение для тренера.\n\n(Для отмены напишите 'отмена')"
                 )
             } else {
-                // Несколько тренеров — выбираем
                 data["trainers"] = trainers.joinToString("|") { "${it.first}:${it.second}" }
                 userSteps[userId] = 2
                 val sb = StringBuilder("У Вашего ребенка несколько тренеров. Выберите, кому написать:\n\n")
@@ -100,7 +100,6 @@ class MessageCoachCommand(
         }
 
         when (step) {
-            // Шаг 1: Выбор ребенка (если их несколько)
             1 -> {
                 val children = try {
                     dbService.getChildrenByParentVkId(userId)
@@ -124,7 +123,7 @@ class MessageCoachCommand(
                     userData.remove(userId)
                     return CommandResult.Complete(
                         "⚠️ Ребенок $childName пока не зачислен ни в одну группу или у групп не назначены тренеры.\n\n" +
-                                "Пожалуйста, выберите другого ребенка или свяжитесь с администратором через команду 6."
+                                "Пожалуйста, выберите другого ребенка или свяжитесь с администратором через команду $adminCommandNumber."
                     )
                 }
 
@@ -152,7 +151,6 @@ class MessageCoachCommand(
                 }
             }
 
-            // Шаг 2: Выбор тренера (если их несколько)
             2 -> {
                 val trainersStr = data["trainers"] ?: return CommandResult.Error("Ошибка данных тренеров")
                 val trainers = trainersStr.split("|").mapNotNull {
@@ -177,7 +175,6 @@ class MessageCoachCommand(
                 )
             }
 
-            // Шаг 3: Ввод и отправка сообщения
             3 -> {
                 val childId = data["childId"]?.toLong() ?: return CommandResult.Error("Ребенок не выбран")
                 val trainerId = data["trainerId"]?.toLong() ?: return CommandResult.Error("Тренер не выбран")
@@ -191,7 +188,6 @@ class MessageCoachCommand(
                     "Родитель (VK ID: $userId)"
                 }
 
-                // Находим группу, связывающую этого ребенка и этого тренера
                 val groupId = getGroupIdForChildAndTrainer(childId, trainerId)
 
                 try {
@@ -240,9 +236,6 @@ class MessageCoachCommand(
         }
     }
 
-    /**
-     * Возвращает список уникальных тренеров ребенка: List<Pair<trainerId, trainerName>>
-     */
     private fun getUniqueTrainersForChild(childId: Long): List<Pair<Long, String>> {
         val trainers = mutableListOf<Pair<Long, String>>()
         try {
@@ -269,9 +262,6 @@ class MessageCoachCommand(
         return trainers
     }
 
-    /**
-     * Находит ID группы, связывающей конкретного ребенка и конкретного тренера
-     */
     private fun getGroupIdForChildAndTrainer(childId: Long, trainerId: Long): Long? {
         try {
             val sql = "SELECT gc.group_id FROM pool.group_children gc " +
