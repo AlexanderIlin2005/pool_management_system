@@ -9,7 +9,7 @@
         padding: 10px;
         border-radius: 4px;
         margin-bottom: 15px;
-        transition: opacity 0.5s ease-in-out;
+        transition: opacity 1.5s ease-in-out;
     }
     .alert-success.fade-out {
         opacity: 0;
@@ -20,6 +20,11 @@
         padding: 10px;
         border-radius: 4px;
         margin-bottom: 15px;
+    }
+
+    /* Отключаем автозаполнение браузера */
+    input, select, textarea {
+        autocomplete: off;
     }
   </style>
 
@@ -34,10 +39,10 @@
       Ошибка: Тренеры не могут делать общую рассылку всем родителям. Выберите конкретную группу.
     </div>
 
-    <form th:action="@{/broadcast/send}" method="post" id="broadcastForm" style="margin-bottom: 30px;">
+    <form th:action="@{/broadcast/send}" method="post" id="broadcastForm" style="margin-bottom: 30px;" autocomplete="off">
       <div style="margin-bottom: 15px;">
         <label style="font-weight: bold; display: block; margin-bottom: 5px;">Кому отправить:</label>
-        <select name="targetType" id="targetType" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+        <select name="targetType" id="targetType" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;" autocomplete="off">
           <option th:unless="${isCoach}" value="ALL" id="optionAll">Всем зарегистрированным родителям</option>
           <option value="GROUP" selected id="optionGroup">Родителям конкретной группы</option>
         </select>
@@ -48,14 +53,14 @@
           <span th:if="${isCoach}">Выберите одну из Ваших групп:</span>
           <span th:unless="${isCoach}">Выберите группу:</span>
         </label>
-        <select name="groupId" id="groupId" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+        <select name="groupId" id="groupId" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;" autocomplete="off">
           <option th:each="g : ${groups}" th:value="${g.id}" th:text="${g.name}" th:selected="${g.id == selectedGroupId}"></option>
         </select>
       </div>
 
       <div style="margin-bottom: 15px;">
         <label style="font-weight: bold; display: block; margin-bottom: 5px;">Текст сообщения:</label>
-        <textarea name="message" id="messageText" required rows="5" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;" placeholder="Введите текст сообщения..."></textarea>
+        <textarea name="message" id="messageText" required rows="5" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;" placeholder="Введите текст сообщения..." autocomplete="off"></textarea>
         <small style="color: #666;">
           <span th:if="${role.name() == 'COACH'}">К сообщению автоматически добавится ваша подпись.</span>
           <span th:if="${role.name() == 'ADMIN'}">К сообщению автоматически добавится подпись "Администрация бассейна".</span>
@@ -111,7 +116,7 @@
   </div>
 
   <script>
-    // Получаем userId из атрибутов сессии (передаем через Thymeleaf)
+    // Получаем userId из атрибутов сессии
     const userId = /*[[${session.currentUser.id}]]*/ null;
 
     // Ключи для sessionStorage с привязкой к пользователю
@@ -209,21 +214,32 @@
         sessionStorage.removeItem(STORAGE_BROADCAST_SENT);
     }
 
-    // Плавное исчезновение уведомления
+    // Плавное исчезновение уведомления (увеличенное время)
     function fadeOutSuccessAlert() {
         var alert = document.getElementById('successAlert');
         if (alert) {
-            // Добавляем класс для анимации исчезновения
-            alert.classList.add('fade-out');
-            // Удаляем элемент после завершения анимации
+            // Ждем 3 секунды перед началом исчезновения
             setTimeout(function() {
-                alert.style.display = 'none';
-            }, 500);
+                alert.classList.add('fade-out');
+                // Удаляем элемент после завершения анимации
+                setTimeout(function() {
+                    alert.style.display = 'none';
+                }, 1500);
+            }, 3000);
         }
     }
 
     // Инициализация при загрузке страницы
     document.addEventListener('DOMContentLoaded', function() {
+        // Отключаем автозаполнение через JS (дополнительная защита)
+        document.querySelectorAll('input, select, textarea').forEach(function(el) {
+            el.setAttribute('autocomplete', 'off');
+            // Для старых браузеров
+            el.setAttribute('autocorrect', 'off');
+            el.setAttribute('autocapitalize', 'off');
+            el.setAttribute('spellcheck', 'false');
+        });
+
         // Проверяем флаг отправки
         var wasSent = sessionStorage.getItem(STORAGE_BROADCAST_SENT);
         var hasSuccess = new URLSearchParams(window.location.search).has('success');
@@ -231,13 +247,17 @@
         if (wasSent === 'true' || hasSuccess) {
             // Очищаем состояние
             clearBroadcastState();
-            // Очищаем поля формы
-            document.getElementById('targetType').value = 'GROUP';
+            // Очищаем поля формы с принудительным сбросом
+            var targetSelect = document.getElementById('targetType');
+            targetSelect.value = 'GROUP';
             var groupSelect = document.getElementById('groupId');
             if (groupSelect.options.length > 0) {
                 groupSelect.value = groupSelect.options[0].value;
             }
-            document.getElementById('messageText').value = '';
+            var messageText = document.getElementById('messageText');
+            messageText.value = '';
+            // Принудительно сбрасываем сохраненные значения браузера
+            messageText.defaultValue = '';
             toggleGroupSelect();
             // Убираем флаг
             sessionStorage.removeItem(STORAGE_BROADCAST_SENT);
