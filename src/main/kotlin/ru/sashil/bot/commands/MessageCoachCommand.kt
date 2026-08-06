@@ -33,12 +33,30 @@ class MessageCoachCommand(
 
         if (children.size == 1) {
             val child = children[0]
+            val childId = (child["id"] as Number).toLong()
+
+            // Проверяем, есть ли у ребенка группа и тренер
+            val groupId = getChildGroupId(childId)
+            val trainerName = getTrainerName(groupId)
+
+            if (groupId == null || trainerName == null) {
+                userSteps.remove(userId)
+                return CommandResult.Complete(
+                    "⚠️ Ваш ребенок (${child["lastName"]} ${child["firstName"]}) пока не зачислен ни в одну группу или у группы не назначен тренер.\n\n" +
+                            "Пожалуйста, свяжитесь с администратором через команду 6."
+                )
+            }
+
             val data = userData[userId]!!
-            data["childId"] = (child["id"] as Number).toString()
+            data["childId"] = childId.toString()
             data["childName"] = (child["lastName"] as String) + " " + (child["firstName"] as String)
+            data["groupId"] = groupId.toString()
             userSteps[userId] = 2
+
             return CommandResult.Continue(
-                "Напишите Ваше сообщение для тренера.\n\n(Для отмены напишите 'отмена')"
+                "Вы выбрали ребенка: ${data["childName"]}\n" +
+                        "Тренер: $trainerName\n\n" +
+                        "Напишите Ваше сообщение для тренера.\n\n(Для отмены напишите 'отмена')"
             )
         } else {
             val sb = StringBuilder("Выберите ребенка:\n\n")
@@ -80,29 +98,38 @@ class MessageCoachCommand(
                         "Пожалуйста, введите номер ребенка от 1 до ${children.size}."
                     )
                 }
-                val child = children[num - 1]
-                data["childId"] = (child["id"] as Number).toString()
-                data["childName"] = (child["lastName"] as String) + " " + (child["firstName"] as String)
-                userSteps[userId] = 2
 
-                // Получаем имя тренера для отображения
-                val groupId = getChildGroupId(data["childId"]!!.toLong())
+                val child = children[num - 1]
+                val childId = (child["id"] as Number).toLong()
+
+                // Проверяем наличие группы и тренера
+                val groupId = getChildGroupId(childId)
                 val trainerName = getTrainerName(groupId)
 
-                val trainerInfo = if (trainerName != null && trainerName.isNotEmpty()) {
-                    " ($trainerName)"
-                } else {
-                    ""
+                if (groupId == null || trainerName == null) {
+                    userSteps.remove(userId)
+                    userData.remove(userId)
+                    return CommandResult.Complete(
+                        "⚠️ Ребенок ${child["lastName"]} ${child["firstName"]} пока не зачислен ни в одну группу или у группы не назначен тренер.\n\n" +
+                                "Пожалуйста, выберите другого ребенка или свяжитесь с администратором через команду 6."
+                    )
                 }
+
+                data["childId"] = childId.toString()
+                data["childName"] = (child["lastName"] as String) + " " + (child["firstName"] as String)
+                data["groupId"] = groupId.toString()
+                userSteps[userId] = 2
 
                 return CommandResult.Continue(
                     "Вы выбрали ребенка: ${data["childName"]}\n" +
-                            "Тренер: $trainerInfo\n\n" +
+                            "Тренер: $trainerName\n\n" +
                             "Напишите Ваше сообщение для тренера.\n\n(Для отмены напишите 'отмена')"
                 )
             }
             2 -> {
                 val childId = data["childId"]!!.toLong()
+                val groupId = data["groupId"]?.toLong()
+
                 val parentData = dbService.getParentData(userId)
                 val parentName = if (parentData != null) {
                     "${parentData["lastName"]} ${parentData["firstName"]}"
@@ -113,7 +140,6 @@ class MessageCoachCommand(
                 val childName = data["childName"] ?: "ребенок"
 
                 try {
-                    val groupId = getChildGroupId(childId)
                     val trainerId = getTrainerId(groupId)
                     val trainerName = getTrainerName(groupId)
 
