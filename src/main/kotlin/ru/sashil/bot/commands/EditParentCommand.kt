@@ -45,9 +45,9 @@ class EditParentCommand(
         userData[userId] = data
 
         return CommandResult.Continue(
-            "Редактирование профиля:\n" +
+            "Редактирование профиля:\n\n" +
                     "Текущая фамилия: ${data["lastName"]}\n" +
-                    "Введите новую фамилию (или '-'(тире/минус) для пропуска):"
+                    "Введите новую фамилию (или '-' для пропуска):"
         )
     }
 
@@ -69,7 +69,10 @@ class EditParentCommand(
                     data["lastName"] = text.trim()
                 }
                 userSteps[userId] = 2
-                return CommandResult.Continue("Введите новое имя (или '-'(тире/минус) для пропуска):")
+                return CommandResult.Continue(
+                    "Текущее имя: ${data["firstName"]}\n" +
+                            "Введите новое имя (или '-' для пропуска):"
+                )
             }
             2 -> {
                 if (!CommandUtils.isSkipCommand(text)) {
@@ -77,43 +80,52 @@ class EditParentCommand(
                     data["firstName"] = text.trim()
                 }
                 userSteps[userId] = 3
-                return CommandResult.Continue("Введите новое отчество (или '-'(тире/минус) для пропуска):")
+                return CommandResult.Continue(
+                    "Текущее отчество: ${data["middleName"]?.ifEmpty { "—" } ?: "—"}\n" +
+                            "Введите новое отчество (или '-' для пропуска):"
+                )
             }
             3 -> {
                 if (!CommandUtils.isSkipCommand(text)) {
                     data["middleName"] = text.trim()
                 }
                 userSteps[userId] = 4
-                return CommandResult.Continue("Введите новый email (или '-'(тире/минус) для пропуска):")
+                return CommandResult.Continue(
+                    "Текущий email: ${data["email"]?.ifEmpty { "—" } ?: "—"}\n" +
+                            "Введите новый email (или '-' для пропуска):"
+                )
             }
             4 -> {
                 if (!CommandUtils.isSkipCommand(text)) {
                     if (!emailPattern.matcher(text).matches()) {
-                        return CommandResult.Continue("❌ Неверный формат email. Попробуйте снова или '-'(тире/минус) для пропуска.")
+                        return CommandResult.Continue("❌ Неверный формат email. Попробуйте снова или '-' для пропуска.")
                     }
                     data["email"] = text.trim()
                 }
                 userSteps[userId] = 5
-                return CommandResult.Continue("Введите новый телефон (формат: +7XXXXXXXXXX или 8XXXXXXXXXX):\nили '-'(тире/минус) для пропуска.")
+                return CommandResult.Continue(
+                    "Текущий телефон: ${data["phone"]?.ifEmpty { "—" } ?: "—"}\n" +
+                            "Введите новый телефон (формат: +7XXXXXXXXXX или 8XXXXXXXXXX):\nили '-' для пропуска."
+                )
             }
             5 -> {
                 if (!CommandUtils.isSkipCommand(text)) {
                     val phone = text.trim()
                     val cleaned = phone.replace(Regex("\\D"), "")
                     if (cleaned.length !in 10..11) {
-                        return CommandResult.Continue("❌ Неверный формат телефона. Используйте +7XXXXXXXXXX или 8XXXXXXXXXX.\nили '-'(тире/минус) для пропуска.")
+                        return CommandResult.Continue("❌ Неверный формат телефона. Используйте +7XXXXXXXXXX или 8XXXXXXXXXX.\nили '-' для пропуска.")
                     }
                     data["phone"] = phone
                 }
 
                 userSteps[userId] = 6
                 return CommandResult.Continue(
-                    "Проверьте введенные данные:\n" +
+                    "Проверьте введенные данные:\n\n" +
                             "Фамилия: ${data["lastName"]}\n" +
                             "Имя: ${data["firstName"]}\n" +
                             "Отчество: ${data["middleName"]?.ifEmpty { "—" } ?: "—"}\n" +
                             "Email: ${data["email"]?.ifEmpty { "—" } ?: "—"}\n" +
-                            "Телефон: ${data["phone"]?.ifEmpty { "—" } ?: "—"}\n" +
+                            "Телефон: ${data["phone"]?.ifEmpty { "—" } ?: "—"}\n\n" +
                             "Всё верно?\n" +
                             "Напишите 'да' для сохранения или 'нет' для отмены."
                 )
