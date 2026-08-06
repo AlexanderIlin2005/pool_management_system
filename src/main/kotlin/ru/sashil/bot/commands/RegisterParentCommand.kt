@@ -60,7 +60,7 @@ class RegisterParentCommand(
                 }
                 data["firstName"] = text.trim()
                 userSteps[userId] = 3
-                return CommandResult.Continue("Введите Ваше отчество (или нажмите пробел, если нет):")
+                return CommandResult.Continue("Введите Ваше отчество (или '-'(тире/минус) для пропуска):")
             }
             3 -> {
                 val middleName = if (CommandUtils.isSkipCommand(text)) "" else text.trim()

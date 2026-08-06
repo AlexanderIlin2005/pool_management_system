@@ -784,7 +784,7 @@ public class DatabaseService {
             }
         }
 
-        String message = "Новая заявка на запись!\n\n" +
+        String message = "Ваша заявка отправлена.\n\n" +
                 "Ребенок: " + childName + "\n" +
                 "Группа: " + groupName;
 

@@ -36,7 +36,6 @@ class EditChildCommand(
             return CommandResult.Complete("У Вас пока нет зарегистрированных детей.\nНапишите 'меню' для регистрации ребенка.")
         }
 
-        userSteps[userId] = 1
         val data = mutableMapOf<String, String>()
         userData[userId] = data
 
@@ -45,20 +44,18 @@ class EditChildCommand(
             val childId = (child["id"] as Number).toLong()
             editingChildId[userId] = childId
 
-            data["childName"] = "${child["lastName"]} ${child["firstName"]}"
-            data["lastName"] = child["lastName"] as? String ?: ""
-            data["firstName"] = child["firstName"] as? String ?: ""
-            data["middleName"] = child["middleName"] as? String ?: ""
-            data["birthDate"] = child["birthDate"] as? String ?: ""
-            data["gradeNumber"] = child["gradeNumber"]?.toString() ?: "0"
-            data["gradeName"] = child["gradeName"] as? String ?: ""
-            data["skill"] = child["skill"] as? String ?: ""
+            fillChildData(data, child)
+
+            // СРАЗУ ставим шаг 2, минуя выбор номера
+            userSteps[userId] = 2
 
             return CommandResult.Continue(
-                "Редактирование ребенка: ${data["childName"]}\n" +
-                        "Введите новую фамилию (или '-'(тире/минус) для пропуска):"
+                "Редактирование ребенка: ${data["childName"]}\n\n" +
+                        "Текущая фамилия: ${data["lastName"]}\n" +
+                        "Введите новую фамилию (или '-' для пропуска):"
             )
         } else {
+            userSteps[userId] = 1
             val sb = StringBuilder("Выберите ребенка для редактирования:\n")
             children.forEachIndexed { i, child ->
                 val name = "${child["lastName"]} ${child["firstName"]}"
@@ -85,6 +82,7 @@ class EditChildCommand(
             return CommandResult.Cancel()
         }
 
+        // Выбор ребенка (только если их несколько и мы на шаге 1)
         if (!editingChildId.containsKey(userId) && step == 1) {
             val children = try {
                 dbService.getChildrenByParentVkId(userId)
@@ -99,25 +97,26 @@ class EditChildCommand(
             val childId = (child["id"] as Number).toLong()
             editingChildId[userId] = childId
 
-            data["childName"] = "${child["lastName"]} ${child["firstName"]}"
-            data["lastName"] = child["lastName"] as? String ?: ""
-            data["firstName"] = child["firstName"] as? String ?: ""
-            data["middleName"] = child["middleName"] as? String ?: ""
-            data["birthDate"] = child["birthDate"] as? String ?: ""
-            data["gradeNumber"] = child["gradeNumber"]?.toString() ?: "0"
-            data["gradeName"] = child["gradeName"] as? String ?: ""
-            data["skill"] = child["skill"] as? String ?: ""
+            fillChildData(data, child)
 
             userSteps[userId] = 2
             return CommandResult.Continue(
-                "Редактирование ребенка: ${data["childName"]}\n" +
-                        "Введите новую фамилию (или '-'(тире/минус) для пропуска):"
+                "Редактирование ребенка: ${data["childName"]}\n\n" +
+                        "Текущая фамилия: ${data["lastName"]}\n" +
+                        "Введите новую фамилию (или '-' для пропуска):"
             )
         }
 
         when (step) {
             1 -> {
-                return CommandResult.Continue("Пожалуйста, введите номер ребенка.")
+                // Этот блок достижим только если editingChildId уже установлен,
+                // но по какой-то причине step остался 1. Переходим к шагу 2.
+                userSteps[userId] = 2
+                return CommandResult.Continue(
+                    "Редактирование ребенка: ${data["childName"]}\n\n" +
+                            "Текущая фамилия: ${data["lastName"]}\n" +
+                            "Введите новую фамилию (или '-' для пропуска):"
+                )
             }
             2 -> {
                 if (!CommandUtils.isSkipCommand(text)) {
@@ -125,7 +124,10 @@ class EditChildCommand(
                     data["lastName"] = text.trim()
                 }
                 userSteps[userId] = 3
-                return CommandResult.Continue("Введите новое имя (или '-'(тире/минус) для пропуска):")
+                return CommandResult.Continue(
+                    "Текущее имя: ${data["firstName"]}\n" +
+                            "Введите новое имя (или '-' для пропуска):"
+                )
             }
             3 -> {
                 if (!CommandUtils.isSkipCommand(text)) {
@@ -133,14 +135,20 @@ class EditChildCommand(
                     data["firstName"] = text.trim()
                 }
                 userSteps[userId] = 4
-                return CommandResult.Continue("Введите новое отчество (или '-'(тире/минус) для пропуска):")
+                return CommandResult.Continue(
+                    "Текущее отчество: ${data["middleName"].orEmpty().ifEmpty { "—" }}\n" +
+                            "Введите новое отчество (или '-' для пропуска):"
+                )
             }
             4 -> {
                 if (!CommandUtils.isSkipCommand(text)) {
                     data["middleName"] = text.trim()
                 }
                 userSteps[userId] = 5
-                return CommandResult.Continue("Введите новую дату рождения (ДД.ММ.ГГГГ) или '-'(тире/минус) для пропуска:")
+                return CommandResult.Continue(
+                    "Текущая дата рождения: ${formatDate(data["birthDate"].orEmpty())}\n" +
+                            "Введите новую дату рождения (ДД.ММ.ГГГГ) или '-' для пропуска:"
+                )
             }
             5 -> {
                 if (!CommandUtils.isSkipCommand(text)) {
@@ -154,7 +162,10 @@ class EditChildCommand(
                     data["birthDate"] = sqlDate
                 }
                 userSteps[userId] = 6
-                return CommandResult.Continue("Введите новый номер класса (1-11) или '-'(тире/минус) для пропуска:")
+                return CommandResult.Continue(
+                    "Текущий номер класса: ${data["gradeNumber"]}\n" +
+                            "Введите новый номер класса (1-11) или '-' для пропуска:"
+                )
             }
             6 -> {
                 if (!CommandUtils.isSkipCommand(text)) {
@@ -167,7 +178,10 @@ class EditChildCommand(
                     }
                 }
                 userSteps[userId] = 7
-                return CommandResult.Continue("Введите полное название класса (или '-'(тире/минус) для пропуска):")
+                return CommandResult.Continue(
+                    "Текущее название класса: ${data["gradeName"].orEmpty().ifEmpty { "—" }}\n" +
+                            "Введите полное название класса (или '-' для пропуска):"
+                )
             }
             7 -> {
                 if (!CommandUtils.isSkipCommand(text)) {
@@ -175,11 +189,12 @@ class EditChildCommand(
                 }
                 userSteps[userId] = 8
                 return CommandResult.Continue(
-                    "Выберите навык плавания:\n" +
+                    "Текущий навык: ${data["skill"].orEmpty().ifEmpty { "—" }}\n\n" +
+                            "Выберите навык плавания:\n" +
                             "1. Уверенно плавает\n" +
                             "2. Держится на воде\n" +
                             "3. Не умеет плавать\n" +
-                            "(Введите номер или '-'(тире/минус) для пропуска)"
+                            "(Введите номер или '-' для пропуска)"
                 )
             }
             8 -> {
@@ -198,7 +213,7 @@ class EditChildCommand(
                             "ФИО: ${data["lastName"]} ${data["firstName"]} ${data["middleName"]}\n" +
                             "Дата рождения: ${formatDate(data["birthDate"].orEmpty())}\n" +
                             "Класс: ${data["gradeName"]} (${data["gradeNumber"]})\n" +
-                            "Навык: ${data["skill"]}\n" +
+                            "Навык: ${data["skill"]}\n\n" +
                             "Всё верно?\n" +
                             "Напишите 'да' для сохранения или 'нет' для отмены."
                 )
@@ -246,14 +261,29 @@ class EditChildCommand(
         }
     }
 
+    /**
+     * Заполняет map данными ребенка из БД
+     */
+    private fun fillChildData(data: MutableMap<String, String>, child: Map<String, Any?>) {
+        data["childName"] = "${child["lastName"]} ${child["firstName"]}"
+        data["lastName"] = child["lastName"] as? String ?: ""
+        data["firstName"] = child["firstName"] as? String ?: ""
+        data["middleName"] = child["middleName"] as? String ?: ""
+        data["birthDate"] = child["birthDate"] as? String ?: ""
+        data["gradeNumber"] = child["gradeNumber"]?.toString() ?: "0"
+        data["gradeName"] = child["gradeName"] as? String ?: ""
+        data["skill"] = child["skill"] as? String ?: ""
+    }
+
     private fun formatDate(dateStr: String): String {
+        if (dateStr.isBlank()) return "—"
         try {
             val parts = dateStr.split("-")
             if (parts.size == 3) {
                 return "${parts[2]}.${parts[1]}.${parts[0]}"
             }
         } catch (_: Exception) {}
-        return dateStr
+        return dateStr.ifBlank { "—" }
     }
 
     override fun cancel(userId: Long): CommandResult {
