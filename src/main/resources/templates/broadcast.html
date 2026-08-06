@@ -9,37 +9,39 @@
       Ошибка: Тренеры не могут делать общую рассылку всем родителям. Выберите конкретную группу.
     </div>
 
-    <form th:action="@{/broadcast/send}" method="post" style="margin-bottom: 30px;">
+    <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+      ✅ Рассылка успешно отправлена!
+    </div>
+
+    <form th:action="@{/broadcast/send}" method="post" id="broadcastForm" style="margin-bottom: 30px;">
       <div style="margin-bottom: 15px;">
         <label style="font-weight: bold; display: block; margin-bottom: 5px;">Кому отправить:</label>
-        <select name="targetType" id="targetType" onchange="toggleGroupSelect()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
-
-          <option th:unless="${isCoach}" value="ALL">Всем зарегистрированным родителям</option>
-          <option value="GROUP" selected>Родителям конкретной группы</option>
+        <select name="targetType" id="targetType" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+          <option th:unless="${isCoach}" value="ALL" id="optionAll">Всем зарегистрированным родителям</option>
+          <option value="GROUP" selected id="optionGroup">Родителям конкретной группы</option>
         </select>
       </div>
 
       <div id="groupSelectBlock" style="display: block; margin-bottom: 15px;">
         <label style="font-weight: bold; display: block; margin-bottom: 5px;">
-
           <span th:if="${isCoach}">Выберите одну из Ваших групп:</span>
           <span th:unless="${isCoach}">Выберите группу:</span>
         </label>
-        <select name="groupId" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
-          <option th:each="g : ${groups}" th:value="${g.id}" th:text="${g.name}"></option>
+        <select name="groupId" id="groupId" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+          <option th:each="g : ${groups}" th:value="${g.id}" th:text="${g.name}" th:selected="${g.id == selectedGroupId}"></option>
         </select>
       </div>
 
       <div style="margin-bottom: 15px;">
         <label style="font-weight: bold; display: block; margin-bottom: 5px;">Текст сообщения:</label>
-        <textarea name="message" required rows="5" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;" placeholder="Введите текст сообщения..."></textarea>
+        <textarea name="message" id="messageText" required rows="5" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;" placeholder="Введите текст сообщения..."></textarea>
         <small style="color: #666;">
           <span th:if="${role.name() == 'COACH'}">К сообщению автоматически добавится ваша подпись.</span>
           <span th:if="${role.name() == 'ADMIN'}">К сообщению автоматически добавится подпись "Администрация бассейна".</span>
         </small>
       </div>
 
-      <button type="submit" class="btn">Отправить рассылку</button>
+      <button type="submit" class="btn" id="sendButton">Отправить рассылку</button>
     </form>
 
     <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
@@ -68,7 +70,6 @@
         </td>
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${h.sent_count}"></td>
 
-
         <td style="padding: 10px; border: 1px solid #ddd; max-width: 300px;">
           <div th:id="'msg-preview-' + ${h.id}" th:text="${#strings.length(h.message_text) > 50 ? #strings.substring(h.message_text, 0, 50) + '...' : h.message_text}"
                style="white-space: pre-wrap; word-break: break-word;"></div>
@@ -89,14 +90,72 @@
   </div>
 
   <script>
+    // Ключи для sessionStorage
+    const STORAGE_BROADCAST_TARGET = 'broadcastTargetType';
+    const STORAGE_BROADCAST_GROUP = 'broadcastGroupId';
+    const STORAGE_BROADCAST_MESSAGE = 'broadcastMessageText';
+    const STORAGE_BROADCAST_SENT = 'broadcastWasSent';
+
+    // Функция сохранения состояния формы
+    function saveBroadcastState() {
+        var targetType = document.getElementById('targetType').value;
+        var groupId = document.getElementById('groupId').value;
+        var message = document.getElementById('messageText').value;
+
+        sessionStorage.setItem(STORAGE_BROADCAST_TARGET, targetType);
+        sessionStorage.setItem(STORAGE_BROADCAST_GROUP, groupId);
+        sessionStorage.setItem(STORAGE_BROADCAST_MESSAGE, message);
+    }
+
+    // Функция восстановления состояния формы
+    function restoreBroadcastState() {
+        var savedTarget = sessionStorage.getItem(STORAGE_BROADCAST_TARGET);
+        var savedGroup = sessionStorage.getItem(STORAGE_BROADCAST_GROUP);
+        var savedMessage = sessionStorage.getItem(STORAGE_BROADCAST_MESSAGE);
+
+        if (savedTarget) {
+            var targetSelect = document.getElementById('targetType');
+            var optionExists = false;
+            for (var i = 0; i < targetSelect.options.length; i++) {
+                if (targetSelect.options[i].value === savedTarget) {
+                    optionExists = true;
+                    break;
+                }
+            }
+            if (optionExists) {
+                targetSelect.value = savedTarget;
+            }
+        }
+
+        if (savedGroup) {
+            var groupSelect = document.getElementById('groupId');
+            var groupExists = false;
+            for (var i = 0; i < groupSelect.options.length; i++) {
+                if (groupSelect.options[i].value === savedGroup) {
+                    groupExists = true;
+                    break;
+                }
+            }
+            if (groupExists) {
+                groupSelect.value = savedGroup;
+            }
+        }
+
+        if (savedMessage) {
+            document.getElementById('messageText').value = savedMessage;
+        }
+
+        toggleGroupSelect();
+    }
+
+    // Функция переключения видимости блока группы
     function toggleGroupSelect() {
         const type = document.getElementById('targetType').value;
         const block = document.getElementById('groupSelectBlock');
-        // Если выбрано "Группа", показываем блок. Если "Всем" (для админа), скрываем.
         block.style.display = (type === 'GROUP') ? 'block' : 'none';
     }
 
-    // Пункт 4: Логика раскрытия текста
+    // Функция раскрытия текста в истории
     function toggleMessage(id) {
         const preview = document.getElementById('msg-preview-' + id);
         const full = document.getElementById('msg-full-' + id);
@@ -104,16 +163,117 @@
         if (full.style.display === 'none') {
             full.style.display = 'block';
             preview.style.display = 'none';
+            var link = full.parentElement.querySelector('a');
+            if (link) link.textContent = 'Скрыть';
         } else {
             full.style.display = 'none';
             preview.style.display = 'block';
+            var link = full.parentElement.querySelector('a');
+            if (link) link.textContent = 'Показать полностью';
         }
     }
 
-    // Инициализация состояния селектора при загрузке
-    window.onload = function() {
-        toggleGroupSelect();
-    };
+    // Очистка сохраненного состояния
+    function clearBroadcastState() {
+        sessionStorage.removeItem(STORAGE_BROADCAST_TARGET);
+        sessionStorage.removeItem(STORAGE_BROADCAST_GROUP);
+        sessionStorage.removeItem(STORAGE_BROADCAST_MESSAGE);
+        sessionStorage.removeItem(STORAGE_BROADCAST_SENT);
+    }
+
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        // Проверяем, была ли успешная отправка
+        var wasSent = sessionStorage.getItem(STORAGE_BROADCAST_SENT);
+        var hasSuccess = new URLSearchParams(window.location.search).has('success');
+
+        if (wasSent === 'true' || hasSuccess) {
+            // Если была отправка - очищаем всё
+            clearBroadcastState();
+            // Сбрасываем поля на дефолтные значения
+            document.getElementById('targetType').value = 'GROUP';
+            var groupSelect = document.getElementById('groupId');
+            if (groupSelect.options.length > 0) {
+                groupSelect.value = groupSelect.options[0].value;
+            }
+            document.getElementById('messageText').value = '';
+            toggleGroupSelect();
+            // Убираем флаг, чтобы при следующем reload не очищалось
+            sessionStorage.removeItem(STORAGE_BROADCAST_SENT);
+        } else {
+            // Если не было отправки - восстанавливаем состояние
+            restoreBroadcastState();
+        }
+
+        // Добавляем обработчики для автоматического сохранения
+        var targetSelect = document.getElementById('targetType');
+        var groupSelect = document.getElementById('groupId');
+        var messageText = document.getElementById('messageText');
+
+        if (targetSelect) {
+            targetSelect.addEventListener('change', function() {
+                toggleGroupSelect();
+                // Сохраняем только если не было отправки
+                if (sessionStorage.getItem(STORAGE_BROADCAST_SENT) !== 'true') {
+                    saveBroadcastState();
+                }
+            });
+        }
+
+        if (groupSelect) {
+            groupSelect.addEventListener('change', function() {
+                if (sessionStorage.getItem(STORAGE_BROADCAST_SENT) !== 'true') {
+                    saveBroadcastState();
+                }
+            });
+        }
+
+        if (messageText) {
+            messageText.addEventListener('input', function() {
+                if (sessionStorage.getItem(STORAGE_BROADCAST_SENT) !== 'true') {
+                    saveBroadcastState();
+                }
+            });
+            messageText.addEventListener('blur', function() {
+                if (sessionStorage.getItem(STORAGE_BROADCAST_SENT) !== 'true') {
+                    saveBroadcastState();
+                }
+            });
+        }
+
+        // Обработчик отправки формы
+        var form = document.getElementById('broadcastForm');
+        var sendButton = document.getElementById('sendButton');
+
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                // Устанавливаем флаг, что отправка была выполнена
+                sessionStorage.setItem(STORAGE_BROADCAST_SENT, 'true');
+                // Очищаем состояние сразу
+                clearBroadcastState();
+                // Разрешаем отправку
+                return true;
+            });
+        }
+
+        // Сохраняем состояние при закрытии страницы
+        window.addEventListener('beforeunload', function() {
+            // Сохраняем только если не было отправки
+            if (sessionStorage.getItem(STORAGE_BROADCAST_SENT) !== 'true') {
+                saveBroadcastState();
+            }
+        });
+    });
+
+    // Сохраняем при кликах по ссылкам
+    document.addEventListener('click', function(e) {
+        var target = e.target.closest('a');
+        if (target && target.href && !target.href.startsWith('javascript:')) {
+            if (sessionStorage.getItem(STORAGE_BROADCAST_SENT) !== 'true') {
+                saveBroadcastState();
+            }
+        }
+    });
   </script>
 </div>
 </body>
