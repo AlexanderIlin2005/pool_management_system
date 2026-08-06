@@ -20,8 +20,6 @@
       <!-- Возраст -->
       <div style="display: flex; align-items: center; margin-bottom: 8px;">
         <span style="font-weight: bold; min-width: 80px;">Возраст:</span>
-        <span th:text="${request.child.age}"></span>
-        <span style="margin: 0 10px;">/</span>
         <span th:if="${request.group.minAge != null and request.group.maxAge != null}">
           <span th:text="${request.group.minAge}"></span> - <span th:text="${request.group.maxAge}"></span> лет
         </span>
@@ -32,7 +30,7 @@
           до <span th:text="${request.group.maxAge}"></span> лет
         </span>
         <span th:if="${request.group.minAge == null and request.group.maxAge == null}">
-          не задан
+          <span style="color: #6c757d;">не задан</span>
         </span>
 
         <!-- Иконка статуса -->
@@ -53,15 +51,13 @@
       <!-- Навык плавания -->
       <div style="display: flex; align-items: center; margin-bottom: 8px;">
         <span style="font-weight: bold; min-width: 80px;">Навык:</span>
-        <span th:text="${request.child.skill?.dbValue ?: 'не указан'}"></span>
-        <span style="margin: 0 10px;">/</span>
         <span th:if="${request.group.skill1 != null or request.group.skill2 != null}">
           <span th:if="${request.group.skill1 != null}" th:text="${request.group.skill1}"></span>
           <span th:if="${request.group.skill1 != null and request.group.skill2 != null}">, </span>
           <span th:if="${request.group.skill2 != null}" th:text="${request.group.skill2}"></span>
         </span>
         <span th:if="${request.group.skill1 == null and request.group.skill2 == null}">
-          не задан
+          <span style="color: #6c757d;">не задан</span>
         </span>
 
         <!-- Иконка статуса -->
