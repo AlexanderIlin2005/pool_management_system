@@ -14,7 +14,8 @@ public class SubscriptionTypeService {
     private SubscriptionTypeRepository repository;
 
     public List<SubscriptionType> getAll() {
-        return repository.findAll();
+        // Сортируем по created_at (новые сверху)
+        return repository.findAllByOrderByCreatedAtAsc();
     }
 
     public Optional<SubscriptionType> getById(Long id) {
