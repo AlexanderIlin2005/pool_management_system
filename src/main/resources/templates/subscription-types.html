@@ -217,11 +217,17 @@
             alert('Пожалуйста, введите название типа занятия.');
             return false;
         }
+
+        // Закрываем модальное окно после успешной валидации
+        var modalId = type === 'create' ? 'createModal' : 'editModal';
+        closeModal(modalId);
+
         // При отправке очищаем сохраненное состояние
         sessionStorage.removeItem(STORAGE_OPEN_MODAL);
         sessionStorage.removeItem(STORAGE_EDIT_ID);
         sessionStorage.removeItem(STORAGE_EDIT_DISPLAY_NAME);
         sessionStorage.removeItem(STORAGE_CREATE_DISPLAY_NAME);
+
         return true;
     }
 
