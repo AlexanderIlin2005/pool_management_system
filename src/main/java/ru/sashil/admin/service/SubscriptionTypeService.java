@@ -22,8 +22,16 @@ public class SubscriptionTypeService {
     }
 
     public SubscriptionType save(SubscriptionType type) {
-        if (type.getId() == null && repository.existsByName(type.getName())) {
-            throw new IllegalArgumentException("Тип абонемента с кодом \"" + type.getName() + "\" уже существует.");
+        // Проверяем уникальность displayName
+        if (type.getId() == null && repository.existsByDisplayName(type.getDisplayName())) {
+            throw new IllegalArgumentException("Тип абонемента с названием \"" + type.getDisplayName() + "\" уже существует.");
+        }
+        // При редактировании тоже проверяем, но исключаем саму запись
+        if (type.getId() != null) {
+            Optional<SubscriptionType> existing = repository.findByDisplayName(type.getDisplayName());
+            if (existing.isPresent() && !existing.get().getId().equals(type.getId())) {
+                throw new IllegalArgumentException("Тип абонемента с названием \"" + type.getDisplayName() + "\" уже существует.");
+            }
         }
         return repository.save(type);
     }

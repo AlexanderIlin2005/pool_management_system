@@ -30,7 +30,6 @@ public class SubscriptionTypeController {
 
     @PostMapping("/save")
     public String save(@RequestParam(required = false) Long id,
-                       @RequestParam String name,
                        @RequestParam String displayName,
                        HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
@@ -39,7 +38,6 @@ public class SubscriptionTypeController {
         try {
             SubscriptionType type = new SubscriptionType();
             type.setId(id);
-            type.setName(name.trim().toUpperCase().replaceAll("\\s+", "_"));
             type.setDisplayName(displayName.trim());
             service.save(type);
             return "redirect:/subscription-types?success=true";

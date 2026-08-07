@@ -16,14 +16,12 @@
     <!-- Форма добавления / редактирования -->
     <form th:action="@{/subscription-types/save}" method="post" style="display: flex; gap: 10px; margin-bottom: 20px; align-items: end; flex-wrap: wrap;">
       <input type="hidden" name="id" id="edit-id" value="">
-      <div style="flex: 1; min-width: 150px;">
-        <label style="font-size: 0.85em; color: #555;">Код (латиницей)</label>
-        <input type="text" name="name" id="edit-name" required placeholder="ONCE_PER_WEEK" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+
+      <div style="flex: 1; min-width: 250px;">
+        <label style="font-size: 0.85em; color: #555;">Название типа абонемента</label>
+        <input type="text" name="displayName" id="edit-displayName" required placeholder="Например: 1 раз в неделю" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
       </div>
-      <div style="flex: 2; min-width: 200px;">
-        <label style="font-size: 0.85em; color: #555;">Отображаемое название</label>
-        <input type="text" name="displayName" id="edit-displayName" required placeholder="1 раз в неделю" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-      </div>
+
       <button type="submit" class="btn" style="background-color: #28a745;">💾 Сохранить</button>
       <button type="button" class="btn" style="background-color: #6c757d;" onclick="clearForm()">Сброс</button>
     </form>
@@ -31,43 +29,63 @@
     <table style="width: 100%; border-collapse: collapse;">
       <thead>
       <tr style="background: #f8f9fa; text-align: left;">
-        <th style="padding: 10px; border: 1px solid #ddd;">ID</th>
-        <th style="padding: 10px; border: 1px solid #ddd;">Код</th>
         <th style="padding: 10px; border: 1px solid #ddd;">Название</th>
         <th style="padding: 10px; border: 1px solid #ddd;">Действия</th>
       </tr>
       </thead>
       <tbody>
       <tr th:each="t : ${types}">
-        <td style="padding: 10px; border: 1px solid #ddd;" th:text="${t.id}"></td>
-        <td style="padding: 10px; border: 1px solid #ddd; font-family: monospace;" th:text="${t.name}"></td>
         <td style="padding: 10px; border: 1px solid #ddd;" th:text="${t.displayName}"></td>
         <td style="padding: 10px; border: 1px solid #ddd; display: flex; gap: 5px;">
-          <button class="btn" style="padding: 4px 10px; font-size: 0.8em; background-color: #ffc107; color: black;"
-                  th:onclick="'fillEdit(' + ${t.id} + ', \'' + ${t.name} + '\', \'' + ${t.displayName} + '\')'">✏️</button>
-          <form th:action="@{/subscription-types/delete/{id}(id=${t.id})}" method="post"
-                onsubmit="return confirm('Удалить тип абонемента «' + '${t.displayName}' + '»? Если он используется в группах — удаление может не сработать.');">
+          <button class="btn edit-btn"
+                  style="padding: 4px 10px; font-size: 0.8em; background-color: #ffc107; color: black;"
+                  th:data-id="${t.id}"
+                  th:data-display-name="${t.displayName}">✏️</button>
+
+          <form th:action="@{/subscription-types/delete/{id}(id=${t.id})}" method="post" class="delete-form">
             <button type="submit" class="btn btn-danger" style="padding: 4px 10px; font-size: 0.8em;">🗑️</button>
           </form>
         </td>
       </tr>
       <tr th:if="${#lists.isEmpty(types)}">
-        <td colspan="4" style="text-align: center; padding: 20px; color: #999;">Нет типов абонементов</td>
+        <td colspan="2" style="text-align: center; padding: 20px; color: #999;">Нет типов абонементов</td>
       </tr>
       </tbody>
     </table>
   </div>
 
   <script>
-    function fillEdit(id, name, displayName) {
-      document.getElementById('edit-id').value = id;
-      document.getElementById('edit-name').value = name;
-      document.getElementById('edit-displayName').value = displayName;
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    document.addEventListener('DOMContentLoaded', function() {
+      // Обработчик для кнопок редактирования
+      document.querySelectorAll('.edit-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var id = this.getAttribute('data-id');
+          var displayName = this.getAttribute('data-display-name');
+
+          document.getElementById('edit-id').value = id;
+          document.getElementById('edit-displayName').value = displayName;
+
+          // Меняем текст кнопки или заголовок формы (опционально)
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      });
+
+      // Обработчик подтверждения удаления
+      document.querySelectorAll('.delete-form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+          var row = this.closest('tr');
+          var nameCell = row ? row.children[0] : null;
+          var typeName = nameCell ? nameCell.textContent : 'этот тип';
+
+          if (!confirm('Удалить тип абонемента «' + typeName + '»? Если он используется в группах — удаление может не сработать.')) {
+            e.preventDefault();
+          }
+        });
+      });
+    });
+
     function clearForm() {
       document.getElementById('edit-id').value = '';
-      document.getElementById('edit-name').value = '';
       document.getElementById('edit-displayName').value = '';
     }
   </script>

@@ -69,19 +69,16 @@ CREATE TABLE IF NOT EXISTS pool.pools (
 -- ===== НОВАЯ ТАБЛИЦА ТИПОВ АБОНЕМЕНТОВ =====
 CREATE TABLE IF NOT EXISTS pool.subscription_types (
     id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE,
-    display_name VARCHAR(255) NOT NULL,
+    display_name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Вставляем существующие типы как начальные данные
-INSERT INTO pool.subscription_types (name, display_name) VALUES
-('ONCE_PER_WEEK', '1 раз в неделю'),
-('TWICE_PER_WEEK', '2 раза в неделю'),
-('INDIVIDUAL', 'Индивидуальные занятия с тренером'),
-('FAMILY', 'Семейное плавание'),
-('AQUA_AEROBICS', 'Аквааэробика')
-ON CONFLICT (name) DO NOTHING;
+INSERT INTO pool.subscription_types (display_name) VALUES
+('Индивидуальные занятия с тренером'),
+('Семейное плавание'),
+('Аквааэробика')
+ON CONFLICT (display_name) DO NOTHING;
 
 -- Таблица групп
 CREATE TABLE pool.groups (

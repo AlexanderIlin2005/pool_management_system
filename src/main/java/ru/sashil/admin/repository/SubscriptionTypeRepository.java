@@ -5,6 +5,6 @@ import ru.sashil.admin.model.SubscriptionType;
 import java.util.Optional;
 
 public interface SubscriptionTypeRepository extends JpaRepository<SubscriptionType, Long> {
-    Optional<SubscriptionType> findByName(String name);
-    boolean existsByName(String name);
+    Optional<SubscriptionType> findByDisplayName(String displayName);
+    boolean existsByDisplayName(String displayName);
 }

@@ -18,10 +18,9 @@ public class SubscriptionType {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String name;
+    // Поле name удалено. Используем только displayName.
 
-    @Column(name = "display_name", nullable = false)
+    @Column(name = "display_name", nullable = false, unique = true)
     private String displayName;
 
     @CreationTimestamp
