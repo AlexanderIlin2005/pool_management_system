@@ -30,23 +30,21 @@
         }
         .auto-save-indicator {
             display: none;
-            padding: 5px 12px;
-            background: #28a745;
-            color: white;
-            border-radius: 4px;
+            color: #28a745;
             font-size: 0.9em;
             margin-left: 10px;
             font-weight: 500;
         }
         .auto-save-indicator.show {
             display: inline-block;
-            animation: fadeInOut 3s ease-in-out;
+            opacity: 0;
+            animation: fadeInOut 2.5s ease-in-out forwards;
         }
         @keyframes fadeInOut {
-            0% { opacity: 0; transform: scale(0.9); }
-            10% { opacity: 1; transform: scale(1); }
-            70% { opacity: 1; transform: scale(1); }
-            100% { opacity: 0; transform: scale(0.9); }
+            0% { opacity: 0; }
+            15% { opacity: 1; }
+            75% { opacity: 1; }
+            100% { opacity: 0; }
         }
         .saving-indicator {
             display: none;
@@ -148,6 +146,7 @@
     <script>
         let autoSaveTimeout = null;
         let isSaving = false;
+        let autoSaveTimer = null;
 
         // Функция удаления параметров из URL
         function removeUrlParams() {
@@ -193,11 +192,30 @@
         function showAutoSaveIndicator() {
             var indicator = document.getElementById('autoSaveIndicator');
             if (indicator) {
+                // Сначала сбрасываем все
                 indicator.classList.remove('show');
                 indicator.style.display = 'none';
+                // Сбрасываем анимацию
+                indicator.style.animation = 'none';
+                indicator.offsetHeight; // триггер перерисовки
+
+                // Запускаем заново
                 setTimeout(function() {
+                    indicator.style.animation = '';
                     indicator.style.display = 'inline-block';
                     indicator.classList.add('show');
+
+                    // Автоматически скрываем через 2.5 секунды
+                    if (autoSaveTimer) {
+                        clearTimeout(autoSaveTimer);
+                    }
+                    autoSaveTimer = setTimeout(function() {
+                        indicator.classList.remove('show');
+                        setTimeout(function() {
+                            indicator.style.display = 'none';
+                            autoSaveTimer = null;
+                        }, 300);
+                    }, 2500);
                 }, 50);
             }
             var savingInd = document.getElementById('savingIndicator');
@@ -252,10 +270,7 @@
             .then(function(response) {
                 isSaving = false;
 
-                // При redirect: 'manual' ответ имеет type: 'opaqueredirect'
-                // и status всегда 0, но мы можем проверить type
                 if (response.type === 'opaqueredirect' || response.status === 0) {
-                    // Это редирект - считаем успехом
                     showAutoSaveIndicator();
                 } else if (response.status >= 200 && response.status < 400) {
                     showAutoSaveIndicator();
