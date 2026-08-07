@@ -24,7 +24,10 @@
       <div style="margin-bottom: 15px;">
         <label>Роль:</label>
         <select name="role" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-          <option th:each="r : ${roles}" th:value="${r}" th:text="${r}"></option>
+          <option th:each="r : ${roles}"
+                  th:value="${r}"
+                  th:text="${#strings.replace(#strings.replace(#strings.replace(r, 'ADMIN', 'Администратор'), 'ACCOUNTANT', 'Бухгалтер'), 'COACH', 'Тренер')}">
+          </option>
         </select>
       </div>
 

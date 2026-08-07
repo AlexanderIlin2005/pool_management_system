@@ -24,7 +24,10 @@
         <label for="role">Выберите роль:</label>
         <select name="role" id="role" required>
             <option value="" disabled selected>Выберите роль...</option>
-            <option th:each="role : ${roles}" th:value="${role}" th:text="${role}"></option>
+            <option th:each="role : ${roles}"
+                    th:value="${role}"
+                    th:text="${#strings.replace(#strings.replace(#strings.replace(role, 'ADMIN', 'Администратор'), 'ACCOUNTANT', 'Бухгалтер'), 'COACH', 'Тренер')}">
+            </option>
         </select>
 
         <button type="submit">Зарегистрироваться</button>
