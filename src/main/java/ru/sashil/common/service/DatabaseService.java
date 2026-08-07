@@ -662,15 +662,20 @@ public class DatabaseService {
             e.printStackTrace();
         }
 
+        // Обновленный запрос с учетом subscription_type_id
         String groupsSql = "SELECT g.id, g.name, g.number, g.min_age, g.max_age, g.skill_1, g.skill_2, " +
-                "g.subscription_type, " +
+                "g.subscription_type_id, " +
+                "st.display_name as subscription_type_display, " +
                 "g.day_1_start, g.day_1_end, g.day_2_start, g.day_2_end, " +
                 "g.day_3_start, g.day_3_end, g.day_4_start, g.day_4_end, " +
                 "g.day_5_start, g.day_5_end " +
-                "FROM pool.groups g ORDER BY g.number";
+                "FROM pool.groups g " +
+                "LEFT JOIN pool.subscription_types st ON g.subscription_type_id = st.id " +
+                "ORDER BY g.number";
 
         List<Map<String, Object>> allGroups = executeQuery(groupsSql);
 
+        // Списки для разных приоритетов совпадения
         List<Map<String, Object>> fullMatch = new ArrayList<>();
         List<Map<String, Object>> ageSkillMatch = new ArrayList<>();
         List<Map<String, Object>> ageMatch = new ArrayList<>();
@@ -679,6 +684,7 @@ public class DatabaseService {
         for (Map<String, Object> g : allGroups) {
             Long groupId = (Long) g.get("id");
 
+            // Пропускаем группы, в которых ребенок уже состоит
             if (childGroups.contains(groupId)) {
                 continue;
             }
@@ -688,10 +694,17 @@ public class DatabaseService {
             String s1 = (String) g.get("skill_1");
             String s2 = (String) g.get("skill_2");
 
+            // Получаем информацию о типе абонемента
+            Long subTypeId = g.get("subscription_type_id") != null ?
+                    ((Number) g.get("subscription_type_id")).longValue() : null;
+            String subTypeDisplay = (String) g.get("subscription_type_display");
+
+            // Проверка возраста
             boolean ageOk = true;
             if (minAge != null && age < minAge) ageOk = false;
             if (maxAge != null && age > maxAge) ageOk = false;
 
+            // Проверка навыка
             boolean skillOk = true;
             if (s1 != null || s2 != null) {
                 if (skill == null) {
@@ -702,6 +715,7 @@ public class DatabaseService {
                 }
             }
 
+            // Распределяем по приоритетам
             if (ageOk && skillOk) {
                 fullMatch.add(g);
             } else if (ageOk) {
@@ -711,6 +725,7 @@ public class DatabaseService {
             }
         }
 
+        // Собираем результат с приоритетом
         List<Map<String, Object>> result = new ArrayList<>();
         result.addAll(fullMatch);
         result.addAll(ageMatch);
@@ -718,6 +733,13 @@ public class DatabaseService {
 
         return result;
     }
+
+
+    public List<Map<String, Object>> getAllSubscriptionTypes() {
+        String sql = "SELECT id, display_name FROM pool.subscription_types ORDER BY id";
+        return executeQuery(sql);
+    }
+
 
     public void createJoinRequest(long parentVkId, long childId, long groupId) throws SQLException {
         Long parentId = getParentIdByVkId(parentVkId);

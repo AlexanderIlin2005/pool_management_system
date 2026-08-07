@@ -17,14 +17,6 @@ class SelectGroupCommand(
     // Динамически получаем номер команды "Написать администратору"
     private val adminCommandNumber = BotCommandType.MESSAGE_ADMIN.getCommandNumber()
 
-    private val subscriptionTypeMap = mapOf(
-        "1" to "ONCE_PER_WEEK",
-        "2" to "TWICE_PER_WEEK",
-        "3" to "INDIVIDUAL",
-        "4" to "FAMILY",
-        "5" to "AQUA_AEROBICS"
-    )
-
     override fun start(userId: Long): CommandResult {
         userSteps[userId] = 1
         userData[userId] = mutableMapOf()
@@ -104,18 +96,24 @@ class SelectGroupCommand(
                 return showSubscriptionTypes()
             }
             3 -> {
-                val subType = subscriptionTypeMap[text.trim()]
-                if (subType == null) {
-                    return CommandResult.Continue(
-                        "Пожалуйста, введите цифру от 1 до 5:\n" +
-                                "1. Занятия в бассейне 1 раз в неделю\n" +
-                                "2. Занятия в бассейне 2 раза в неделю\n" +
-                                "3. Индивидуальные занятия с тренером\n" +
-                                "4. Семейное плавание\n" +
-                                "5. Аквааэробика"
-                    )
+                val types = try {
+                    dbService.getAllSubscriptionTypes()
+                } catch (e: Exception) {
+                    return CommandResult.Error("Ошибка загрузки типов абонементов: ${e.message}")
                 }
-                data["subscriptionType"] = subType
+                if (types.isEmpty()) {
+                    return CommandResult.Error("Нет доступных типов абонементов.")
+                }
+
+                val num = text.trim().toIntOrNull()
+                if (num == null || num < 1 || num > types.size) {
+                    val sb = StringBuilder("Выберите тип абонемента:\n\n")
+                    types.forEachIndexed { i, t ->
+                        sb.append("${i + 1}. ${t["display_name"]}\n")
+                    }
+                    return CommandResult.Continue(sb.toString())
+                }
+                data["subscriptionTypeId"] = (types[num - 1]["id"] as Number).toLong()
                 userSteps[userId] = 4
                 return findSuitableGroups(userId, data)
             }
@@ -153,19 +151,24 @@ class SelectGroupCommand(
     }
 
     private fun showSubscriptionTypes(): CommandResult {
-        return CommandResult.Continue(
-            "Спасибо! Уточните, какой абонемент Вы бы хотели выбрать:\n" +
-                    "1. Занятия в бассейне 1 раз в неделю\n" +
-                    "2. Занятия в бассейне 2 раза в неделю\n" +
-                    "3. Индивидуальные занятия с тренером\n" +
-                    "4. Семейное плавание\n" +
-                    "5. Аквааэробика"
-        )
+        val types = try {
+            dbService.getAllSubscriptionTypes()
+        } catch (e: Exception) {
+            return CommandResult.Error("Ошибка загрузки типов абонементов: ${e.message}")
+        }
+        if (types.isEmpty()) {
+            return CommandResult.Error("Нет доступных типов абонементов.")
+        }
+        val sb = StringBuilder("Выберите тип абонемента:\n\n")
+        types.forEachIndexed { i, t ->
+            sb.append("${i + 1}. ${t["display_name"]}\n")
+        }
+        return CommandResult.Continue(sb.toString())
     }
 
     private fun findSuitableGroups(userId: Long, data: MutableMap<String, Any>): CommandResult {
         val childId = data["childId"] as Long
-        val subscriptionType = data["subscriptionType"] as String
+        val selectedSubTypeId = data["subscriptionTypeId"] as Long
 
         val childData = try {
             val children = dbService.getChildrenByParentVkId(userId)
@@ -206,16 +209,27 @@ class SelectGroupCommand(
             )
         }
 
+        // Фильтрация по типу абонемента (теперь по ID)
         val filteredGroups = groups.filter { group ->
-            val type = group["subscription_type"] as? String
-            type == null || type == subscriptionType
+            val subTypeId = group["subscription_type_id"] as? Long
+            // null = подходит всем, иначе проверяем совпадение
+            subTypeId == null || subTypeId == selectedSubTypeId
         }
 
         if (filteredGroups.isEmpty()) {
+            // Получаем название выбранного типа для отображения
+            val subTypeName = try {
+                val types = dbService.getAllSubscriptionTypes()
+                types.find { (it["id"] as Number).toLong() == selectedSubTypeId }
+                    ?.get("display_name") as? String ?: "выбранный тип"
+            } catch (e: Exception) {
+                "выбранный тип"
+            }
+
             userSteps.remove(userId)
             userData.remove(userId)
             return CommandResult.Complete(
-                "К сожалению, нет групп с выбранным типом абонемента (${getSubscriptionTypeDisplay(subscriptionType)}).\n\n" +
+                "К сожалению, нет групп с выбранным типом абонемента ($subTypeName).\n\n" +
                         "Попробуйте выбрать другой тип абонемента или свяжитесь с администратором через команду $adminCommandNumber."
             )
         }
@@ -229,14 +243,7 @@ class SelectGroupCommand(
             val groupName = group["name"] as String
             val groupNumber = group["number"] as Int
             val schedule = getGroupSchedule(group)
-            val typeDisplay = when (group["subscription_type"] as? String) {
-                "ONCE_PER_WEEK" -> "1 раз в неделю"
-                "TWICE_PER_WEEK" -> "2 раза в неделю"
-                "INDIVIDUAL" -> "Индивидуальные занятия с тренером"
-                "FAMILY" -> "Семейное плавание"
-                "AQUA_AEROBICS" -> "Аквааэробика"
-                else -> ""
-            }
+            val typeDisplay = group["subscription_type_display"] as? String ?: ""
             sb.append("${index + 1}. $groupName")
             if (typeDisplay.isNotEmpty()) sb.append(" ($typeDisplay)")
             sb.append(": $schedule\n")
@@ -245,17 +252,6 @@ class SelectGroupCommand(
         sb.append("\nВыберите, пожалуйста, группу. Напишите только цифру.")
         userSteps[userId] = 4
         return CommandResult.Continue(sb.toString())
-    }
-
-    private fun getSubscriptionTypeDisplay(type: String): String {
-        return when (type) {
-            "ONCE_PER_WEEK" -> "1 раз в неделю"
-            "TWICE_PER_WEEK" -> "2 раза в неделю"
-            "INDIVIDUAL" -> "Индивидуальные занятия с тренером"
-            "FAMILY" -> "Семейное плавание"
-            "AQUA_AEROBICS" -> "Аквааэробика"
-            else -> type
-        }
     }
 
     private fun getGroupSchedule(group: Map<String, Any>): String {

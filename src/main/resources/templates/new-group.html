@@ -44,16 +44,17 @@
     <!-- НОВЫЙ БЛОК: Тип абонемента -->
     <div style="margin-bottom: 20px;">
       <label>Тип абонемента:</label>
-      <select th:field="*{subscriptionType}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+      <select th:field="*{subscriptionType.id}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
         <option value="">Не указан (подходит для всех)</option>
-        <option value="ONCE_PER_WEEK">1 раз в неделю</option>
-        <option value="TWICE_PER_WEEK">2 раза в неделю</option>
-        <option value="INDIVIDUAL">Индивидуальные занятия с тренером</option>
-        <option value="FAMILY">Семейное плавание</option>
-        <option value="AQUA_AEROBICS">Аквааэробика</option>
+        <option th:each="st : ${subscriptionTypes}"
+                th:value="${st.id}"
+                th:text="${st.displayName}"
+                th:selected="${group.subscriptionType != null and group.subscriptionType.id == st.id}">
+        </option>
       </select>
       <small style="color: #6c757d; display: block; margin-top: 5px;">
         Если тип не указан, группа будет предлагаться для любого выбранного абонемента.
+        <a href="/subscription-types" target="_blank" style="color: #0366d6;">Управление типами →</a>
       </small>
     </div>
 

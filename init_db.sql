@@ -66,6 +66,23 @@ CREATE TABLE IF NOT EXISTS pool.pools (
     address VARCHAR(255) NOT NULL
 );
 
+-- ===== НОВАЯ ТАБЛИЦА ТИПОВ АБОНЕМЕНТОВ =====
+CREATE TABLE IF NOT EXISTS pool.subscription_types (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    display_name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Вставляем существующие типы как начальные данные
+INSERT INTO pool.subscription_types (name, display_name) VALUES
+('ONCE_PER_WEEK', '1 раз в неделю'),
+('TWICE_PER_WEEK', '2 раза в неделю'),
+('INDIVIDUAL', 'Индивидуальные занятия с тренером'),
+('FAMILY', 'Семейное плавание'),
+('AQUA_AEROBICS', 'Аквааэробика')
+ON CONFLICT (name) DO NOTHING;
+
 -- Таблица групп
 CREATE TABLE pool.groups (
     id BIGSERIAL PRIMARY KEY,
@@ -75,8 +92,6 @@ CREATE TABLE pool.groups (
     pool_id BIGINT REFERENCES pool.pools(id),
 
     -- Внешний ключ на администратора с ролью COACH
-    -- ON DELETE SET NULL означает: если тренера удалят из admin_users,
-    -- то в группе поле trainer_id просто станет пустым (NULL), но группа не удалится.
     trainer_id BIGINT REFERENCES pool.admin_users(id) ON DELETE SET NULL,
 
     -- Поля для 7 дней недели
@@ -94,12 +109,9 @@ CREATE TABLE pool.groups (
     max_age INTEGER CHECK (max_age BETWEEN 6 AND 18),
     skill_1 VARCHAR(50),
     skill_2 VARCHAR(50),
-    subscription_type VARCHAR(50)
-);
 
-ALTER TABLE pool.groups ADD CONSTRAINT chk_subscription_type CHECK (
-    subscription_type IS NULL OR
-    subscription_type IN ('ONCE_PER_WEEK', 'TWICE_PER_WEEK', 'INDIVIDUAL', 'FAMILY', 'AQUA_AEROBICS')
+    -- Вместо текстового поля subscription_type используем внешний ключ
+    subscription_type_id BIGINT REFERENCES pool.subscription_types(id) ON DELETE SET NULL
 );
 
 CREATE TABLE pool.group_children (
@@ -305,7 +317,6 @@ CREATE TABLE IF NOT EXISTS pool.child_update_notifications (
     sent_at TIMESTAMP
 );
 
-
 -- Таблица для уведомлений о пропусках занятий
 CREATE TABLE IF NOT EXISTS pool.absence_notifications (
     id BIGSERIAL PRIMARY KEY,
@@ -317,7 +328,6 @@ CREATE TABLE IF NOT EXISTS pool.absence_notifications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     processed_by BIGINT REFERENCES pool.admin_users(id),
-    -- Добавляем колонки для хранения справки в absence_notifications
     certificate_url VARCHAR(500),
     certificate_file_name VARCHAR(255),
     absence_date DATE
@@ -333,14 +343,13 @@ CREATE TABLE IF NOT EXISTS pool.messages (
     child_id BIGINT REFERENCES pool.children(id) ON DELETE SET NULL,
     group_id BIGINT REFERENCES pool.groups(id) ON DELETE SET NULL,
     message_text TEXT NOT NULL,
-    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'READ', 'REPLIED')),
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'READ', 'REPLIED', 'SENT')),
     parent_message_id BIGINT,               -- Ссылка на исходное сообщение при ответе
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     read_at TIMESTAMP,
     replied_at TIMESTAMP,
     sent_at TIMESTAMP
 );
-
 
 ALTER TABLE pool.payments DROP CONSTRAINT IF EXISTS payments_status_check;
 ALTER TABLE pool.payments ADD CONSTRAINT payments_status_check
@@ -362,7 +371,6 @@ CREATE INDEX idx_absence_notifications_status ON pool.absence_notifications(stat
 CREATE INDEX idx_absence_notifications_child ON pool.absence_notifications(child_id);
 CREATE INDEX idx_absence_notifications_parent ON pool.absence_notifications(parent_id);
 
-
 CREATE INDEX IF NOT EXISTS idx_children_certificate_received ON pool.children(certificate_received);
 
 CREATE INDEX idx_child_update_notifications_pending ON pool.child_update_notifications(is_sent);
@@ -381,9 +389,6 @@ CREATE INDEX idx_certificates_is_read ON pool.certificates(is_read);
 
 -- Индекс для быстрого поиска неотправленных сообщений
 CREATE INDEX IF NOT EXISTS idx_broadcast_status ON pool.broadcast_messages(status);
-
--- Добавляем флаг отключения регулярных уведомлений в таблицу родителей
-ALTER TABLE pool.parents ADD COLUMN IF NOT EXISTS notify_regular BOOLEAN DEFAULT TRUE;
 
 -- Индекс для быстрого поиска
 CREATE INDEX IF NOT EXISTS idx_notification_log_parent_date ON pool.notification_log(parent_id, lesson_date);

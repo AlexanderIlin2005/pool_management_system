@@ -5,13 +5,14 @@ import org.springframework.stereotype.Service;
 import ru.sashil.admin.model.AdminUser;
 import ru.sashil.admin.model.Group;
 import ru.sashil.admin.model.Pool;
+import ru.sashil.admin.model.SubscriptionType;
 import ru.sashil.admin.repository.AdminUserRepository;
 import ru.sashil.admin.repository.GroupRepository;
 import ru.sashil.admin.repository.PoolRepository;
+import ru.sashil.admin.repository.SubscriptionTypeRepository;
 
 import java.time.Duration;
 import java.time.LocalTime;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,7 +28,10 @@ public class GroupService {
     private AdminUserRepository adminUserRepository;
 
     @Autowired
-    private LessonService lessonService; 
+    private LessonService lessonService;
+
+    @Autowired
+    private SubscriptionTypeRepository subscriptionTypeRepository;
 
     public List<Group> getAllGroups() {
         return groupRepository.findAll();
@@ -40,7 +44,7 @@ public class GroupService {
     public void saveGroup(Group group) {
         boolean isNew = group.getId() == null;
 
-        
+        // Проверка уникальности номера группы
         if (isNew) {
             if (groupRepository.existsByNumber(group.getNumber())) {
                 throw new IllegalArgumentException("Группа с таким номером уже существует!");
@@ -54,7 +58,7 @@ public class GroupService {
             }
         }
 
-        
+        // Валидация расписания
         validateDayTime(group.getDay1Start(), group.getDay1End(), "Понедельник");
         validateDayTime(group.getDay2Start(), group.getDay2End(), "Вторник");
         validateDayTime(group.getDay3Start(), group.getDay3End(), "Среда");
@@ -63,25 +67,22 @@ public class GroupService {
         validateDayTime(group.getDay6Start(), group.getDay6End(), "Суббота");
         validateDayTime(group.getDay7Start(), group.getDay7End(), "Воскресенье");
 
-        // --- ВАЛИДАЦИЯ КРИТЕРИЕВ ВСТУПЛЕНИЯ ---
+        // Валидация критериев вступления
         validateEntryCriteria(group.getMinAge(), group.getMaxAge(), group.getSkill1(), group.getSkill2());
 
-
-        // Валидация типа абонемента (опционально)
-        if (group.getSubscriptionType() != null && !group.getSubscriptionType().isEmpty()) {
-            // Проверяем, что тип абонемента допустимый
-            List<String> validTypes = Arrays.asList("ONCE_PER_WEEK", "TWICE_PER_WEEK", "INDIVIDUAL", "FAMILY", "AQUA_AEROBICS");
-            if (!validTypes.contains(group.getSubscriptionType())) {
-                throw new IllegalArgumentException("Недопустимый тип абонемента: " + group.getSubscriptionType());
+        // Валидация типа абонемента (проверяем, что ID существует в БД)
+        if (group.getSubscriptionType() != null && group.getSubscriptionType().getId() != null) {
+            boolean exists = subscriptionTypeRepository.existsById(group.getSubscriptionType().getId());
+            if (!exists) {
+                throw new IllegalArgumentException("Выбранный тип абонемента не существует!");
             }
         }
 
         groupRepository.save(group);
 
-        
+        // Генерируем занятия для группы
         lessonService.generateLessonsForGroup(group);
     }
-
 
     private void validateEntryCriteria(Integer minAge, Integer maxAge, String skill1, String skill2) {
         // Валидация возраста
@@ -128,7 +129,6 @@ public class GroupService {
     }
 
     public void deleteGroup(Long id) {
-        
         groupRepository.deleteById(id);
     }
 

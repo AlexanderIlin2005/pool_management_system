@@ -39,6 +39,9 @@ public class GroupController {
     @Autowired
     private GroupRepository groupRepository;
 
+    @Autowired
+    private SubscriptionTypeRepository subscriptionTypeRepository;
+
     private boolean isAdmin(HttpSession session) {
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
         return user != null && user.getRole() == ru.sashil.admin.model.AdminUser.Role.ADMIN;
@@ -117,6 +120,7 @@ public class GroupController {
         model.addAttribute("activePage", "groups");
         model.addAttribute("pools", groupService.getAllPools());
         model.addAttribute("coaches", groupService.getAllCoaches());
+        model.addAttribute("subscriptionTypes", subscriptionTypeRepository.findAll());
         model.addAttribute("group", new Group());
 
         return "new-group";
@@ -138,6 +142,7 @@ public class GroupController {
         model.addAttribute("activePage", "groups");
         model.addAttribute("pools", groupService.getAllPools());
         model.addAttribute("coaches", groupService.getAllCoaches());
+        model.addAttribute("subscriptionTypes", subscriptionTypeRepository.findAll());
         model.addAttribute("group", group);
         model.addAttribute("isEdit", true);
 
@@ -153,7 +158,6 @@ public class GroupController {
                             @RequestParam(required = false) String skill1,
                             @RequestParam(required = false) String skill2,
                             @RequestParam(required = false) String skill3,
-                            @RequestParam(required = false) String subscriptionType,
                             Model model, HttpSession session) {
 
         if (!isAdmin(session)) return "redirect:/parents";
@@ -185,12 +189,9 @@ public class GroupController {
             }
             // Если выбрано 0 навыков - оба поля остаются NULL
 
-            // Устанавливаем тип абонемента
-            if (subscriptionType != null && !subscriptionType.isEmpty()) {
-                group.setSubscriptionType(subscriptionType);
-            } else {
-                group.setSubscriptionType(null);
-            }
+            // Тип абонемента теперь автоматически биндится через Spring Data JPA
+            // group.getSubscriptionType() уже содержит объект SubscriptionType
+            // если subscriptionType.id не указан или не найден, то subscriptionType будет null
 
             groupService.saveGroup(group);
             wsNotificationService.sendUpdateNotification("GROUP_SAVED");
@@ -199,6 +200,7 @@ public class GroupController {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("pools", groupService.getAllPools());
             model.addAttribute("coaches", groupService.getAllCoaches());
+            model.addAttribute("subscriptionTypes", subscriptionTypeRepository.findAll());
             model.addAttribute("fullName", ((AdminUser) session.getAttribute("currentUser")).getFullName());
             model.addAttribute("role", ((AdminUser) session.getAttribute("currentUser")).getRole());
             model.addAttribute("activePage", "groups");
@@ -596,7 +598,4 @@ public class GroupController {
 
         return "group-members-view";
     }
-
-
-
 }

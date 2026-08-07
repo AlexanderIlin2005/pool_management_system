@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @Table(name = "groups", schema = "pool")
 @Data
 public class Group {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -45,13 +46,9 @@ public class Group {
     @Column(name = "day_7_start") private LocalTime day7Start;
     @Column(name = "day_7_end")   private LocalTime day7End;
 
-
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, insertable = false)
     private LocalDateTime createdAt;
-
-
-    // --- НОВЫЕ ПОЛЯ ДЛЯ КРИТЕРИЕВ ВСТУПЛЕНИЯ ---
 
     @Column(name = "min_age")
     private Integer minAge;
@@ -65,21 +62,15 @@ public class Group {
     @Column(name = "skill_2")
     private String skill2;
 
+    // НОВОЕ: связь с таблицей subscription_types вместо строки
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "subscription_type_id")
+    private SubscriptionType subscriptionType;
 
-    // Тип абонемента
-    @Column(name = "subscription_type")
-    private String subscriptionType;
-
+    /**
+     * Возвращает отображаемое имя типа абонемента или null
+     */
     public String getSubscriptionTypeDisplay() {
-        if (subscriptionType == null) return null;
-        return switch (subscriptionType) {
-            case "ONCE_PER_WEEK" -> "1 раз в неделю";
-            case "TWICE_PER_WEEK" -> "2 раза в неделю";
-            case "INDIVIDUAL" -> "Индивидуальные занятия с тренером";
-            case "FAMILY" -> "Семейное плавание";
-            case "AQUA_AEROBICS" -> "Аквааэробика";
-            default -> subscriptionType;
-        };
+        return subscriptionType != null ? subscriptionType.getDisplayName() : null;
     }
-
 }
