@@ -2,6 +2,31 @@
 <html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Отметить посещение', ~{::content})}">
 <body>
 <div th:fragment="content">
+    <style>
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            transition: opacity 1.5s ease-in-out;
+        }
+        .alert-success.fade-out {
+            opacity: 0;
+        }
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            transition: opacity 1.5s ease-in-out;
+        }
+        .alert-warning.fade-out {
+            opacity: 0;
+        }
+    </style>
+
     <div class="card" style="max-width: 900px; margin: 0 auto;">
         <h2>Отметка посещаемости</h2>
         <p style="color: #666;">
@@ -10,11 +35,11 @@
             Время: <strong th:text="${lesson.startTime} + ' - ' + ${lesson.endTime}"></strong>
         </p>
 
-        <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-            Посещаемость успешно сохранена!
+        <div id="successAlert" th:if="${param.success}" class="alert-success">
+            ✅ Посещаемость успешно сохранена!
         </div>
 
-        <div th:if="${param.partial}" style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+        <div id="partialAlert" th:if="${param.partial}" class="alert-warning">
             ⚠️ Часть детей не отмечена. Они останутся без статуса.
         </div>
 
@@ -31,7 +56,6 @@
                 <tr th:each="child : ${children}" style="border-bottom: 1px solid #eee;">
                     <td style="padding: 10px;" th:text="${child.lastName} + ' ' + ${child.firstName}"></td>
                     <td style="padding: 10px; text-align: center;">
-                        <!-- УБРАН required -->
                         <select th:name="'marks[' + ${child.id} + ']'" style="padding: 5px; border-radius: 4px;">
                             <option value="">Не выбрано</option>
                             <option th:each="status : ${T(ru.sashil.admin.model.Attendance.Status).values()}"
@@ -67,6 +91,34 @@
     </div>
 
     <script>
+        // Функция удаления параметров из URL
+        function removeUrlParams() {
+            if (window.history && window.history.replaceState) {
+                var url = new URL(window.location.href);
+                url.searchParams.delete('success');
+                url.searchParams.delete('partial');
+                window.history.replaceState({}, document.title, url.toString());
+            }
+        }
+
+        // Функция плавного исчезновения уведомления
+        function fadeOutAlert(alertId, callback) {
+            var alert = document.getElementById(alertId);
+            if (alert) {
+                // Ждем 3 секунды перед началом исчезновения
+                setTimeout(function() {
+                    alert.classList.add('fade-out');
+                    // Удаляем элемент после завершения анимации
+                    setTimeout(function() {
+                        alert.style.display = 'none';
+                        if (callback) callback();
+                    }, 1500);
+                }, 3000);
+            } else {
+                if (callback) callback();
+            }
+        }
+
         function toggleSkipWarning() {
             var checkbox = document.getElementById('skipUnmarked');
             var warning = document.getElementById('partialWarning');
@@ -96,10 +148,8 @@
             }
 
             if (checkbox.checked) {
-                // Отмечаем всех неотмеченных как ABSENT
                 selects.forEach(function(select) {
                     if (select.value === '') {
-                        // Находим опцию "ABSENT"
                         var options = select.options;
                         for (var i = 0; i < options.length; i++) {
                             if (options[i].value === 'ABSENT') {
@@ -113,6 +163,38 @@
 
             return true;
         }
+
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            var hasSuccess = new URLSearchParams(window.location.search).has('success');
+            var hasPartial = new URLSearchParams(window.location.search).has('partial');
+
+            // Если есть параметры - запускаем анимацию исчезновения
+            if (hasSuccess) {
+                fadeOutAlert('successAlert', function() {
+                    removeUrlParams();
+                });
+            }
+
+            if (hasPartial) {
+                fadeOutAlert('partialAlert', function() {
+                    removeUrlParams();
+                });
+            }
+
+            // Если нет параметров, но уведомления отображаются (через Thymeleaf) - скрываем их
+            if (!hasSuccess && !hasPartial) {
+                var successAlert = document.getElementById('successAlert');
+                var partialAlert = document.getElementById('partialAlert');
+                if (successAlert) successAlert.style.display = 'none';
+                if (partialAlert) partialAlert.style.display = 'none';
+            }
+        });
+
+        // Сохраняем состояние при закрытии страницы
+        window.addEventListener('beforeunload', function() {
+            // Ничего не делаем
+        });
     </script>
 </div>
 </body>
