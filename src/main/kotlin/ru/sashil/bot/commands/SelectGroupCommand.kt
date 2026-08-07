@@ -99,15 +99,15 @@ class SelectGroupCommand(
                 val types = try {
                     dbService.getAllSubscriptionTypes()
                 } catch (e: Exception) {
-                    return CommandResult.Error("Ошибка загрузки типов абонементов: ${e.message}")
+                    return CommandResult.Error("Ошибка загрузки типов занятий: ${e.message}")
                 }
                 if (types.isEmpty()) {
-                    return CommandResult.Error("Нет доступных типов абонементов.")
+                    return CommandResult.Error("Нет доступных типов занятий.")
                 }
 
                 val num = text.trim().toIntOrNull()
                 if (num == null || num < 1 || num > types.size) {
-                    val sb = StringBuilder("Выберите тип абонемента:\n\n")
+                    val sb = StringBuilder("Выберите тип занятия:\n\n")
                     types.forEachIndexed { i, t ->
                         sb.append("${i + 1}. ${t["display_name"]}\n")
                     }
@@ -154,12 +154,12 @@ class SelectGroupCommand(
         val types = try {
             dbService.getAllSubscriptionTypes()
         } catch (e: Exception) {
-            return CommandResult.Error("Ошибка загрузки типов абонементов: ${e.message}")
+            return CommandResult.Error("Ошибка загрузки типов занятий: ${e.message}")
         }
         if (types.isEmpty()) {
-            return CommandResult.Error("Нет доступных типов абонементов.")
+            return CommandResult.Error("Нет доступных типов занятий.")
         }
-        val sb = StringBuilder("Выберите тип абонемента:\n\n")
+        val sb = StringBuilder("Выберите тип занятия:\n\n")
         types.forEachIndexed { i, t ->
             sb.append("${i + 1}. ${t["display_name"]}\n")
         }
@@ -209,7 +209,7 @@ class SelectGroupCommand(
             )
         }
 
-        // Фильтрация по типу абонемента (теперь по ID)
+        // Фильтрация по типу занятия (теперь по ID)
         val filteredGroups = groups.filter { group ->
             val subTypeId = group["subscription_type_id"] as? Long
             // null = подходит всем, иначе проверяем совпадение
@@ -229,8 +229,8 @@ class SelectGroupCommand(
             userSteps.remove(userId)
             userData.remove(userId)
             return CommandResult.Complete(
-                "К сожалению, нет групп с выбранным типом абонемента ($subTypeName).\n\n" +
-                        "Попробуйте выбрать другой тип абонемента или свяжитесь с администратором через команду $adminCommandNumber."
+                "К сожалению, нет групп с выбранным типом занятия ($subTypeName).\n\n" +
+                        "Попробуйте выбрать другой тип занятия или свяжитесь с администратором через команду $adminCommandNumber."
             )
         }
 

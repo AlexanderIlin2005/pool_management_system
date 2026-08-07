@@ -68,7 +68,7 @@ public class Group {
     private SubscriptionType subscriptionType;
 
     /**
-     * Возвращает отображаемое имя типа абонемента или null
+     * Возвращает отображаемое имя типа занятия или null
      */
     public String getSubscriptionTypeDisplay() {
         return subscriptionType != null ? subscriptionType.getDisplayName() : null;

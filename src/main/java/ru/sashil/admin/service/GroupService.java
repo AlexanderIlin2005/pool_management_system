@@ -70,11 +70,11 @@ public class GroupService {
         // Валидация критериев вступления
         validateEntryCriteria(group.getMinAge(), group.getMaxAge(), group.getSkill1(), group.getSkill2());
 
-        // Валидация типа абонемента (проверяем, что ID существует в БД)
+        // Валидация типа занятия (проверяем, что ID существует в БД)
         if (group.getSubscriptionType() != null && group.getSubscriptionType().getId() != null) {
             boolean exists = subscriptionTypeRepository.existsById(group.getSubscriptionType().getId());
             if (!exists) {
-                throw new IllegalArgumentException("Выбранный тип абонемента не существует!");
+                throw new IllegalArgumentException("Выбранного типа занятия не существует!");
             }
         }
 
