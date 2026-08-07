@@ -30,31 +30,39 @@
         }
         .auto-save-indicator {
             display: none;
-            padding: 5px 10px;
+            padding: 5px 12px;
             background: #28a745;
             color: white;
             border-radius: 4px;
-            font-size: 0.85em;
+            font-size: 0.9em;
             margin-left: 10px;
+            font-weight: 500;
         }
         .auto-save-indicator.show {
             display: inline-block;
-            animation: fadeInOut 1.5s ease-in-out;
+            animation: fadeInOut 3s ease-in-out;
         }
         @keyframes fadeInOut {
-            0% { opacity: 0; }
-            20% { opacity: 1; }
-            80% { opacity: 1; }
-            100% { opacity: 0; }
+            0% { opacity: 0; transform: scale(0.9); }
+            10% { opacity: 1; transform: scale(1); }
+            70% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.9); }
         }
         .saving-indicator {
             display: none;
             color: #6c757d;
-            font-size: 0.85em;
+            font-size: 0.9em;
             margin-left: 10px;
+            font-weight: 500;
         }
         .saving-indicator.show {
             display: inline-block;
+            animation: pulse 1s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
         }
     </style>
 
@@ -74,11 +82,11 @@
             ⚠️ Часть детей не отмечена. Они останутся без статуса.
         </div>
 
-        <div id="autoSaveStatus" style="margin-bottom: 15px; display: flex; align-items: center;">
+        <div id="autoSaveStatus" style="margin-bottom: 15px; padding: 8px 12px; background: #f8f9fa; border-radius: 4px; display: flex; align-items: center; border: 1px solid #e9ecef;">
             <span id="autoSaveIndicator" class="auto-save-indicator">✅ Автосохранено</span>
             <span id="savingIndicator" class="saving-indicator">⏳ Сохранение...</span>
             <span style="font-size: 0.85em; color: #6c757d; margin-left: auto;">
-                Изменения сохраняются автоматически
+                💾 Изменения сохраняются автоматически
             </span>
         </div>
 
@@ -172,10 +180,12 @@
             var indicator = document.getElementById('savingIndicator');
             if (indicator) {
                 indicator.classList.add('show');
+                indicator.style.display = 'inline-block';
             }
             var autoIndicator = document.getElementById('autoSaveIndicator');
             if (autoIndicator) {
                 autoIndicator.classList.remove('show');
+                autoIndicator.style.display = 'none';
             }
         }
 
@@ -183,31 +193,52 @@
         function showAutoSaveIndicator() {
             var indicator = document.getElementById('autoSaveIndicator');
             if (indicator) {
-                indicator.classList.add('show');
+                indicator.classList.remove('show');
+                indicator.style.display = 'none';
                 setTimeout(function() {
-                    indicator.classList.remove('show');
-                }, 2000);
+                    indicator.style.display = 'inline-block';
+                    indicator.classList.add('show');
+                }, 50);
             }
             var savingInd = document.getElementById('savingIndicator');
             if (savingInd) {
                 savingInd.classList.remove('show');
+                savingInd.style.display = 'none';
+            }
+        }
+
+        // Показать ошибку сохранения
+        function showSaveError() {
+            var savingInd = document.getElementById('savingIndicator');
+            if (savingInd) {
+                savingInd.classList.remove('show');
+                savingInd.style.display = 'none';
+                savingInd.textContent = '❌ Ошибка сохранения';
+                savingInd.style.color = '#dc3545';
+                savingInd.style.display = 'inline-block';
+                setTimeout(function() {
+                    savingInd.style.display = 'none';
+                    savingInd.textContent = '⏳ Сохранение...';
+                    savingInd.style.color = '#6c757d';
+                }, 3000);
             }
         }
 
         // Функция автосохранения
         function autoSave() {
-            if (isSaving) return;
+            if (isSaving) {
+                showSavingIndicator();
+                return;
+            }
 
             var form = document.getElementById('attendanceForm');
             var formData = new FormData(form);
 
-            // Добавляем флаг skipUnmarked
             var checkbox = document.getElementById('skipUnmarked');
             if (checkbox.checked) {
                 formData.append('skipUnmarked', 'true');
             }
 
-            // Получаем lessonId из URL
             var lessonId = window.location.pathname.split('/').pop();
 
             showSavingIndicator();
@@ -215,24 +246,27 @@
 
             fetch('/attendance/save/' + lessonId, {
                 method: 'POST',
-                body: formData
+                body: formData,
+                redirect: 'manual'
             })
             .then(function(response) {
-                if (response.redirected) {
-                    // Не переходим по редиректу, просто показываем индикатор
+                isSaving = false;
+
+                // При redirect: 'manual' ответ имеет type: 'opaqueredirect'
+                // и status всегда 0, но мы можем проверить type
+                if (response.type === 'opaqueredirect' || response.status === 0) {
+                    // Это редирект - считаем успехом
+                    showAutoSaveIndicator();
+                } else if (response.status >= 200 && response.status < 400) {
                     showAutoSaveIndicator();
                 } else {
-                    showAutoSaveIndicator();
+                    showSaveError();
                 }
-                isSaving = false;
             })
             .catch(function(error) {
                 console.error('Ошибка автосохранения:', error);
                 isSaving = false;
-                var savingInd = document.getElementById('savingIndicator');
-                if (savingInd) {
-                    savingInd.classList.remove('show');
-                }
+                showSaveError();
             });
         }
 
@@ -272,7 +306,6 @@
                     }
                 }
 
-                // Автосохраняем после отметки
                 if (totalUnmarked > 0) {
                     setTimeout(function() {
                         autoSave();
@@ -328,7 +361,6 @@
                 });
             }
 
-            // При ручном сохранении отключаем автосохранение на время
             if (autoSaveTimeout) {
                 clearTimeout(autoSaveTimeout);
                 autoSaveTimeout = null;
@@ -361,7 +393,6 @@
                 if (partialAlert) partialAlert.style.display = 'none';
             }
 
-            // Проверяем, есть ли уже отмеченные дети
             var selects = document.querySelectorAll('select[name^="marks["]');
             var allMarked = true;
             selects.forEach(function(select) {
@@ -378,17 +409,15 @@
                 }
             }
 
-            // Добавляем обработчики для автосохранения
             document.querySelectorAll('.attendance-select, .attendance-comment').forEach(function(element) {
                 element.addEventListener('change', function() {
                     if (autoSaveTimeout) {
                         clearTimeout(autoSaveTimeout);
                     }
-                    // Ждем 500мс после последнего изменения перед сохранением
                     autoSaveTimeout = setTimeout(function() {
                         autoSave();
                         autoSaveTimeout = null;
-                    }, 500);
+                    }, 800);
                 });
 
                 element.addEventListener('input', function() {
@@ -398,7 +427,7 @@
                     autoSaveTimeout = setTimeout(function() {
                         autoSave();
                         autoSaveTimeout = null;
-                    }, 500);
+                    }, 800);
                 });
             });
         });
