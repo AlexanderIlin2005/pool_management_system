@@ -34,13 +34,17 @@ public class AttendanceService {
 
     @Transactional
     public void saveAttendanceWithComments(Long lessonId, Map<Long, String> marks, Map<Long, String> comments, AdminUser marker) {
-        if (marks == null || marks.isEmpty()) return;
+        if (marks == null || marks.isEmpty()) {
+            return;
+        }
 
         for (Map.Entry<Long, String> entry : marks.entrySet()) {
             Long childId = entry.getKey();
             String statusStr = entry.getValue();
 
-            if (statusStr == null || statusStr.isEmpty()) continue;
+            if (statusStr == null || statusStr.isEmpty()) {
+                continue;
+            }
 
             try {
                 Attendance.Status status = Attendance.Status.fromLabel(statusStr);
@@ -63,11 +67,9 @@ public class AttendanceService {
 
                 attendance.setStatus(status);
 
-                
                 String commentText = null;
                 if (comments != null && comments.containsKey(childId)) {
                     commentText = comments.get(childId);
-                    
                     if (commentText != null && commentText.trim().isEmpty()) {
                         commentText = null;
                     }
@@ -84,4 +86,18 @@ public class AttendanceService {
         }
     }
 
+    /**
+     * Возвращает количество детей в группе
+     */
+    public int getChildrenCount(Long groupId) {
+        long count = childRepository.countByGroupId(groupId);
+        return (int) count; // Явное приведение long к int
+    }
+
+    /**
+     * Возвращает количество отмеченных детей
+     */
+    public long getMarkedCount(Long lessonId) {
+        return attendanceRepo.countByLessonId(lessonId);
+    }
 }

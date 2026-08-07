@@ -14,7 +14,11 @@
             Посещаемость успешно сохранена!
         </div>
 
-        <form th:action="@{/attendance/save/{id}(id=${lesson.id})}" method="post">
+        <div th:if="${param.partial}" style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+            ⚠️ Часть детей не отмечена. Они останутся без статуса.
+        </div>
+
+        <form th:action="@{/attendance/save/{id}(id=${lesson.id})}" method="post" id="attendanceForm">
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                 <tr style="background: #f8f9fa;">
@@ -27,8 +31,9 @@
                 <tr th:each="child : ${children}" style="border-bottom: 1px solid #eee;">
                     <td style="padding: 10px;" th:text="${child.lastName} + ' ' + ${child.firstName}"></td>
                     <td style="padding: 10px; text-align: center;">
-                        <select th:name="'marks[' + ${child.id} + ']'" required style="padding: 5px; border-radius: 4px;">
-                            <option value="">Выберите...</option>
+                        <!-- УБРАН required -->
+                        <select th:name="'marks[' + ${child.id} + ']'" style="padding: 5px; border-radius: 4px;">
+                            <option value="">Не выбрано</option>
                             <option th:each="status : ${T(ru.sashil.admin.model.Attendance.Status).values()}"
                                     th:value="${status}" th:text="${status.label}"
                                     th:selected="${currentMarks[child.id] == status}">
@@ -36,7 +41,6 @@
                         </select>
                     </td>
                     <td style="padding: 10px;">
-
                         <input type="text" th:name="'comments[' + ${child.id} + ']'"
                                th:value="${currentComments != null and currentComments.containsKey(child.id) ? currentComments[child.id] : ''}"
                                style="width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
@@ -44,12 +48,72 @@
                 </tr>
                 </tbody>
             </table>
+
+            <div style="margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 4px;">
+                <label style="cursor: pointer;">
+                    <input type="checkbox" id="skipUnmarked" onclick="toggleSkipWarning()">
+                    Отметить всех остальных как "Отсутствует"
+                </label>
+                <span style="font-size: 0.85em; color: #6c757d; margin-left: 10px;">
+                    (если галочка не стоит, неотмеченные дети останутся без статуса)
+                </span>
+            </div>
+
             <div style="margin-top: 20px; display: flex; gap: 10px;">
-                <button type="submit" class="btn">Сохранить посещаемость</button>
+                <button type="submit" class="btn" onclick="return confirmSubmit()">Сохранить посещаемость</button>
                 <a href="/schedule" class="btn" style="background: #6c757d;">Назад к расписанию</a>
             </div>
         </form>
     </div>
+
+    <script>
+        function toggleSkipWarning() {
+            var checkbox = document.getElementById('skipUnmarked');
+            var warning = document.getElementById('partialWarning');
+            if (checkbox.checked) {
+                if (warning) warning.style.display = 'none';
+            }
+        }
+
+        function confirmSubmit() {
+            var checkbox = document.getElementById('skipUnmarked');
+            var selects = document.querySelectorAll('select[name^="marks["]');
+            var unmarkedCount = 0;
+
+            selects.forEach(function(select) {
+                if (select.value === '') {
+                    unmarkedCount++;
+                }
+            });
+
+            if (unmarkedCount > 0 && !checkbox.checked) {
+                return confirm(
+                    '⚠️ ' + unmarkedCount + ' детей не отмечены.\n\n' +
+                    'Они останутся без статуса посещаемости.\n\n' +
+                    'Если хотите отметить их как "Отсутствует", поставьте галочку "Отметить всех остальных как Отсутствует".\n\n' +
+                    'Продолжить?'
+                );
+            }
+
+            if (checkbox.checked) {
+                // Отмечаем всех неотмеченных как ABSENT
+                selects.forEach(function(select) {
+                    if (select.value === '') {
+                        // Находим опцию "ABSENT"
+                        var options = select.options;
+                        for (var i = 0; i < options.length; i++) {
+                            if (options[i].value === 'ABSENT') {
+                                options[i].selected = true;
+                                break;
+                            }
+                        }
+                    }
+                });
+            }
+
+            return true;
+        }
+    </script>
 </div>
 </body>
 </html>
