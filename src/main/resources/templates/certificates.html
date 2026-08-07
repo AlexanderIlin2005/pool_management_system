@@ -2,6 +2,42 @@
 <html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout('Справки', ~{::content})}">
 <body>
 <div th:fragment="content">
+  <style>
+    .alert-success {
+        background: #d4edda;
+        color: #155724;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        transition: opacity 1.5s ease-in-out;
+    }
+    .alert-success.fade-out {
+        opacity: 0;
+    }
+    .alert-error {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        transition: opacity 1.5s ease-in-out;
+    }
+    .alert-error.fade-out {
+        opacity: 0;
+    }
+    .alert-warning {
+        background: #fff3cd;
+        color: #856404;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        transition: opacity 1.5s ease-in-out;
+    }
+    .alert-warning.fade-out {
+        opacity: 0;
+    }
+  </style>
+
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto;">
 
     <!-- Вкладки -->
@@ -23,13 +59,16 @@
       </a>
     </div>
 
-    <div th:if="${param.success}" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+    <div id="successAlert" th:if="${param.success}" class="alert-success">
       ✅ Справка успешно обработана!
     </div>
-    <div th:if="${param.error}" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+    <div id="rejectedAlert" th:if="${param.success == 'rejected'}" class="alert-success">
+      ✅ Справка отклонена!
+    </div>
+    <div id="errorAlert" th:if="${param.error}" class="alert-error">
       ❌ Ошибка: <span th:text="${param.error}"></span>
     </div>
-    <div th:if="${param.reset}" style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+    <div id="resetAlert" th:if="${param.reset}" class="alert-warning">
       ↩️ Справка возвращена в новые.
     </div>
 
@@ -57,11 +96,11 @@
           <td style="padding: 10px; border: 1px solid #ddd;" th:text="${cert.parent_name}"></td>
           <td style="padding: 10px; border: 1px solid #ddd;" th:text="${cert.child_name}"></td>
           <td style="padding: 10px; border: 1px solid #ddd;">
-            <span th:if="${cert.cert_type == 'absence'}">
-                📋 Болезнь
-                <small th:if="${cert.absence_type == 'SICK'}" style="color: #d63384;">(Больничный)</small>
-                <small th:if="${cert.absence_type == 'UNWELL'}" style="color: #fd7e14;">(Недомогание)</small>
-            </span>
+                        <span th:if="${cert.cert_type == 'absence'}">
+                            📋 Болезнь
+                            <small th:if="${cert.absence_type == 'SICK'}" style="color: #d63384;">(Больничный)</small>
+                            <small th:if="${cert.absence_type == 'UNWELL'}" style="color: #fd7e14;">(Недомогание)</small>
+                        </span>
             <span th:unless="${cert.cert_type == 'absence'}">📄 Допуск</span>
           </td>
           <td style="padding: 10px; border: 1px solid #ddd;">
@@ -80,12 +119,12 @@
 
             <!-- ФОРМЫ ДЛЯ НОВЫХ СПРАВОК (только во вкладках new и absence) -->
             <div th:if="${cert.status == 'PENDING' and currentTab != 'archive'}">
-              <form th:action="@{/certificates/process}" method="post" style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 5px;">
+              <form th:action="@{/certificates/process}" method="post" style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 5px;" th:id="'process-form-' + ${cert.id}">
                 <input type="hidden" name="certId" th:value="${cert.id}">
                 <input type="hidden" name="certType" th:value="${cert.cert_type}">
 
                 <!-- Выбор статуса для болезни -->
-                <select th:if="${cert.cert_type == 'absence'}" name="status" required style="padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
+                <select th:if="${cert.cert_type == 'absence'}" name="status" required style="padding: 5px; border: 1px solid #ccc; border-radius: 4px;" th:id="'status-' + ${cert.id}">
                   <option value="APPROVED_SICK">Больничный</option>
                   <option value="APPROVED_EXCUSED">Уважительная</option>
                 </select>
@@ -95,27 +134,27 @@
 
                 <!-- Даты только для болезни -->
                 <div th:if="${cert.cert_type == 'absence'}" style="display: flex; gap: 5px;">
-                  <input type="date" name="dateFrom" required style="padding: 5px; flex: 1; border: 1px solid #ccc; border-radius: 4px;">
-                  <input type="date" name="dateTo" required style="padding: 5px; flex: 1; border: 1px solid #ccc; border-radius: 4px;">
+                  <input type="date" name="dateFrom" required style="padding: 5px; flex: 1; border: 1px solid #ccc; border-radius: 4px;" th:id="'dateFrom-' + ${cert.id}">
+                  <input type="date" name="dateTo" required style="padding: 5px; flex: 1; border: 1px solid #ccc; border-radius: 4px;" th:id="'dateTo-' + ${cert.id}">
                 </div>
 
-                <button type="submit" class="btn" style="background-color: #28a745; font-size: 0.8em;">✅ Подтвердить</button>
+                <button type="submit" class="btn" style="background-color: #28a745; font-size: 0.8em;" th:id="'submit-process-' + ${cert.id}">✅ Подтвердить</button>
               </form>
 
-              <form th:action="@{/certificates/reject}" method="post" style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px; border-top: 1px dashed #ddd; padding-top: 5px;">
+              <form th:action="@{/certificates/reject}" method="post" style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px; border-top: 1px dashed #ddd; padding-top: 5px;" th:id="'reject-form-' + ${cert.id}">
                 <input type="hidden" name="certId" th:value="${cert.id}">
                 <input type="hidden" name="certType" th:value="${cert.cert_type}">
-                <input type="text" name="comment" placeholder="Причина отклонения" style="padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
-                <button type="submit" class="btn" style="background-color: #dc3545; font-size: 0.8em;">❌ Отклонить</button>
+                <input type="text" name="comment" placeholder="Причина отклонения" style="padding: 5px; border: 1px solid #ccc; border-radius: 4px;" th:id="'reject-comment-' + ${cert.id}">
+                <button type="submit" class="btn" style="background-color: #dc3545; font-size: 0.8em;" th:id="'submit-reject-' + ${cert.id}">❌ Отклонить</button>
               </form>
             </div>
 
             <!-- КНОПКА ВОЗВРАТА (только в архиве) -->
             <div th:if="${currentTab == 'archive' and cert.status != 'PENDING'}">
-              <form th:action="@{/certificates/reset}" method="post">
+              <form th:action="@{/certificates/reset}" method="post" th:id="'reset-form-' + ${cert.id}">
                 <input type="hidden" name="certId" th:value="${cert.id}">
                 <input type="hidden" name="certType" th:value="${cert.cert_type}">
-                <button type="submit" class="btn" style="background-color: #ffc107; color: black; font-size: 0.8em;">↩️ Вернуть</button>
+                <button type="submit" class="btn" style="background-color: #ffc107; color: black; font-size: 0.8em;" th:id="'submit-reset-' + ${cert.id}">↩️ Вернуть</button>
               </form>
             </div>
 
@@ -125,6 +164,221 @@
       </table>
     </div>
   </div>
+
+  <script>
+    // Получаем userId из атрибутов сессии
+    const userId = /*[[${session.currentUser.id}]]*/ null;
+
+    // Ключи для sessionStorage с привязкой к пользователю
+    function getStorageKey(baseKey, certId) {
+        return userId ? 'user_' + userId + '_' + baseKey + '_' + certId : baseKey + '_' + certId;
+    }
+
+    // Функция удаления параметров из URL
+    function removeUrlParams() {
+        if (window.history && window.history.replaceState) {
+            var url = new URL(window.location.href);
+            url.searchParams.delete('success');
+            url.searchParams.delete('error');
+            url.searchParams.delete('reset');
+            window.history.replaceState({}, document.title, url.toString());
+        }
+    }
+
+    // Функция плавного исчезновения уведомления
+    function fadeOutAlert(alertId, callback) {
+        var alert = document.getElementById(alertId);
+        if (alert) {
+            setTimeout(function() {
+                alert.classList.add('fade-out');
+                setTimeout(function() {
+                    alert.style.display = 'none';
+                    if (callback) callback();
+                }, 1500);
+            }, 3000);
+        } else {
+            if (callback) callback();
+        }
+    }
+
+    // Функция сохранения состояния формы
+    function saveFormState(certId) {
+        var dateFrom = document.getElementById('dateFrom-' + certId);
+        var dateTo = document.getElementById('dateTo-' + certId);
+        var comment = document.getElementById('reject-comment-' + certId);
+        var status = document.getElementById('status-' + certId);
+
+        if (dateFrom) {
+            sessionStorage.setItem(getStorageKey('dateFrom', certId), dateFrom.value);
+        }
+        if (dateTo) {
+            sessionStorage.setItem(getStorageKey('dateTo', certId), dateTo.value);
+        }
+        if (comment) {
+            sessionStorage.setItem(getStorageKey('comment', certId), comment.value);
+        }
+        if (status) {
+            sessionStorage.setItem(getStorageKey('status', certId), status.value);
+        }
+    }
+
+    // Функция восстановления состояния формы
+    function restoreFormState(certId) {
+        var dateFrom = document.getElementById('dateFrom-' + certId);
+        var dateTo = document.getElementById('dateTo-' + certId);
+        var comment = document.getElementById('reject-comment-' + certId);
+        var status = document.getElementById('status-' + certId);
+
+        var savedDateFrom = sessionStorage.getItem(getStorageKey('dateFrom', certId));
+        var savedDateTo = sessionStorage.getItem(getStorageKey('dateTo', certId));
+        var savedComment = sessionStorage.getItem(getStorageKey('comment', certId));
+        var savedStatus = sessionStorage.getItem(getStorageKey('status', certId));
+
+        if (dateFrom && savedDateFrom) {
+            dateFrom.value = savedDateFrom;
+        }
+        if (dateTo && savedDateTo) {
+            dateTo.value = savedDateTo;
+        }
+        if (comment && savedComment) {
+            comment.value = savedComment;
+        }
+        if (status && savedStatus) {
+            status.value = savedStatus;
+        }
+    }
+
+    // Функция очистки сохраненного состояния
+    function clearFormState(certId) {
+        sessionStorage.removeItem(getStorageKey('dateFrom', certId));
+        sessionStorage.removeItem(getStorageKey('dateTo', certId));
+        sessionStorage.removeItem(getStorageKey('comment', certId));
+        sessionStorage.removeItem(getStorageKey('status', certId));
+    }
+
+    // Функция очистки всех сохраненных состояний для текущей страницы
+    function clearAllFormStates() {
+        var keys = [];
+        for (var i = 0; i < sessionStorage.length; i++) {
+            var key = sessionStorage.key(i);
+            if (key && key.startsWith('user_' + userId + '_')) {
+                keys.push(key);
+            }
+        }
+        keys.forEach(function(key) {
+            sessionStorage.removeItem(key);
+        });
+    }
+
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        var hasSuccess = new URLSearchParams(window.location.search).has('success');
+        var hasError = new URLSearchParams(window.location.search).has('error');
+        var hasReset = new URLSearchParams(window.location.search).has('reset');
+
+        // Обработка уведомлений
+        if (hasSuccess) {
+            var successValue = new URLSearchParams(window.location.search).get('success');
+            if (successValue === 'rejected') {
+                fadeOutAlert('rejectedAlert', function() {
+                    removeUrlParams();
+                });
+            } else {
+                fadeOutAlert('successAlert', function() {
+                    removeUrlParams();
+                });
+            }
+            // После успешной обработки очищаем все сохраненные состояния
+            setTimeout(function() {
+                clearAllFormStates();
+            }, 500);
+        }
+
+        if (hasError) {
+            fadeOutAlert('errorAlert', function() {
+                removeUrlParams();
+            });
+        }
+
+        if (hasReset) {
+            fadeOutAlert('resetAlert', function() {
+                removeUrlParams();
+            });
+        }
+
+        if (!hasSuccess && !hasError && !hasReset) {
+            var successAlert = document.getElementById('successAlert');
+            var rejectedAlert = document.getElementById('rejectedAlert');
+            var errorAlert = document.getElementById('errorAlert');
+            var resetAlert = document.getElementById('resetAlert');
+            if (successAlert) successAlert.style.display = 'none';
+            if (rejectedAlert) rejectedAlert.style.display = 'none';
+            if (errorAlert) errorAlert.style.display = 'none';
+            if (resetAlert) resetAlert.style.display = 'none';
+        }
+
+        // Восстанавливаем состояния форм для PENDING справок
+        var pendingForms = document.querySelectorAll('form[id^="process-form-"]');
+        pendingForms.forEach(function(form) {
+            var certId = form.id.replace('process-form-', '');
+            restoreFormState(certId);
+        });
+
+        // Восстанавливаем комментарии для форм отклонения
+        var rejectForms = document.querySelectorAll('form[id^="reject-form-"]');
+        rejectForms.forEach(function(form) {
+            var certId = form.id.replace('reject-form-', '');
+            restoreFormState(certId);
+        });
+
+        // Добавляем обработчики для автосохранения состояния
+        document.querySelectorAll('[id^="dateFrom-"], [id^="dateTo-"], [id^="reject-comment-"], [id^="status-"]').forEach(function(element) {
+            var certId = element.id.split('-').pop();
+            element.addEventListener('change', function() {
+                saveFormState(certId);
+            });
+            element.addEventListener('input', function() {
+                saveFormState(certId);
+            });
+        });
+
+        // Очищаем состояние формы при отправке (успешная обработка)
+        document.querySelectorAll('form[id^="process-form-"]').forEach(function(form) {
+            form.addEventListener('submit', function() {
+                var certId = form.id.replace('process-form-', '');
+                clearFormState(certId);
+            });
+        });
+
+        document.querySelectorAll('form[id^="reject-form-"]').forEach(function(form) {
+            form.addEventListener('submit', function() {
+                var certId = form.id.replace('reject-form-', '');
+                clearFormState(certId);
+            });
+        });
+
+        document.querySelectorAll('form[id^="reset-form-"]').forEach(function(form) {
+            form.addEventListener('submit', function() {
+                var certId = form.id.replace('reset-form-', '');
+                clearFormState(certId);
+            });
+        });
+    });
+
+    // Сохраняем состояние при закрытии страницы
+    window.addEventListener('beforeunload', function() {
+        var pendingForms = document.querySelectorAll('form[id^="process-form-"]');
+        pendingForms.forEach(function(form) {
+            var certId = form.id.replace('process-form-', '');
+            saveFormState(certId);
+        });
+        var rejectForms = document.querySelectorAll('form[id^="reject-form-"]');
+        rejectForms.forEach(function(form) {
+            var certId = form.id.replace('reject-form-', '');
+            saveFormState(certId);
+        });
+    });
+  </script>
 </div>
 </body>
 </html>
