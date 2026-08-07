@@ -8,6 +8,8 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Logger
 
@@ -37,11 +39,9 @@ class ReportAbsenceCommand(
         val cmd = CommandUtils.normalize(text)
 
         if (cmd == "нет" || cmd == "отмена") {
-            if (step == 1) {
-                return CommandResult.Cancel()
-            } else {
-                return CommandResult.Cancel()
-            }
+            userSteps.remove(userId)
+            userData.remove(userId)
+            return CommandResult.Cancel()
         }
 
         when (step) {
@@ -61,25 +61,26 @@ class ReportAbsenceCommand(
 
                 if (children.isEmpty()) {
                     return CommandResult.Continue(
-                        "У Вас пока нет зарегистрированных детей. Сначала зарегистрируйте ребенка (команда 1)."
+                        "У Вас пока нет зарегистрированных детей. Сначала зарегистрируйте ребенка (команда ${BotCommandType.REGISTER_CHILD.getCommandNumber()})."
                     )
                 }
 
                 if (children.size == 1) {
                     val child = children[0]
                     data["childId"] = (child["id"] as Number).toLong()
-                    data["childName"] = (child["lastName"] as String) + " " + (child["firstName"] as String)
+                    data["childName"] = "${child["lastName"]} ${child["firstName"]}"
                     userSteps[userId] = 3
                     return showAbsenceTypes()
                 } else {
                     userSteps[userId] = 2
                     val sb = StringBuilder("Выберите ребенка, о пропуске которого Вы хотите сообщить:\n\n")
                     children.forEachIndexed { i, child ->
-                        val name = (child["lastName"] as String) + " " + (child["firstName"] as String)
-                        if (child["middleName"] != null && (child["middleName"] as String).isNotEmpty()) {
-                            sb.append("${i + 1}. ${child["lastName"]} ${child["firstName"]} ${child["middleName"]}\n")
+                        val name = "${child["lastName"]} ${child["firstName"]}"
+                        val middleName = child["middleName"] as? String
+                        if (!middleName.isNullOrEmpty()) {
+                            sb.append("${i + 1}. $name $middleName\n")
                         } else {
-                            sb.append("${i + 1}. ${child["lastName"]} ${child["firstName"]}\n")
+                            sb.append("${i + 1}. $name\n")
                         }
                     }
                     return CommandResult.Continue(sb.toString())
@@ -94,13 +95,11 @@ class ReportAbsenceCommand(
 
                 val num = text.trim().toIntOrNull()
                 if (num == null || num < 1 || num > children.size) {
-                    return CommandResult.Continue(
-                        "Пожалуйста, введите номер ребенка от 1 до ${children.size}."
-                    )
+                    return CommandResult.Continue("Пожалуйста, введите номер ребенка от 1 до ${children.size}.")
                 }
                 val child = children[num - 1]
                 data["childId"] = (child["id"] as Number).toLong()
-                data["childName"] = (child["lastName"] as String) + " " + (child["firstName"] as String)
+                data["childName"] = "${child["lastName"]} ${child["firstName"]}"
                 userSteps[userId] = 3
                 return showAbsenceTypes()
             }
@@ -120,15 +119,19 @@ class ReportAbsenceCommand(
                 }
                 data["absenceType"] = type
 
-                // Если тип SICK - запрашиваем справку
-                if (type == "SICK") {
-                    userSteps[userId] = 4
-                    return CommandResult.Continue(
-                        "Пожалуйста, пришлите справку от врача (фото или PDF файл)."
-                    )
-                } else {
-                    // Для UNWELL и OTHER - сразу сохраняем без справки
-                    return saveAbsence(userId, data)
+                when (type) {
+                    "SICK" -> {
+                        userSteps[userId] = 4
+                        return CommandResult.Continue("Пожалуйста, пришлите справку от врача (фото или PDF файл).")
+                    }
+                    "UNWELL", "OTHER" -> {
+                        userSteps[userId] = 5
+                        return CommandResult.Continue(
+                            "Укажите дату пропуска в формате ДД.ММ (например, 15.08):\n" +
+                                    "(По умолчанию будет использован текущий год)"
+                        )
+                    }
+                    else -> return saveAbsence(userId, data)
                 }
             }
             4 -> {
@@ -151,16 +154,13 @@ class ReportAbsenceCommand(
                         return CommandResult.Continue("Ошибка скачивания файла. Попробуйте снова.")
                     }
 
-                    // Сохраняем справку в MinIO
                     val objectName = "certificates/${java.util.UUID.randomUUID()}$extension"
                     val url = minioService.uploadFile(file.absolutePath, "certificate$extension")
                     file.delete()
 
-                    // Сохраняем URL справки в data
                     data["certificateUrl"] = url
                     data["certificateFileName"] = "справка_о_болезни$extension"
 
-                    // Сохраняем уведомление о пропуске со справкой
                     return saveAbsence(userId, data)
 
                 } catch (e: Exception) {
@@ -168,9 +168,46 @@ class ReportAbsenceCommand(
                     return CommandResult.Error("Ошибка загрузки справки: ${e.message}")
                 }
             }
+            5 -> {
+                // Ввод даты для UNWELL / OTHER
+                val dateStr = text.trim()
+                val parsedDate = parseShortDate(dateStr)
+                if (parsedDate == null) {
+                    return CommandResult.Continue(
+                        "❌ Неверный формат даты. Используйте ДД.ММ (например, 15.08)."
+                    )
+                }
+                data["absenceDate"] = parsedDate.toString() // ISO format yyyy-MM-dd
+                return saveAbsence(userId, data)
+            }
             else -> {
+                userSteps.remove(userId)
+                userData.remove(userId)
                 return CommandResult.Cancel()
             }
+        }
+    }
+
+    /**
+     * Парсит дату в формате ДД.ММ, добавляя текущий год.
+     * Возвращает LocalDate или null при ошибке.
+     */
+    private fun parseShortDate(text: String): LocalDate? {
+        try {
+            val parts = text.split(".")
+            if (parts.size != 2) return null
+            val day = parts[0].trim().toInt()
+            val month = parts[1].trim().toInt()
+            val year = LocalDate.now().year
+            val date = LocalDate.of(year, month, day)
+            // Проверка разумности: не более 6 месяцев в будущее и не более 1 месяца в прошлое
+            val now = LocalDate.now()
+            if (date.isAfter(now.plusMonths(6)) || date.isBefore(now.minusMonths(1))) {
+                return null
+            }
+            return date
+        } catch (_: Exception) {
+            return null
         }
     }
 
@@ -189,17 +226,23 @@ class ReportAbsenceCommand(
 
             var message = "Ребенок $childName пропустит занятие по причине: $absenceTypeDisplay"
 
-            // Если есть справка - добавляем информацию о ней
             val certificateUrl = data["certificateUrl"] as? String
             if (certificateUrl != null) {
                 message += "\nСправка приложена"
             }
 
-            // Сохраняем в absence_notifications
+            val absenceDate = data["absenceDate"] as? String
+            if (absenceDate != null) {
+                val formattedDate = try {
+                    LocalDate.parse(absenceDate).format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+                } catch (_: Exception) { absenceDate }
+                message += "\nДата пропуска: $formattedDate"
+            }
+
             val sql = """
                 INSERT INTO pool.absence_notifications
-                (parent_id, child_id, absence_type, message, status, created_at, updated_at, certificate_url, certificate_file_name)
-                VALUES (?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, ?)
+                (parent_id, child_id, absence_type, message, status, created_at, updated_at, certificate_url, certificate_file_name, absence_date)
+                VALUES (?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, ?, ?)
             """.trimIndent()
 
             dbService.getConnection().use { conn ->
@@ -210,6 +253,11 @@ class ReportAbsenceCommand(
                     stmt.setString(4, message)
                     stmt.setString(5, certificateUrl)
                     stmt.setString(6, data["certificateFileName"] as? String)
+                    if (absenceDate != null) {
+                        stmt.setDate(7, java.sql.Date.valueOf(LocalDate.parse(absenceDate)))
+                    } else {
+                        stmt.setNull(7, java.sql.Types.DATE)
+                    }
                     stmt.executeUpdate()
                 }
             }

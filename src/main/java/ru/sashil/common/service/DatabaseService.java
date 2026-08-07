@@ -291,7 +291,6 @@ public class DatabaseService {
             stmt.setString(3, fileUrl);
             stmt.executeUpdate();
             LOGGER.info("✅ Справка сохранена для parent_id=" + parentId + ", child_id=" + childId);
-            // ОТПРАВЛЯЕМ WEB SOCKET УВЕДОМЛЕНИЕ
             sendWebSocketNotification("NEW_CERTIFICATE");
         } catch (SQLException e) {
             LOGGER.severe("❌ Ошибка сохранения справки: " + e.getMessage());
@@ -324,7 +323,7 @@ public class DatabaseService {
                 "p.last_name || ' ' || p.first_name as parent_name, " +
                 "c.last_name || ' ' || c.first_name as child_name, " +
                 "au.full_name as processed_by_name, " +
-                "'regular' as cert_type " + // <--- ДОБАВЛЕНО
+                "'regular' as cert_type " +
                 "FROM pool.certificates cert " +
                 "JOIN pool.parents p ON cert.parent_id = p.id " +
                 "JOIN pool.children c ON cert.child_id = c.id " +
@@ -340,7 +339,7 @@ public class DatabaseService {
                 "p.last_name || ' ' || p.first_name as parent_name, " +
                 "c.last_name || ' ' || c.first_name as child_name, " +
                 "au.full_name as processed_by_name, " +
-                "'regular' as cert_type " + // <--- ДОБАВЛЕНО
+                "'regular' as cert_type " +
                 "FROM pool.certificates cert " +
                 "JOIN pool.parents p ON cert.parent_id = p.id " +
                 "JOIN pool.children c ON cert.child_id = c.id " +
@@ -366,7 +365,7 @@ public class DatabaseService {
                 row.put("parent_name", rs.getString("parent_name"));
                 row.put("child_name", rs.getString("child_name"));
                 row.put("processed_by_name", rs.getString("processed_by_name"));
-                row.put("cert_type", rs.getString("cert_type")); // <--- ДОБАВЛЕНО
+                row.put("cert_type", rs.getString("cert_type"));
                 result.add(row);
             }
         } catch (SQLException e) {
@@ -446,12 +445,8 @@ public class DatabaseService {
         }
     }
 
-    /**
-     * Отклоняет справку (без дат).
-     */
     public void rejectCertificate(Long certId, Long adminId, String comment) {
         String sql;
-        // Если комментарий есть - сохраняем его, если нет - оставляем NULL
         if (comment != null && !comment.trim().isEmpty()) {
             sql = "UPDATE pool.certificates SET is_read = TRUE, status = 'REJECTED', processed_by = ?, comment = ? WHERE id = ?";
         } else {
@@ -468,8 +463,6 @@ public class DatabaseService {
             }
             stmt.executeUpdate();
             LOGGER.info("✅ Справка ID=" + certId + " отклонена." + (comment != null ? " Причина: " + comment : ""));
-
-            // Отправляем WebSocket уведомление
             sendWebSocketNotification("CERTIFICATE_REJECTED");
         } catch (SQLException e) {
             LOGGER.severe("❌ Ошибка отклонения справки: " + e.getMessage());
@@ -536,7 +529,7 @@ public class DatabaseService {
                 "p.last_name || ' ' || p.first_name as parent_name, " +
                 "c.last_name || ' ' || c.first_name as child_name, " +
                 "au.full_name as processed_by_name, " +
-                "'regular' as cert_type " + // <--- ДОБАВЛЕНО
+                "'regular' as cert_type " +
                 "FROM pool.certificates cert " +
                 "JOIN pool.parents p ON cert.parent_id = p.id " +
                 "JOIN pool.children c ON cert.child_id = c.id " +
@@ -634,13 +627,8 @@ public class DatabaseService {
         }
     }
 
-    // === НОВЫЕ МЕТОДЫ ДЛЯ ЗАПИСИ В ГРУППУ ===
+    // === МЕТОДЫ ДЛЯ ЗАПИСИ В ГРУППУ ===
 
-    /**
-     * Находит подходящие группы для ребенка по возрасту, навыку и типу абонемента.
-     * Возвращает список групп, отсортированный по приоритету совпадения.
-     * Исключает группы, в которых ребенок уже состоит.
-     */
     public List<Map<String, Object>> findSuitableGroupsForChild(long childId) {
         String sql = "SELECT c.age, c.skill::text as skill FROM pool.children c WHERE c.id = ?";
         int age = 0;
@@ -661,7 +649,6 @@ public class DatabaseService {
             return java.util.Collections.emptyList();
         }
 
-        // Получаем группы, в которых уже состоит ребенок
         Set<Long> childGroups = new HashSet<>();
         String childGroupsSql = "SELECT group_id FROM pool.group_children WHERE child_id = ?";
         try (Connection conn = getConnection();
@@ -675,7 +662,6 @@ public class DatabaseService {
             e.printStackTrace();
         }
 
-        // Получаем все группы
         String groupsSql = "SELECT g.id, g.name, g.number, g.min_age, g.max_age, g.skill_1, g.skill_2, " +
                 "g.subscription_type, " +
                 "g.day_1_start, g.day_1_end, g.day_2_start, g.day_2_end, " +
@@ -685,7 +671,6 @@ public class DatabaseService {
 
         List<Map<String, Object>> allGroups = executeQuery(groupsSql);
 
-        // Списки для разных приоритетов совпадения
         List<Map<String, Object>> fullMatch = new ArrayList<>();
         List<Map<String, Object>> ageSkillMatch = new ArrayList<>();
         List<Map<String, Object>> ageMatch = new ArrayList<>();
@@ -694,7 +679,6 @@ public class DatabaseService {
         for (Map<String, Object> g : allGroups) {
             Long groupId = (Long) g.get("id");
 
-            // Пропускаем группы, в которых ребенок уже состоит
             if (childGroups.contains(groupId)) {
                 continue;
             }
@@ -704,12 +688,10 @@ public class DatabaseService {
             String s1 = (String) g.get("skill_1");
             String s2 = (String) g.get("skill_2");
 
-            // Проверка возраста
             boolean ageOk = true;
             if (minAge != null && age < minAge) ageOk = false;
             if (maxAge != null && age > maxAge) ageOk = false;
 
-            // Проверка навыка
             boolean skillOk = true;
             if (s1 != null || s2 != null) {
                 if (skill == null) {
@@ -720,7 +702,6 @@ public class DatabaseService {
                 }
             }
 
-            // Распределяем по приоритетам
             if (ageOk && skillOk) {
                 fullMatch.add(g);
             } else if (ageOk) {
@@ -730,7 +711,6 @@ public class DatabaseService {
             }
         }
 
-        // Собираем результат с приоритетом
         List<Map<String, Object>> result = new ArrayList<>();
         result.addAll(fullMatch);
         result.addAll(ageMatch);
@@ -739,19 +719,12 @@ public class DatabaseService {
         return result;
     }
 
-
-
-    /**
-     * Создает заявку на вступление в группу и уведомление для администратора.
-     */
     public void createJoinRequest(long parentVkId, long childId, long groupId) throws SQLException {
-        // Сначала получаем parent_id по vk_id
         Long parentId = getParentIdByVkId(parentVkId);
         if (parentId == null) {
             throw new SQLException("Родитель с VK ID " + parentVkId + " не найден");
         }
 
-        // Создаем заявку с parent_id
         String sql = "INSERT INTO pool.group_join_requests (parent_id, child_id, group_id, status, created_at) " +
                 "VALUES (?, ?, ?, 'PENDING', CURRENT_TIMESTAMP)";
         try (Connection conn = getConnection();
@@ -762,14 +735,12 @@ public class DatabaseService {
             stmt.executeUpdate();
         }
 
-        // Создаем уведомление для администраторов
         String insertNotifSql = "INSERT INTO pool.join_request_notifications (parent_vk_id, message_text) " +
                 "VALUES (?, ?)";
 
         String groupName = "";
         String childName = "";
 
-        // Получаем данные для уведомления
         String getDataSql = "SELECT g.name as group_name, c.first_name, c.last_name " +
                 "FROM pool.groups g, pool.children c " +
                 "WHERE g.id = ? AND c.id = ?";
@@ -795,13 +766,9 @@ public class DatabaseService {
             stmt.executeUpdate();
         }
 
-        // ОТПРАВЛЯЕМ WEB SOCKET УВЕДОМЛЕНИЕ
         sendWebSocketNotification("NEW_JOIN_REQUEST");
     }
 
-    /**
-     * Получает нерассыланные уведомления о заявках.
-     */
     public List<Map<String, Object>> getPendingJoinRequestNotifications() {
         String sql = "SELECT jrn.id, jrn.parent_vk_id, jrn.message_text " +
                 "FROM pool.join_request_notifications jrn " +
@@ -809,9 +776,6 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
-    /**
-     * Помечает уведомление о заявке как отправленное.
-     */
     public void markJoinRequestNotificationSent(long notifId) {
         String sql = "UPDATE pool.join_request_notifications SET is_sent = TRUE, sent_at = CURRENT_TIMESTAMP WHERE id = ?";
         try (Connection conn = getConnection();
@@ -823,15 +787,6 @@ public class DatabaseService {
         }
     }
 
-
-    // В DatabaseService.java добавляем:
-
-    /**
-     * Сохраняет квитанцию об оплате от родителя.
-     */
-    /**
-     * Сохраняет квитанцию об оплате от родителя.
-     */
     public void savePaymentReceipt(long parentVkId, long childId, LocalDate monthYear, String fileUrl, String originalName) {
         Long parentId = getParentIdByVkId(parentVkId);
         if (parentId == null) {
@@ -839,7 +794,6 @@ public class DatabaseService {
             return;
         }
 
-        // Сначала проверяем, есть ли уже запись об оплате за этот месяц
         String checkSql = "SELECT id FROM pool.payments WHERE child_id = ? AND month_year = ?";
         Long paymentId = null;
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(checkSql)) {
@@ -878,8 +832,6 @@ public class DatabaseService {
             }
             int rows = stmt.executeUpdate();
             LOGGER.info("✅ Квитанция сохранена для child_id=" + childId + ", month=" + monthYear + ", rows=" + rows);
-
-            // ОТПРАВЛЯЕМ WEB SOCKET УВЕДОМЛЕНИЕ
             sendWebSocketNotification("NEW_PAYMENT_RECEIPT");
         } catch (SQLException e) {
             LOGGER.severe("❌ Ошибка сохранения квитанции: " + e.getMessage());
@@ -887,9 +839,6 @@ public class DatabaseService {
         }
     }
 
-    /**
-     * Получает необработанные квитанции об оплате (для бухгалтера).
-     */
     public List<Map<String, Object>> getPendingPayments() {
         String sql = "SELECT p.id, p.child_id, p.month_year, p.receipt_file_url, p.receipt_original_name, " +
                 "p.status, p.created_at, " +
@@ -903,9 +852,6 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
-    /**
-     * Получает неотправленные уведомления об оплате.
-     */
     public List<Map<String, Object>> getPendingPaymentNotifications() {
         String sql = "SELECT pn.id, pn.parent_vk_id, pn.message_text " +
                 "FROM pool.payment_notifications pn " +
@@ -914,9 +860,6 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
-    /**
-     * Помечает уведомление об оплате как отправленное.
-     */
     public void markPaymentNotificationSent(long notifId) {
         String sql = "UPDATE pool.payment_notifications SET is_sent = TRUE, sent_at = CURRENT_TIMESTAMP WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -927,30 +870,19 @@ public class DatabaseService {
         }
     }
 
-    /**
-     * Отправляет WebSocket уведомление об обновлении данных.
-     */
     private void sendWebSocketNotification(String eventType) {
         try {
-            // Пытаемся получить сервис из Spring контекста
             Object wsService = SpringContextHolder.getBean("wsNotificationService");
             if (wsService != null) {
-                // Используем рефлексию для вызова метода
                 java.lang.reflect.Method method = wsService.getClass().getMethod("sendUpdateNotification", String.class);
                 method.invoke(wsService, eventType);
                 LOGGER.info("✅ WebSocket уведомление отправлено: " + eventType);
             }
         } catch (Exception e) {
-            // Если Spring еще не инициализирован (при запуске бота), просто логируем
             LOGGER.fine("WebSocket уведомление не отправлено (Spring не инициализирован): " + e.getMessage());
         }
     }
 
-
-
-    /**
-     * Получает неотправленные уведомления об изменении данных ребенка.
-     */
     public List<Map<String, Object>> getPendingChildUpdateNotifications() {
         String sql = "SELECT cun.id, cun.parent_vk_id, cun.message_text " +
                 "FROM pool.child_update_notifications cun " +
@@ -959,9 +891,6 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
-    /**
-     * Помечает уведомление об изменении данных ребенка как отправленное.
-     */
     public void markChildUpdateNotificationSent(long notifId) {
         String sql = "UPDATE pool.child_update_notifications SET is_sent = TRUE, sent_at = CURRENT_TIMESTAMP WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -972,13 +901,6 @@ public class DatabaseService {
         }
     }
 
-
-
-    // Добавьте эти методы в DatabaseService.java
-
-    /**
-     * Сохраняет уведомление о пропуске занятия
-     */
     public void saveAbsenceNotification(long parentVkId, long childId, String type, String message) {
         Long parentId = getParentIdByVkId(parentVkId);
         if (parentId == null) return;
@@ -997,9 +919,6 @@ public class DatabaseService {
         }
     }
 
-    /**
-     * Получает все уведомления о пропусках для администратора
-     */
     public List<Map<String, Object>> getAllAbsenceNotifications() {
         String sql = "SELECT an.id, an.absence_type, an.message, an.status, an.created_at, " +
                 "p.last_name as parent_last_name, p.first_name as parent_first_name, " +
@@ -1011,9 +930,6 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
-    /**
-     * Получает уведомления о пропусках для конкретного тренера
-     */
     public List<Map<String, Object>> getAbsenceNotificationsForCoach(Long coachId) {
         String sql = "SELECT an.id, an.absence_type, an.message, an.status, an.created_at, " +
                 "p.last_name as parent_last_name, p.first_name as parent_first_name, " +
@@ -1045,9 +961,6 @@ public class DatabaseService {
         return result;
     }
 
-    /**
-     * Обновляет статус уведомления о пропуске
-     */
     public void updateAbsenceNotificationStatus(long notificationId, String status, Long adminId) {
         String sql = "UPDATE pool.absence_notifications SET status = ?, updated_at = CURRENT_TIMESTAMP, processed_by = ? WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -1064,11 +977,6 @@ public class DatabaseService {
         }
     }
 
-
-
-    /**
-     * Получает неотправленные ответы на сообщения
-     */
     public List<Map<String, Object>> getPendingMessageReplies() {
         String sql = "SELECT id, parent_vk_id, message_text FROM pool.payment_notifications " +
                 "WHERE notification_type = 'MESSAGE_REPLY' AND is_sent = FALSE " +
@@ -1076,9 +984,6 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
-    /**
-     * Помечает ответ на сообщение как отправленный
-     */
     public void markMessageReplySent(long notifId) {
         String sql = "UPDATE pool.payment_notifications SET is_sent = TRUE, sent_at = CURRENT_TIMESTAMP WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -1089,10 +994,6 @@ public class DatabaseService {
         }
     }
 
-
-    /**
-     * Получает неотправленные сообщения для родителей с именем отправителя
-     */
     public List<Map<String, Object>> getPendingMessagesForParents() {
         String sql = "SELECT m.id, m.to_user_id as parent_vk_id, m.message_text, m.from_user_type, m.from_user_id, " +
                 "au.full_name as sender_name " +
@@ -1103,9 +1004,6 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
-    /**
-     * Помечает сообщение для родителя как отправленное
-     */
     public void markParentMessageSent(long messageId) {
         String sql = "UPDATE pool.messages SET status = 'SENT', sent_at = CURRENT_TIMESTAMP WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -1116,9 +1014,6 @@ public class DatabaseService {
         }
     }
 
-    /**
-     * Получает имя тренера по ID группы
-     */
     public String getTrainerNameByGroupId(Long groupId) {
         if (groupId == null) return null;
         String sql = "SELECT au.full_name FROM pool.groups g " +
@@ -1136,14 +1031,6 @@ public class DatabaseService {
         return null;
     }
 
-
-
-
-    // Добавьте эти методы в DatabaseService.java
-
-    /**
-     * Сохраняет родителя с возможными null значениями
-     */
     public void saveParentNullable(long vkId, String firstName, String lastName, String middleName, String email, String phone) throws SQLException {
         String sql = "INSERT INTO pool.parents (vk_id, first_name, last_name, middle_name, email, phone) " +
                 "VALUES (?, ?, ?, ?, ?, ?) " +
@@ -1165,9 +1052,6 @@ public class DatabaseService {
         }
     }
 
-    /**
-     * Обновляет родителя с возможными null значениями
-     */
     public void updateParentNullable(long vkId, String firstName, String lastName, String middleName, String email, String phone) throws SQLException {
         String sql = "UPDATE pool.parents SET first_name = ?, last_name = ?, middle_name = ?, email = ?, phone = ? WHERE vk_id = ?";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -1181,10 +1065,6 @@ public class DatabaseService {
             LOGGER.info("✅ Данные родителя VK:" + vkId + " обновлены.");
         }
     }
-
-
-
-
 
     // === ВСПОМОГАТЕЛЬНЫЙ МЕТОД ===
 
@@ -1208,21 +1088,16 @@ public class DatabaseService {
         return result;
     }
 
+    // === МЕТОДЫ ДЛЯ СПРАВОК О БОЛЕЗНИ (absence_notifications) ===
 
-    /**
-     * Получает все справки о болезни из absence_notifications для администратора
-     */
     public List<Map<String, Object>> getAllAbsenceCertificates() {
         String sql = "SELECT an.id, an.created_at as uploaded_at, an.certificate_url as file_url, " +
-                "an.status, " + // <--- ТЕПЕРЬ ЭТО СТАТУС ОБРАБОТКИ (PENDING)
-                "an.absence_type, " + // <--- А ЭТО ТИП ПРОПУСКА (SICK/UNWELL)
-                "an.message, an.certificate_file_name, " +
+                "an.status, an.absence_type, an.message, an.certificate_file_name, " +
                 "p.last_name || ' ' || p.first_name as parent_name, " +
                 "c.last_name || ' ' || c.first_name as child_name, " +
                 "au.full_name as processed_by_name, " +
                 "'absence' as cert_type, " +
-                "NULL as date_from, " +
-                "NULL as date_to " +
+                "NULL as date_from, NULL as date_to " +
                 "FROM pool.absence_notifications an " +
                 "JOIN pool.parents p ON an.parent_id = p.id " +
                 "JOIN pool.children c ON an.child_id = c.id " +
@@ -1232,21 +1107,14 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
-
-    /**
-     * Получает справки о болезни для тренера
-     */
     public List<Map<String, Object>> getAbsenceCertificatesForCoach(Long coachId) {
         String sql = "SELECT an.id, an.created_at as uploaded_at, an.certificate_url as file_url, " +
-                "an.status, " + // <--- СТАТУС ОБРАБОТКИ
-                "an.absence_type, " + // <--- ТИП ПРОПУСКА
-                "an.message, an.certificate_file_name, " +
+                "an.status, an.absence_type, an.message, an.certificate_file_name, " +
                 "p.last_name || ' ' || p.first_name as parent_name, " +
                 "c.last_name || ' ' || c.first_name as child_name, " +
                 "au.full_name as processed_by_name, " +
                 "'absence' as cert_type, " +
-                "NULL as date_from, " +
-                "NULL as date_to " +
+                "NULL as date_from, NULL as date_to " +
                 "FROM pool.absence_notifications an " +
                 "JOIN pool.parents p ON an.parent_id = p.id " +
                 "JOIN pool.children c ON an.child_id = c.id " +
@@ -1266,8 +1134,8 @@ public class DatabaseService {
                 row.put("id", rs.getLong("id"));
                 row.put("uploaded_at", rs.getTimestamp("uploaded_at"));
                 row.put("file_url", rs.getString("file_url"));
-                row.put("status", rs.getString("status"));           // PENDING
-                row.put("absence_type", rs.getString("absence_type")); // SICK
+                row.put("status", rs.getString("status"));
+                row.put("absence_type", rs.getString("absence_type"));
                 row.put("message", rs.getString("message"));
                 row.put("certificate_file_name", rs.getString("certificate_file_name"));
                 row.put("parent_name", rs.getString("parent_name"));
@@ -1284,16 +1152,12 @@ public class DatabaseService {
         return result;
     }
 
-    /**
-     * Обрабатывает справку о болезни из absence_notifications
-     */
     public void processAbsenceCertificate(Long certId, Long adminId, String status, LocalDate dateFrom, LocalDate dateTo) {
         if (dateFrom == null || dateTo == null) {
             LOGGER.warning("❌ processAbsenceCertificate: даты не переданы для certId=" + certId);
             return;
         }
 
-        // Получаем child_id ПЕРЕД транзакцией
         String getChildSql = "SELECT child_id FROM pool.absence_notifications WHERE id = ?";
         Long childId = null;
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(getChildSql)) {
@@ -1313,10 +1177,8 @@ public class DatabaseService {
             return;
         }
 
-        // Определяем статус для attendance
         String dbStatus = "APPROVED_SICK".equals(status) ? "SICK" : "EXCUSED";
 
-        // Формируем комментарий
         String processorName = "Администратор";
         String sqlGetName = "SELECT full_name, role FROM pool.admin_users WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sqlGetName)) {
@@ -1334,8 +1196,6 @@ public class DatabaseService {
         }
         String comment = "Справку о болезни подтвердил: " + processorName;
 
-        // SQL запросы
-        // ИСПРАВЛЕНО: статус изменен с 'PROCESSED' на 'READ'
         String updateNotifSql = "UPDATE pool.absence_notifications SET status = 'READ', processed_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
 
         String updateAttendanceSql = "INSERT INTO pool.attendance (lesson_id, child_id, status, marked_by, marked_at, comment) " +
@@ -1346,11 +1206,9 @@ public class DatabaseService {
                 "AND pl.lesson_date BETWEEN ? AND ? " +
                 "ON CONFLICT (lesson_id, child_id) DO UPDATE SET status = EXCLUDED.status, comment = EXCLUDED.comment";
 
-        // === ТРАНЗАКЦИЯ ===
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false);
             try {
-                // 1. Обновляем статус уведомления о пропуске
                 try (PreparedStatement stmt1 = conn.prepareStatement(updateNotifSql)) {
                     stmt1.setLong(1, adminId);
                     stmt1.setLong(2, certId);
@@ -1358,7 +1216,6 @@ public class DatabaseService {
                     LOGGER.info("✅ absence_notifications ID=" + certId + " обновлена (статус READ), rows=" + rows1);
                 }
 
-                // 2. Обновляем посещаемость
                 try (PreparedStatement stmt2 = conn.prepareStatement(updateAttendanceSql)) {
                     stmt2.setString(1, dbStatus);
                     stmt2.setLong(2, adminId);
@@ -1385,11 +1242,7 @@ public class DatabaseService {
         }
     }
 
-    /**
-     * Отклоняет справку о болезни из absence_notifications
-     */
     public void rejectAbsenceCertificate(Long certId, Long adminId, String comment) {
-        // ИСПРАВЛЕНО: статус изменен с 'PROCESSED' на 'READ'
         String sql = "UPDATE pool.absence_notifications SET status = 'READ', processed_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setLong(1, adminId);
@@ -1402,11 +1255,7 @@ public class DatabaseService {
         }
     }
 
-    /**
-     * Сбрасывает справку о болезни в PENDING
-     */
     public void resetAbsenceCertificate(Long certId) {
-        // Здесь уже верно используется 'PENDING'
         String sql = "UPDATE pool.absence_notifications SET status = 'PENDING', processed_by = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setLong(1, certId);
@@ -1418,12 +1267,7 @@ public class DatabaseService {
         }
     }
 
-
-    /**
-     * Обрабатывает обычную справку о допуске (устанавливает certificate_received = true)
-     */
     public void processRegularCertificate(Long certId, Long adminId, String status) {
-        // Получаем child_id из certificates
         String getChildSql = "SELECT child_id FROM pool.certificates WHERE id = ?";
         Long childId = null;
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(getChildSql)) {
@@ -1439,7 +1283,6 @@ public class DatabaseService {
 
         if (childId == null) return;
 
-        // Обновляем certificate_received = true у ребенка
         String updateChildSql = "UPDATE pool.children SET certificate_received = true WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(updateChildSql)) {
             stmt.setLong(1, childId);
@@ -1449,8 +1292,6 @@ public class DatabaseService {
             return;
         }
 
-        // Помечаем справку как обработанную (is_read = TRUE переводит её в архив)
-        // Статус ставим APPROVED (для справок о допуске)
         String updateCertSql = "UPDATE pool.certificates SET is_read = TRUE, status = 'APPROVED', processed_by = ? WHERE id = ?";
         try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(updateCertSql)) {
             stmt.setLong(1, adminId);
@@ -1462,10 +1303,6 @@ public class DatabaseService {
         }
     }
 
-
-    /**
-     * Получает обработанные справки о болезни (архив)
-     */
     public List<Map<String, Object>> getProcessedAbsenceCertificates() {
         String sql = "SELECT an.id, an.created_at as uploaded_at, an.certificate_url as file_url, " +
                 "an.status, an.absence_type, an.message, an.certificate_file_name, " +
@@ -1473,7 +1310,7 @@ public class DatabaseService {
                 "c.last_name || ' ' || c.first_name as child_name, " +
                 "au.full_name as processed_by_name, " +
                 "'absence' as cert_type, " +
-                "NULL as date_from, NULL as date_to " + // Даты хранятся в attendance, здесь просто заглушка для совместимости шаблона
+                "NULL as date_from, NULL as date_to " +
                 "FROM pool.absence_notifications an " +
                 "JOIN pool.parents p ON an.parent_id = p.id " +
                 "JOIN pool.children c ON an.child_id = c.id " +
@@ -1483,13 +1320,10 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
+    // === ОБНОВЛЕННЫЕ МЕТОДЫ ДЛЯ УВЕДОМЛЕНИЙ О ПРОПУСКАХ БЕЗ СПРАВОК (с absence_date) ===
 
-
-    /**
-     * Получает уведомления о пропусках БЕЗ справок (UNWELL, OTHER) для администратора
-     */
     public List<Map<String, Object>> getAbsenceNotificationsWithoutCertificate() {
-        String sql = "SELECT an.id, an.created_at, an.absence_type, an.message, an.status, " +
+        String sql = "SELECT an.id, an.created_at, an.absence_type, an.message, an.status, an.absence_date, " +
                 "p.last_name || ' ' || p.first_name as parent_name, " +
                 "c.last_name || ' ' || c.first_name as child_name " +
                 "FROM pool.absence_notifications an " +
@@ -1500,11 +1334,8 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
-    /**
-     * Получает уведомления о пропусках БЕЗ справок для тренера
-     */
     public List<Map<String, Object>> getAbsenceNotificationsForCoachWithoutCertificate(Long coachId) {
-        String sql = "SELECT an.id, an.created_at, an.absence_type, an.message, an.status, " +
+        String sql = "SELECT an.id, an.created_at, an.absence_type, an.message, an.status, an.absence_date, " +
                 "p.last_name || ' ' || p.first_name as parent_name, " +
                 "c.last_name || ' ' || c.first_name as child_name " +
                 "FROM pool.absence_notifications an " +
@@ -1527,6 +1358,7 @@ public class DatabaseService {
                 row.put("absence_type", rs.getString("absence_type"));
                 row.put("message", rs.getString("message"));
                 row.put("status", rs.getString("status"));
+                row.put("absence_date", rs.getDate("absence_date"));
                 row.put("parent_name", rs.getString("parent_name"));
                 row.put("child_name", rs.getString("child_name"));
                 result.add(row);
@@ -1537,28 +1369,8 @@ public class DatabaseService {
         return result;
     }
 
-    /**
-     * Помечает уведомление о пропуске (без справки) как прочитанное
-     */
-    public void markAbsenceNotificationAsRead(Long notificationId, Long adminId) {
-        String sql = "UPDATE pool.absence_notifications SET status = 'READ', processed_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
-        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setLong(1, adminId);
-            stmt.setLong(2, notificationId);
-            stmt.executeUpdate();
-            LOGGER.info("✅ Уведомление о пропуске ID=" + notificationId + " отмечено как READ.");
-        } catch (SQLException e) {
-            LOGGER.severe("❌ Ошибка обновления уведомления о пропуске: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-
-    /**
-     * Получает ОБРАБОТАННЫЕ уведомления о пропусках БЕЗ справок для администратора
-     */
     public List<Map<String, Object>> getProcessedAbsenceNotificationsWithoutCertificate() {
-        String sql = "SELECT an.id, an.created_at, an.absence_type, an.message, an.status, " +
+        String sql = "SELECT an.id, an.created_at, an.absence_type, an.message, an.status, an.absence_date, " +
                 "p.last_name || ' ' || p.first_name as parent_name, " +
                 "c.last_name || ' ' || c.first_name as child_name, " +
                 "au.full_name as processed_by_name " +
@@ -1571,11 +1383,8 @@ public class DatabaseService {
         return executeQuery(sql);
     }
 
-    /**
-     * Получает ОБРАБОТАННЫЕ уведомления о пропусках БЕЗ справок для тренера
-     */
     public List<Map<String, Object>> getProcessedAbsenceNotificationsForCoachWithoutCertificate(Long coachId) {
-        String sql = "SELECT an.id, an.created_at, an.absence_type, an.message, an.status, " +
+        String sql = "SELECT an.id, an.created_at, an.absence_type, an.message, an.status, an.absence_date, " +
                 "p.last_name || ' ' || p.first_name as parent_name, " +
                 "c.last_name || ' ' || c.first_name as child_name, " +
                 "au.full_name as processed_by_name " +
@@ -1600,6 +1409,7 @@ public class DatabaseService {
                 row.put("absence_type", rs.getString("absence_type"));
                 row.put("message", rs.getString("message"));
                 row.put("status", rs.getString("status"));
+                row.put("absence_date", rs.getDate("absence_date"));
                 row.put("parent_name", rs.getString("parent_name"));
                 row.put("child_name", rs.getString("child_name"));
                 row.put("processed_by_name", rs.getString("processed_by_name"));
@@ -1611,9 +1421,6 @@ public class DatabaseService {
         return result;
     }
 
-    /**
-     * Считает количество НЕОБРАБОТАННЫХ уведомлений о пропусках (без справок)
-     */
     public int countPendingAbsenceNotificationsWithoutCertificate(Long coachId) {
         String sql;
         if (coachId != null) {
@@ -1640,6 +1447,97 @@ public class DatabaseService {
         return 0;
     }
 
+    /**
+     * Обрабатывает уведомление о пропуске БЕЗ справки (UNWELL/OTHER).
+     * Ставит статус в attendance: UNWELL → SICK, OTHER → ABSENT.
+     * Работает с одной датой (absence_date).
+     */
+    public void processAbsenceNotificationWithoutCertificate(Long notifId, Long adminId) {
+        String selectSql = "SELECT child_id, absence_type, absence_date FROM pool.absence_notifications WHERE id = ?";
+        Long childId = null;
+        String absenceType = null;
+        LocalDate absenceDate = null;
 
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(selectSql)) {
+            stmt.setLong(1, notifId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                childId = rs.getLong("child_id");
+                absenceType = rs.getString("absence_type");
+                java.sql.Date sqlDate = rs.getDate("absence_date");
+                if (sqlDate != null) absenceDate = sqlDate.toLocalDate();
+            }
+        } catch (SQLException e) {
+            LOGGER.severe("❌ Ошибка получения данных уведомления ID=" + notifId + ": " + e.getMessage());
+            e.printStackTrace();
+            return;
+        }
 
+        if (childId == null || absenceType == null || absenceDate == null) {
+            LOGGER.warning("❌ Недостаточно данных для обработки уведомления ID=" + notifId);
+            return;
+        }
+
+        String dbStatus = "UNWELL".equals(absenceType) ? "SICK" : "ABSENT";
+
+        String processorName = "Администратор";
+        String sqlGetName = "SELECT full_name, role FROM pool.admin_users WHERE id = ?";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sqlGetName)) {
+            stmt.setLong(1, adminId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                String fullName = rs.getString("full_name");
+                String role = rs.getString("role");
+                if ("COACH".equals(role)) {
+                    processorName = "Тренер " + NameUtils.toInitials(fullName);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        String comment = "Пропуск подтвердил: " + processorName;
+
+        String updateNotifSql = "UPDATE pool.absence_notifications SET status = 'READ', processed_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+
+        String updateAttendanceSql = "INSERT INTO pool.attendance (lesson_id, child_id, status, marked_by, marked_at, comment) " +
+                "SELECT pl.id, gc.child_id, ?, ?, CURRENT_TIMESTAMP, ? " +
+                "FROM pool.group_children gc " +
+                "JOIN pool.pool_lessons pl ON pl.group_id = gc.group_id " +
+                "WHERE gc.child_id = ? " +
+                "AND pl.lesson_date = ? " +
+                "ON CONFLICT (lesson_id, child_id) DO UPDATE SET status = EXCLUDED.status, comment = EXCLUDED.comment";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                try (PreparedStatement stmt1 = conn.prepareStatement(updateNotifSql)) {
+                    stmt1.setLong(1, adminId);
+                    stmt1.setLong(2, notifId);
+                    stmt1.executeUpdate();
+                }
+
+                try (PreparedStatement stmt2 = conn.prepareStatement(updateAttendanceSql)) {
+                    stmt2.setString(1, dbStatus);
+                    stmt2.setLong(2, adminId);
+                    stmt2.setString(3, comment);
+                    stmt2.setLong(4, childId);
+                    stmt2.setDate(5, Date.valueOf(absenceDate));
+                    int rows = stmt2.executeUpdate();
+                    LOGGER.info("✅ attendance обновлена для child_id=" + childId + ", дата=" + absenceDate + ", статус=" + dbStatus + ", rows=" + rows);
+                }
+
+                conn.commit();
+                LOGGER.info("✅ Уведомление о пропуске ID=" + notifId + " обработано (статус READ, attendance=" + dbStatus + ")");
+            } catch (Exception e) {
+                conn.rollback();
+                LOGGER.severe("❌ Ошибка транзакции для уведомления ID=" + notifId + ": " + e.getMessage());
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            LOGGER.severe("❌ Критическая ошибка обработки уведомления ID=" + notifId + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 }

@@ -319,7 +319,8 @@ CREATE TABLE IF NOT EXISTS pool.absence_notifications (
     processed_by BIGINT REFERENCES pool.admin_users(id),
     -- Добавляем колонки для хранения справки в absence_notifications
     certificate_url VARCHAR(500),
-    certificate_file_name VARCHAR(255)
+    certificate_file_name VARCHAR(255),
+    absence_date DATE
 );
 
 -- Таблица для сообщений между родителями и тренерами/администраторами

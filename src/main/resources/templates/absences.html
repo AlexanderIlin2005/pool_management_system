@@ -40,10 +40,11 @@
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
         <tr style="background: #f8f9fa; text-align: left;">
-          <th style="padding: 10px; border: 1px solid #ddd;">Дата</th>
+          <th style="padding: 10px; border: 1px solid #ddd;">Дата заявки</th>
           <th style="padding: 10px; border: 1px solid #ddd;">Родитель</th>
           <th style="padding: 10px; border: 1px solid #ddd;">Ребенок</th>
           <th style="padding: 10px; border: 1px solid #ddd;">Причина</th>
+          <th style="padding: 10px; border: 1px solid #ddd;">Дата пропуска</th>
           <th th:if="${currentTab == 'archive'}" style="padding: 10px; border: 1px solid #ddd;">Кем обработано</th>
           <th style="padding: 10px; border: 1px solid #ddd;">Действия</th>
         </tr>
@@ -58,17 +59,19 @@
             <span th:if="${notif.absence_type == 'UNWELL'}" style="color: #fd7e14; font-weight: bold;">Недомогание</span>
             <span th:if="${notif.absence_type == 'OTHER'}" style="color: #6c757d; font-weight: bold;">Другая причина</span>
           </td>
+          <td style="padding: 10px; border: 1px solid #ddd;">
+            <span th:if="${notif.absence_date != null}" th:text="${#dates.format(notif.absence_date, 'dd.MM.yyyy')}"></span>
+            <span th:unless="${notif.absence_date != null}">—</span>
+          </td>
           <td th:if="${currentTab == 'archive'}" style="padding: 10px; border: 1px solid #ddd;"
               th:text="${notif.processed_by_name != null ? notif.processed_by_name : '-'}"></td>
           <td style="padding: 10px; border: 1px solid #ddd;">
-            <!-- Кнопка только для новых уведомлений -->
             <form th:if="${currentTab != 'archive'}"
                   th:action="@{/absences/mark-read/{id}(id=${notif.id})}"
                   method="post"
                   onsubmit="return animateAndSubmit(this, 'notif-' + '${notif.id}')">
-              <button type="submit" class="btn" style="background-color: #28a745; font-size: 0.8em;">✅ Отметить прочитанным</button>
+              <button type="submit" class="btn" style="background-color: #28a745; font-size: 0.8em;">✅ Подтвердить</button>
             </form>
-            <!-- Для архива - просто метка -->
             <span th:if="${currentTab == 'archive'}" style="color: green; font-size: 0.85em;">✅ Обработано</span>
           </td>
         </tr>

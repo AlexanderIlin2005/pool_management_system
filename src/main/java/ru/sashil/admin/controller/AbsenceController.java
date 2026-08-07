@@ -66,10 +66,12 @@ public class AbsenceController {
         if (user == null) return "redirect:/login";
 
         try {
-            databaseService.markAbsenceNotificationAsRead(id, user.getId());
+            // Используем новый метод, который одновременно ставит READ и обновляет attendance
+            databaseService.processAbsenceNotificationWithoutCertificate(id, user.getId());
         } catch (Exception e) {
             e.printStackTrace();
         }
         return "redirect:/absences?success=true";
     }
+
 }
