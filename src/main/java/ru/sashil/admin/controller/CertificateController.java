@@ -28,13 +28,24 @@ public class CertificateController {
         if (user == null) return "redirect:/login";
 
         List<Map<String, Object>> certificates = new ArrayList<>();
-        // Определяем активную вкладку: new, absence или archive
         String activeTab = (tab != null) ? tab : "new";
 
+        // Счетчики для вкладок
+        int newCount = 0;
+        int absenceCount = 0;
+
         try {
+            // Получаем счетчики для вкладок
+            if (user.getRole() == AdminUser.Role.COACH) {
+                newCount = databaseService.getUnreadCertificatesForCoach(user.getId()).size();
+                absenceCount = databaseService.getAbsenceCertificatesForCoach(user.getId()).size();
+            } else {
+                newCount = databaseService.getUnreadCertificates().size();
+                absenceCount = databaseService.getAllAbsenceCertificates().size();
+            }
+
             switch (activeTab) {
                 case "absence":
-                    // Новые справки о болезни
                     if (user.getRole() == AdminUser.Role.COACH) {
                         certificates = databaseService.getAbsenceCertificatesForCoach(user.getId());
                     } else {
@@ -42,14 +53,12 @@ public class CertificateController {
                     }
                     break;
                 case "archive":
-                    // Архив: объединяем обработанные допуски и болезни
                     List<Map<String, Object>> readRegular = databaseService.getReadCertificates();
                     List<Map<String, Object>> readAbsence = databaseService.getProcessedAbsenceCertificates();
 
                     certificates.addAll(readRegular);
                     certificates.addAll(readAbsence);
 
-                    // Сортируем по дате загрузки (новые сверху)
                     certificates.sort((a, b) -> {
                         java.sql.Timestamp t1 = (java.sql.Timestamp) a.get("uploaded_at");
                         java.sql.Timestamp t2 = (java.sql.Timestamp) b.get("uploaded_at");
@@ -61,7 +70,6 @@ public class CertificateController {
                     break;
                 case "new":
                 default:
-                    // Новые справки о допуске
                     if (user.getRole() == AdminUser.Role.COACH) {
                         certificates = databaseService.getUnreadCertificatesForCoach(user.getId());
                     } else {
@@ -79,6 +87,8 @@ public class CertificateController {
         model.addAttribute("activePage", "certificates");
         model.addAttribute("certificates", certificates);
         model.addAttribute("currentTab", activeTab);
+        model.addAttribute("newCount", newCount);
+        model.addAttribute("absenceCount", absenceCount);
 
         return "certificates";
     }

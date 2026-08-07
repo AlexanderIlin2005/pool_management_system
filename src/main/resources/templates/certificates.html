@@ -46,11 +46,19 @@
          th:class="${currentTab == 'new'} ? 'btn active' : 'btn'"
          th:style="${currentTab == 'new'} ? 'background-color: #007bff; color: white;' : 'background-color: #f8f9fa; color: #333;'">
         📄 Справки о допуске
+        <span th:if="${newCount != null and newCount > 0}"
+              style="color: #dc3545; font-weight: bold; font-size: 0.85em; margin-left: 4px;">
+                    [<span th:text="${newCount}"></span>]
+                </span>
       </a>
       <a th:href="@{/certificates(tab=absence)}"
          th:class="${currentTab == 'absence'} ? 'btn active' : 'btn'"
          th:style="${currentTab == 'absence'} ? 'background-color: #dc3545; color: white;' : 'background-color: #f8f9fa; color: #333;'">
         📋 Справки о болезни
+        <span th:if="${absenceCount != null and absenceCount > 0}"
+              style="color: #dc3545; font-weight: bold; font-size: 0.85em; margin-left: 4px;">
+                    [<span th:text="${absenceCount}"></span>]
+                </span>
       </a>
       <a th:href="@{/certificates(tab=archive)}"
          th:class="${currentTab == 'archive'} ? 'btn active' : 'btn'"
