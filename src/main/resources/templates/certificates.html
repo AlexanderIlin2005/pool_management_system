@@ -44,7 +44,8 @@
     <div style="margin-bottom: 20px; border-bottom: 1px solid #eee; display: flex; gap: 5px; flex-wrap: wrap;">
       <a th:href="@{/certificates(tab=new)}"
          th:class="${currentTab == 'new'} ? 'btn active' : 'btn'"
-         th:style="${currentTab == 'new'} ? 'background-color: #007bff; color: white;' : 'background-color: #f8f9fa; color: #333;'">
+         th:style="${currentTab == 'new'} ? 'background-color: #fff; color: #007bff; border: 2px solid #007bff;' : 'background-color: #f8f9fa; color: #333; border: 2px solid transparent;'"
+         style="text-decoration: none; padding: 8px 16px; border-radius: 4px; transition: all 0.2s;">
         📄 Справки о допуске
         <span th:if="${newCount != null and newCount > 0}"
               style="color: #dc3545; font-weight: bold; font-size: 0.85em; margin-left: 4px;">
@@ -53,7 +54,8 @@
       </a>
       <a th:href="@{/certificates(tab=absence)}"
          th:class="${currentTab == 'absence'} ? 'btn active' : 'btn'"
-         th:style="${currentTab == 'absence'} ? 'background-color: #dc3545; color: white;' : 'background-color: #f8f9fa; color: #333;'">
+         th:style="${currentTab == 'absence'} ? 'background-color: #fff; color: #dc3545; border: 2px solid #dc3545;' : 'background-color: #f8f9fa; color: #333; border: 2px solid transparent;'"
+         style="text-decoration: none; padding: 8px 16px; border-radius: 4px; transition: all 0.2s;">
         📋 Справки о болезни
         <span th:if="${absenceCount != null and absenceCount > 0}"
               style="color: #dc3545; font-weight: bold; font-size: 0.85em; margin-left: 4px;">
@@ -62,7 +64,8 @@
       </a>
       <a th:href="@{/certificates(tab=archive)}"
          th:class="${currentTab == 'archive'} ? 'btn active' : 'btn'"
-         th:style="${currentTab == 'archive'} ? 'background-color: #6c757d; color: white;' : 'background-color: #f8f9fa; color: #333;'">
+         th:style="${currentTab == 'archive'} ? 'background-color: #fff; color: #6c757d; border: 2px solid #6c757d;' : 'background-color: #f8f9fa; color: #333; border: 2px solid transparent;'"
+         style="text-decoration: none; padding: 8px 16px; border-radius: 4px; transition: all 0.2s;">
         🗂️ Архив
       </a>
     </div>
