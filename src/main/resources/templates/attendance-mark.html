@@ -25,9 +25,36 @@
         .alert-warning.fade-out {
             opacity: 0;
         }
-        /* Стиль для подсветки отмеченных чекбоксом */
         .marked-by-checkbox {
             background-color: #e8f5e9 !important;
+        }
+        .auto-save-indicator {
+            display: none;
+            padding: 5px 10px;
+            background: #28a745;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.85em;
+            margin-left: 10px;
+        }
+        .auto-save-indicator.show {
+            display: inline-block;
+            animation: fadeInOut 1.5s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            20% { opacity: 1; }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        .saving-indicator {
+            display: none;
+            color: #6c757d;
+            font-size: 0.85em;
+            margin-left: 10px;
+        }
+        .saving-indicator.show {
+            display: inline-block;
         }
     </style>
 
@@ -47,6 +74,14 @@
             ⚠️ Часть детей не отмечена. Они останутся без статуса.
         </div>
 
+        <div id="autoSaveStatus" style="margin-bottom: 15px; display: flex; align-items: center;">
+            <span id="autoSaveIndicator" class="auto-save-indicator">✅ Автосохранено</span>
+            <span id="savingIndicator" class="saving-indicator">⏳ Сохранение...</span>
+            <span style="font-size: 0.85em; color: #6c757d; margin-left: auto;">
+                Изменения сохраняются автоматически
+            </span>
+        </div>
+
         <form th:action="@{/attendance/save/{id}(id=${lesson.id})}" method="post" id="attendanceForm">
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
@@ -62,6 +97,7 @@
                     <td style="padding: 10px; text-align: center;">
                         <select th:name="'marks[' + ${child.id} + ']'"
                                 th:id="'mark-' + ${child.id}"
+                                class="attendance-select"
                                 style="padding: 5px; border-radius: 4px;">
                             <option value="">Не выбрано</option>
                             <option th:each="status : ${T(ru.sashil.admin.model.Attendance.Status).values()}"
@@ -72,8 +108,10 @@
                     </td>
                     <td style="padding: 10px;">
                         <input type="text" th:name="'comments[' + ${child.id} + ']'"
+                               class="attendance-comment"
                                th:value="${currentComments != null and currentComments.containsKey(child.id) ? currentComments[child.id] : ''}"
-                               style="width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
+                               style="width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 4px;"
+                               placeholder="Комментарий...">
                     </td>
                 </tr>
                 </tbody>
@@ -100,6 +138,9 @@
     </div>
 
     <script>
+        let autoSaveTimeout = null;
+        let isSaving = false;
+
         // Функция удаления параметров из URL
         function removeUrlParams() {
             if (window.history && window.history.replaceState) {
@@ -126,11 +167,79 @@
             }
         }
 
+        // Показать индикатор сохранения
+        function showSavingIndicator() {
+            var indicator = document.getElementById('savingIndicator');
+            if (indicator) {
+                indicator.classList.add('show');
+            }
+            var autoIndicator = document.getElementById('autoSaveIndicator');
+            if (autoIndicator) {
+                autoIndicator.classList.remove('show');
+            }
+        }
+
+        // Показать индикатор автосохранения
+        function showAutoSaveIndicator() {
+            var indicator = document.getElementById('autoSaveIndicator');
+            if (indicator) {
+                indicator.classList.add('show');
+                setTimeout(function() {
+                    indicator.classList.remove('show');
+                }, 2000);
+            }
+            var savingInd = document.getElementById('savingIndicator');
+            if (savingInd) {
+                savingInd.classList.remove('show');
+            }
+        }
+
+        // Функция автосохранения
+        function autoSave() {
+            if (isSaving) return;
+
+            var form = document.getElementById('attendanceForm');
+            var formData = new FormData(form);
+
+            // Добавляем флаг skipUnmarked
+            var checkbox = document.getElementById('skipUnmarked');
+            if (checkbox.checked) {
+                formData.append('skipUnmarked', 'true');
+            }
+
+            // Получаем lessonId из URL
+            var lessonId = window.location.pathname.split('/').pop();
+
+            showSavingIndicator();
+            isSaving = true;
+
+            fetch('/attendance/save/' + lessonId, {
+                method: 'POST',
+                body: formData
+            })
+            .then(function(response) {
+                if (response.redirected) {
+                    // Не переходим по редиректу, просто показываем индикатор
+                    showAutoSaveIndicator();
+                } else {
+                    showAutoSaveIndicator();
+                }
+                isSaving = false;
+            })
+            .catch(function(error) {
+                console.error('Ошибка автосохранения:', error);
+                isSaving = false;
+                var savingInd = document.getElementById('savingIndicator');
+                if (savingInd) {
+                    savingInd.classList.remove('show');
+                }
+            });
+        }
+
         // Функция отметки всех неотмеченных как ABSENT
         function markAllAsAbsent() {
             var checkbox = document.getElementById('skipUnmarked');
             var selects = document.querySelectorAll('select[name^="marks["]');
-            var markedCount = 0;
             var totalUnmarked = 0;
 
             if (checkbox.checked) {
@@ -140,7 +249,6 @@
                         for (var i = 0; i < options.length; i++) {
                             if (options[i].value === 'ABSENT') {
                                 options[i].selected = true;
-                                // Подсвечиваем строку
                                 var rowId = select.id.replace('mark-', '');
                                 var row = document.getElementById('row-' + rowId);
                                 if (row) {
@@ -150,12 +258,9 @@
                                 break;
                             }
                         }
-                    } else {
-                        markedCount++;
                     }
                 });
 
-                // Показываем информацию о количестве отмеченных
                 var info = document.getElementById('markedInfo');
                 if (info) {
                     if (totalUnmarked > 0) {
@@ -167,27 +272,13 @@
                     }
                 }
 
-                // Если есть неотмеченные, показываем уведомление
+                // Автосохраняем после отметки
                 if (totalUnmarked > 0) {
-                    // Показываем небольшое уведомление
-                    var warning = document.getElementById('partialAlert');
-                    if (warning) {
-                        warning.textContent = '✅ ' + totalUnmarked + ' детей отмечены как "Отсутствует"';
-                        warning.style.background = '#d4edda';
-                        warning.style.color = '#155724';
-                        warning.style.display = 'block';
-                        // Через 3 секунды скрываем
-                        setTimeout(function() {
-                            warning.classList.add('fade-out');
-                            setTimeout(function() {
-                                warning.style.display = 'none';
-                                warning.classList.remove('fade-out');
-                            }, 1500);
-                        }, 3000);
-                    }
+                    setTimeout(function() {
+                        autoSave();
+                    }, 300);
                 }
             } else {
-                // Если чекбокс сняли - убираем подсветку
                 selects.forEach(function(select) {
                     var rowId = select.id.replace('mark-', '');
                     var row = document.getElementById('row-' + rowId);
@@ -200,14 +291,6 @@
                 if (info) {
                     info.style.display = 'none';
                 }
-            }
-        }
-
-        function toggleSkipWarning() {
-            var checkbox = document.getElementById('skipUnmarked');
-            var warning = document.getElementById('partialWarning');
-            if (checkbox.checked) {
-                if (warning) warning.style.display = 'none';
             }
         }
 
@@ -245,6 +328,12 @@
                 });
             }
 
+            // При ручном сохранении отключаем автосохранение на время
+            if (autoSaveTimeout) {
+                clearTimeout(autoSaveTimeout);
+                autoSaveTimeout = null;
+            }
+
             return true;
         }
 
@@ -272,7 +361,7 @@
                 if (partialAlert) partialAlert.style.display = 'none';
             }
 
-            // При загрузке проверяем, есть ли уже отмеченные дети
+            // Проверяем, есть ли уже отмеченные дети
             var selects = document.querySelectorAll('select[name^="marks["]');
             var allMarked = true;
             selects.forEach(function(select) {
@@ -281,7 +370,6 @@
                 }
             });
 
-            // Если все дети уже отмечены - показываем информацию
             if (allMarked && selects.length > 0) {
                 var info = document.getElementById('markedInfo');
                 if (info) {
@@ -289,6 +377,30 @@
                     info.style.display = 'inline';
                 }
             }
+
+            // Добавляем обработчики для автосохранения
+            document.querySelectorAll('.attendance-select, .attendance-comment').forEach(function(element) {
+                element.addEventListener('change', function() {
+                    if (autoSaveTimeout) {
+                        clearTimeout(autoSaveTimeout);
+                    }
+                    // Ждем 500мс после последнего изменения перед сохранением
+                    autoSaveTimeout = setTimeout(function() {
+                        autoSave();
+                        autoSaveTimeout = null;
+                    }, 500);
+                });
+
+                element.addEventListener('input', function() {
+                    if (autoSaveTimeout) {
+                        clearTimeout(autoSaveTimeout);
+                    }
+                    autoSaveTimeout = setTimeout(function() {
+                        autoSave();
+                        autoSaveTimeout = null;
+                    }, 500);
+                });
+            });
         });
     </script>
 </div>
