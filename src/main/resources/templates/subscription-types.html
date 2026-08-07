@@ -81,7 +81,7 @@
   <div class="card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto;">
 
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h2 style="margin: 0;">📋 Типы занятий</h2>
+      <h2 style="margin: 0;">Типы занятий</h2>
       <button class="btn" style="background-color: #28a745;" onclick="openCreateModal()">➕ Добавить тип</button>
     </div>
 
@@ -107,12 +107,12 @@
                   style="padding: 4px 10px; font-size: 0.8em;"
                   th:data-id="${t.id}"
                   th:data-display-name="${t.displayName}"
-                  onclick="openEditModal(this)">✏️ Редактировать</button>
+                  onclick="openEditModal(this)">Редактировать</button>
           <button class="btn btn-danger"
                   style="padding: 4px 10px; font-size: 0.8em;"
                   th:data-id="${t.id}"
                   th:data-display-name="${t.displayName}"
-                  onclick="confirmDelete(this)">🗑️ Удалить</button>
+                  onclick="confirmDelete(this)">Удалить</button>
         </td>
       </tr>
       <tr th:if="${#lists.isEmpty(types)}">
@@ -131,10 +131,10 @@
         <input type="hidden" name="id" value="">
         <div class="form-group">
           <label for="createDisplayName">Название типа занятия</label>
-          <input type="text" id="createDisplayName" name="displayName" required placeholder="Например: 1 раз в неделю">
+          <input type="text" id="createDisplayName" name="displayName" required placeholder="Например: синхронное плавание">
         </div>
         <div class="form-actions">
-          <button type="submit" class="btn" style="background-color: #28a745;">💾 Сохранить</button>
+          <button type="submit" class="btn" style="background-color: #28a745;">Сохранить</button>
           <button type="button" class="btn" style="background-color: #6c757d;" onclick="closeModal('createModal')">Отмена</button>
         </div>
       </form>
@@ -153,7 +153,7 @@
           <input type="text" id="editDisplayName" name="displayName" required>
         </div>
         <div class="form-actions">
-          <button type="submit" class="btn" style="background-color: #28a745;">💾 Сохранить изменения</button>
+          <button type="submit" class="btn" style="background-color: #28a745;">Сохранить изменения</button>
           <button type="button" class="btn" style="background-color: #6c757d;" onclick="closeModal('editModal')">Отмена</button>
         </div>
       </form>
@@ -166,10 +166,22 @@
   </form>
 
   <script>
+    // Ключи для sessionStorage
+    const STORAGE_OPEN_MODAL = 'subscriptionTypesOpenModal';
+    const STORAGE_EDIT_ID = 'subscriptionTypesEditId';
+    const STORAGE_EDIT_DISPLAY_NAME = 'subscriptionTypesEditDisplayName';
+    const STORAGE_CREATE_DISPLAY_NAME = 'subscriptionTypesCreateDisplayName';
+
     function openCreateModal() {
         document.getElementById('createModal').classList.add('active');
         document.getElementById('createDisplayName').value = '';
         document.getElementById('createDisplayName').focus();
+
+        // Сохраняем состояние в sessionStorage
+        sessionStorage.setItem(STORAGE_OPEN_MODAL, 'create');
+        sessionStorage.removeItem(STORAGE_EDIT_ID);
+        sessionStorage.removeItem(STORAGE_EDIT_DISPLAY_NAME);
+        sessionStorage.removeItem(STORAGE_CREATE_DISPLAY_NAME);
     }
 
     function openEditModal(button) {
@@ -180,10 +192,22 @@
         document.getElementById('editDisplayName').value = displayName;
         document.getElementById('editModal').classList.add('active');
         document.getElementById('editDisplayName').focus();
+
+        // Сохраняем состояние в sessionStorage
+        sessionStorage.setItem(STORAGE_OPEN_MODAL, 'edit');
+        sessionStorage.setItem(STORAGE_EDIT_ID, id);
+        sessionStorage.setItem(STORAGE_EDIT_DISPLAY_NAME, displayName);
+        sessionStorage.removeItem(STORAGE_CREATE_DISPLAY_NAME);
     }
 
     function closeModal(modalId) {
         document.getElementById(modalId).classList.remove('active');
+
+        // Очищаем sessionStorage при закрытии модального окна
+        sessionStorage.removeItem(STORAGE_OPEN_MODAL);
+        sessionStorage.removeItem(STORAGE_EDIT_ID);
+        sessionStorage.removeItem(STORAGE_EDIT_DISPLAY_NAME);
+        sessionStorage.removeItem(STORAGE_CREATE_DISPLAY_NAME);
     }
 
     function validateForm(type) {
@@ -193,6 +217,11 @@
             alert('Пожалуйста, введите название типа занятия.');
             return false;
         }
+        // При отправке очищаем сохраненное состояние
+        sessionStorage.removeItem(STORAGE_OPEN_MODAL);
+        sessionStorage.removeItem(STORAGE_EDIT_ID);
+        sessionStorage.removeItem(STORAGE_EDIT_DISPLAY_NAME);
+        sessionStorage.removeItem(STORAGE_CREATE_DISPLAY_NAME);
         return true;
     }
 
@@ -200,18 +229,74 @@
         var id = button.getAttribute('data-id');
         var displayName = button.getAttribute('data-display-name');
 
-        if (confirm('Удалить тип абонемента «' + displayName + '»?')) {
+        if (confirm('Вы точно хотите удалить тип занятия «' + displayName + '»?')) {
             document.getElementById('deleteId').value = id;
             document.getElementById('deleteForm').action = '/subscription-types/delete/' + id;
             document.getElementById('deleteForm').submit();
         }
     }
 
+    // Восстановление состояния модального окна при загрузке страницы
+    function restoreModalState() {
+        var openModal = sessionStorage.getItem(STORAGE_OPEN_MODAL);
+
+        if (openModal === 'create') {
+            // Восстанавливаем окно создания
+            var savedText = sessionStorage.getItem(STORAGE_CREATE_DISPLAY_NAME) || '';
+            document.getElementById('createDisplayName').value = savedText;
+            document.getElementById('createModal').classList.add('active');
+            if (savedText) {
+                document.getElementById('createDisplayName').focus();
+                document.getElementById('createDisplayName').setSelectionRange(savedText.length, savedText.length);
+            }
+        } else if (openModal === 'edit') {
+            var editId = sessionStorage.getItem(STORAGE_EDIT_ID);
+            var editDisplayName = sessionStorage.getItem(STORAGE_EDIT_DISPLAY_NAME);
+
+            if (editId && editDisplayName) {
+                document.getElementById('editId').value = editId;
+                document.getElementById('editDisplayName').value = editDisplayName;
+                document.getElementById('editModal').classList.add('active');
+                document.getElementById('editDisplayName').focus();
+                document.getElementById('editDisplayName').setSelectionRange(editDisplayName.length, editDisplayName.length);
+            } else {
+                // Если данные не полные - очищаем
+                sessionStorage.removeItem(STORAGE_OPEN_MODAL);
+            }
+        }
+    }
+
+    // Сохраняем текст при вводе в поле создания
+    document.addEventListener('DOMContentLoaded', function() {
+        var createInput = document.getElementById('createDisplayName');
+        if (createInput) {
+            createInput.addEventListener('input', function() {
+                if (document.getElementById('createModal').classList.contains('active')) {
+                    sessionStorage.setItem(STORAGE_CREATE_DISPLAY_NAME, this.value);
+                }
+            });
+        }
+
+        var editInput = document.getElementById('editDisplayName');
+        if (editInput) {
+            editInput.addEventListener('input', function() {
+                if (document.getElementById('editModal').classList.contains('active')) {
+                    sessionStorage.setItem(STORAGE_EDIT_DISPLAY_NAME, this.value);
+                }
+            });
+        }
+    });
+
     // Закрытие модального окна при клике на оверлей
     document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
         overlay.addEventListener('click', function(e) {
             if (e.target === this) {
                 this.classList.remove('active');
+                // Очищаем sessionStorage
+                sessionStorage.removeItem(STORAGE_OPEN_MODAL);
+                sessionStorage.removeItem(STORAGE_EDIT_ID);
+                sessionStorage.removeItem(STORAGE_EDIT_DISPLAY_NAME);
+                sessionStorage.removeItem(STORAGE_CREATE_DISPLAY_NAME);
             }
         });
     });
@@ -222,11 +307,42 @@
             document.querySelectorAll('.modal-overlay.active').forEach(function(modal) {
                 modal.classList.remove('active');
             });
+            // Очищаем sessionStorage
+            sessionStorage.removeItem(STORAGE_OPEN_MODAL);
+            sessionStorage.removeItem(STORAGE_EDIT_ID);
+            sessionStorage.removeItem(STORAGE_EDIT_DISPLAY_NAME);
+            sessionStorage.removeItem(STORAGE_CREATE_DISPLAY_NAME);
+        }
+    });
+
+    // Сохраняем состояние при закрытии страницы
+    window.addEventListener('beforeunload', function() {
+        var activeModal = document.querySelector('.modal-overlay.active');
+        if (activeModal) {
+            var modalId = activeModal.id;
+            if (modalId === 'createModal') {
+                var createValue = document.getElementById('createDisplayName').value;
+                sessionStorage.setItem(STORAGE_OPEN_MODAL, 'create');
+                if (createValue) {
+                    sessionStorage.setItem(STORAGE_CREATE_DISPLAY_NAME, createValue);
+                }
+            } else if (modalId === 'editModal') {
+                var editId = document.getElementById('editId').value;
+                var editDisplayName = document.getElementById('editDisplayName').value;
+                if (editId && editDisplayName) {
+                    sessionStorage.setItem(STORAGE_OPEN_MODAL, 'edit');
+                    sessionStorage.setItem(STORAGE_EDIT_ID, editId);
+                    sessionStorage.setItem(STORAGE_EDIT_DISPLAY_NAME, editDisplayName);
+                }
+            }
         }
     });
 
     // Обработка успешного сообщения - плавное исчезновение
     document.addEventListener('DOMContentLoaded', function() {
+        // Восстанавливаем состояние модального окна
+        restoreModalState();
+
         var successAlert = document.querySelector('div[th\\:if="${param.success}"]');
         if (successAlert) {
             setTimeout(function() {
