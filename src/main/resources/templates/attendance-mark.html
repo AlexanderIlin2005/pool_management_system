@@ -25,6 +25,10 @@
         .alert-warning.fade-out {
             opacity: 0;
         }
+        /* Стиль для подсветки отмеченных чекбоксом */
+        .marked-by-checkbox {
+            background-color: #e8f5e9 !important;
+        }
     </style>
 
     <div class="card" style="max-width: 900px; margin: 0 auto;">
@@ -53,10 +57,12 @@
                 </tr>
                 </thead>
                 <tbody>
-                <tr th:each="child : ${children}" style="border-bottom: 1px solid #eee;">
+                <tr th:each="child : ${children}" style="border-bottom: 1px solid #eee;" th:id="'row-' + ${child.id}">
                     <td style="padding: 10px;" th:text="${child.lastName} + ' ' + ${child.firstName}"></td>
                     <td style="padding: 10px; text-align: center;">
-                        <select th:name="'marks[' + ${child.id} + ']'" style="padding: 5px; border-radius: 4px;">
+                        <select th:name="'marks[' + ${child.id} + ']'"
+                                th:id="'mark-' + ${child.id}"
+                                style="padding: 5px; border-radius: 4px;">
                             <option value="">Не выбрано</option>
                             <option th:each="status : ${T(ru.sashil.admin.model.Attendance.Status).values()}"
                                     th:value="${status}" th:text="${status.label}"
@@ -75,11 +81,14 @@
 
             <div style="margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 4px;">
                 <label style="cursor: pointer;">
-                    <input type="checkbox" id="skipUnmarked" onclick="toggleSkipWarning()">
+                    <input type="checkbox" id="skipUnmarked" onchange="markAllAsAbsent()">
                     Отметить всех остальных как "Отсутствует"
                 </label>
                 <span style="font-size: 0.85em; color: #6c757d; margin-left: 10px;">
                     (если галочка не стоит, неотмеченные дети останутся без статуса)
+                </span>
+                <span id="markedInfo" style="font-size: 0.85em; color: #28a745; margin-left: 10px; display: none;">
+                    ✅ Отмечено
                 </span>
             </div>
 
@@ -105,10 +114,8 @@
         function fadeOutAlert(alertId, callback) {
             var alert = document.getElementById(alertId);
             if (alert) {
-                // Ждем 3 секунды перед началом исчезновения
                 setTimeout(function() {
                     alert.classList.add('fade-out');
-                    // Удаляем элемент после завершения анимации
                     setTimeout(function() {
                         alert.style.display = 'none';
                         if (callback) callback();
@@ -116,6 +123,83 @@
                 }, 3000);
             } else {
                 if (callback) callback();
+            }
+        }
+
+        // Функция отметки всех неотмеченных как ABSENT
+        function markAllAsAbsent() {
+            var checkbox = document.getElementById('skipUnmarked');
+            var selects = document.querySelectorAll('select[name^="marks["]');
+            var markedCount = 0;
+            var totalUnmarked = 0;
+
+            if (checkbox.checked) {
+                selects.forEach(function(select) {
+                    if (select.value === '') {
+                        var options = select.options;
+                        for (var i = 0; i < options.length; i++) {
+                            if (options[i].value === 'ABSENT') {
+                                options[i].selected = true;
+                                // Подсвечиваем строку
+                                var rowId = select.id.replace('mark-', '');
+                                var row = document.getElementById('row-' + rowId);
+                                if (row) {
+                                    row.classList.add('marked-by-checkbox');
+                                }
+                                totalUnmarked++;
+                                break;
+                            }
+                        }
+                    } else {
+                        markedCount++;
+                    }
+                });
+
+                // Показываем информацию о количестве отмеченных
+                var info = document.getElementById('markedInfo');
+                if (info) {
+                    if (totalUnmarked > 0) {
+                        info.textContent = '✅ Отмечено ' + totalUnmarked + ' детей как "Отсутствует"';
+                        info.style.display = 'inline';
+                    } else {
+                        info.textContent = '✅ Все дети уже отмечены';
+                        info.style.display = 'inline';
+                    }
+                }
+
+                // Если есть неотмеченные, показываем уведомление
+                if (totalUnmarked > 0) {
+                    // Показываем небольшое уведомление
+                    var warning = document.getElementById('partialAlert');
+                    if (warning) {
+                        warning.textContent = '✅ ' + totalUnmarked + ' детей отмечены как "Отсутствует"';
+                        warning.style.background = '#d4edda';
+                        warning.style.color = '#155724';
+                        warning.style.display = 'block';
+                        // Через 3 секунды скрываем
+                        setTimeout(function() {
+                            warning.classList.add('fade-out');
+                            setTimeout(function() {
+                                warning.style.display = 'none';
+                                warning.classList.remove('fade-out');
+                            }, 1500);
+                        }, 3000);
+                    }
+                }
+            } else {
+                // Если чекбокс сняли - убираем подсветку
+                selects.forEach(function(select) {
+                    var rowId = select.id.replace('mark-', '');
+                    var row = document.getElementById('row-' + rowId);
+                    if (row) {
+                        row.classList.remove('marked-by-checkbox');
+                    }
+                });
+
+                var info = document.getElementById('markedInfo');
+                if (info) {
+                    info.style.display = 'none';
+                }
             }
         }
 
@@ -169,7 +253,6 @@
             var hasSuccess = new URLSearchParams(window.location.search).has('success');
             var hasPartial = new URLSearchParams(window.location.search).has('partial');
 
-            // Если есть параметры - запускаем анимацию исчезновения
             if (hasSuccess) {
                 fadeOutAlert('successAlert', function() {
                     removeUrlParams();
@@ -182,18 +265,30 @@
                 });
             }
 
-            // Если нет параметров, но уведомления отображаются (через Thymeleaf) - скрываем их
             if (!hasSuccess && !hasPartial) {
                 var successAlert = document.getElementById('successAlert');
                 var partialAlert = document.getElementById('partialAlert');
                 if (successAlert) successAlert.style.display = 'none';
                 if (partialAlert) partialAlert.style.display = 'none';
             }
-        });
 
-        // Сохраняем состояние при закрытии страницы
-        window.addEventListener('beforeunload', function() {
-            // Ничего не делаем
+            // При загрузке проверяем, есть ли уже отмеченные дети
+            var selects = document.querySelectorAll('select[name^="marks["]');
+            var allMarked = true;
+            selects.forEach(function(select) {
+                if (select.value === '') {
+                    allMarked = false;
+                }
+            });
+
+            // Если все дети уже отмечены - показываем информацию
+            if (allMarked && selects.length > 0) {
+                var info = document.getElementById('markedInfo');
+                if (info) {
+                    info.textContent = '✅ Все дети отмечены';
+                    info.style.display = 'inline';
+                }
+            }
         });
     </script>
 </div>
