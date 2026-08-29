@@ -189,6 +189,10 @@ public class GroupController {
             }
             // Если выбрано 0 навыков - оба поля остаются NULL
 
+            if (group.getTrainer() == null || group.getTrainer().getId() == null) {
+                group.setTrainer(null);
+            }
+
             // Тип абонемента теперь автоматически биндится через Spring Data JPA
             // group.getSubscriptionType() уже содержит объект SubscriptionType
             // если subscriptionType.id не указан или не найден, то subscriptionType будет null
