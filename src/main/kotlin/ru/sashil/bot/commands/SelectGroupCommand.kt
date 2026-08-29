@@ -242,7 +242,6 @@ class SelectGroupCommand(
 
         filteredGroups.forEachIndexed { index, group ->
             val schedule = getGroupSchedule(group)
-            val typeDisplay = group["subscription_type_display"] as? String ?: ""
             val trainerFullName = group["trainer_full_name"] as? String
             val trainerInitials = if (trainerFullName != null) {
                 NameUtils.toInitials(trainerFullName)
@@ -250,12 +249,9 @@ class SelectGroupCommand(
                 "тренер не назначен"
             }
 
-            // Формат: расписание (тип) - тренер Фамилия И.О.
-            sb.append("${index + 1}. $schedule")
-            if (typeDisplay.isNotEmpty()) {
-                sb.append(" ($typeDisplay)")
-            }
-            sb.append(" — $trainerInitials\n")
+            // Убираем тип занятия, так как он уже выбран
+            // Формат: расписание — тренер Фамилия И.О.
+            sb.append("${index + 1}. $schedule — $trainerInitials\n")
         }
 
         sb.append("\nВыберите, пожалуйста, группу. Напишите только цифру.")
