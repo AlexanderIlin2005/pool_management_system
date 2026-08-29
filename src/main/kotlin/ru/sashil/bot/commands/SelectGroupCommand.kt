@@ -2,6 +2,7 @@ package ru.sashil.bot.commands
 
 import ru.sashil.common.service.DatabaseService
 import ru.sashil.common.util.CommandUtils
+import ru.sashil.common.util.NameUtils
 import java.util.concurrent.ConcurrentHashMap
 
 class SelectGroupCommand(
@@ -240,13 +241,21 @@ class SelectGroupCommand(
         sb.append("Вашему ребенку ($fullChildName, $age лет, класс $gradeName, $skill) по возрасту и уровню умения плавать подходят следующие группы:\n\n")
 
         filteredGroups.forEachIndexed { index, group ->
-            val groupName = group["name"] as String
-            val groupNumber = group["number"] as Int
             val schedule = getGroupSchedule(group)
             val typeDisplay = group["subscription_type_display"] as? String ?: ""
-            sb.append("${index + 1}. $groupName")
-            if (typeDisplay.isNotEmpty()) sb.append(" ($typeDisplay)")
-            sb.append(": $schedule\n")
+            val trainerFullName = group["trainer_full_name"] as? String
+            val trainerInitials = if (trainerFullName != null) {
+                NameUtils.toInitials(trainerFullName)
+            } else {
+                "тренер не назначен"
+            }
+
+            // Формат: расписание (тип) - тренер Фамилия И.О.
+            sb.append("${index + 1}. $schedule")
+            if (typeDisplay.isNotEmpty()) {
+                sb.append(" ($typeDisplay)")
+            }
+            sb.append(" — $trainerInitials\n")
         }
 
         sb.append("\nВыберите, пожалуйста, группу. Напишите только цифру.")

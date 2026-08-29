@@ -662,24 +662,23 @@ public class DatabaseService {
             e.printStackTrace();
         }
 
-        // Обновленный запрос с учетом subscription_type_id
+        // Обновленный запрос с учетом subscription_type_id и trainer
         String groupsSql = "SELECT g.id, g.name, g.number, g.min_age, g.max_age, g.skill_1, g.skill_2, " +
                 "g.subscription_type_id, " +
                 "st.display_name as subscription_type_display, " +
+                "au.full_name as trainer_full_name, " +
                 "g.day_1_start, g.day_1_end, g.day_2_start, g.day_2_end, " +
                 "g.day_3_start, g.day_3_end, g.day_4_start, g.day_4_end, " +
                 "g.day_5_start, g.day_5_end " +
                 "FROM pool.groups g " +
                 "LEFT JOIN pool.subscription_types st ON g.subscription_type_id = st.id " +
+                "LEFT JOIN pool.admin_users au ON g.trainer_id = au.id " +
                 "ORDER BY g.number";
 
         List<Map<String, Object>> allGroups = executeQuery(groupsSql);
 
-        // Списки для разных приоритетов совпадения
-        List<Map<String, Object>> fullMatch = new ArrayList<>();
-        List<Map<String, Object>> ageSkillMatch = new ArrayList<>();
-        List<Map<String, Object>> ageMatch = new ArrayList<>();
-        List<Map<String, Object>> skillMatch = new ArrayList<>();
+        // Только полное совпадение (возраст + навык)
+        List<Map<String, Object>> result = new ArrayList<>();
 
         for (Map<String, Object> g : allGroups) {
             Long groupId = (Long) g.get("id");
@@ -693,11 +692,6 @@ public class DatabaseService {
             Integer maxAge = (Integer) g.get("max_age");
             String s1 = (String) g.get("skill_1");
             String s2 = (String) g.get("skill_2");
-
-            // Получаем информацию о типе абонемента
-            Long subTypeId = g.get("subscription_type_id") != null ?
-                    ((Number) g.get("subscription_type_id")).longValue() : null;
-            String subTypeDisplay = (String) g.get("subscription_type_display");
 
             // Проверка возраста
             boolean ageOk = true;
@@ -715,21 +709,11 @@ public class DatabaseService {
                 }
             }
 
-            // Распределяем по приоритетам
+            // Только полное совпадение
             if (ageOk && skillOk) {
-                fullMatch.add(g);
-            } else if (ageOk) {
-                ageMatch.add(g);
-            } else if (skillOk) {
-                skillMatch.add(g);
+                result.add(g);
             }
         }
-
-        // Собираем результат с приоритетом
-        List<Map<String, Object>> result = new ArrayList<>();
-        result.addAll(fullMatch);
-        result.addAll(ageMatch);
-        result.addAll(skillMatch);
 
         return result;
     }
