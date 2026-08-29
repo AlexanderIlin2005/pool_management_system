@@ -7,8 +7,8 @@ import java.util.List;
 public interface GroupRepository extends JpaRepository<Group, Long> {
     boolean existsByNumber(Integer number);
 
-    
-    List<Group> findByTrainer_Id(Long trainerId);
+
+    List<Group> findByTrainerId(Long trainerId);
     List<Group> findByPool_Id(Long poolId);
-    List<Group> findByTrainer_IdAndPool_Id(Long trainerId, Long poolId);
+    List<Group> findByTrainerIdAndPoolId(Long trainerId, Long poolId);
 }

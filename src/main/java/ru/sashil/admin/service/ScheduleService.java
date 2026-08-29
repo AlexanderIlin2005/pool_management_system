@@ -36,7 +36,7 @@ public class ScheduleService {
         if (user.getRole() == AdminUser.Role.ADMIN) {
             return poolRepository.findAll();
         } else if (user.getRole() == AdminUser.Role.COACH) {
-            List<Group> groups = groupRepository.findByTrainer_Id(user.getId());
+            List<Group> groups = groupRepository.findByTrainerId(user.getId());
             Set<Long> poolIds = groups.stream()
                     .map(g -> g.getPool() != null ? g.getPool().getId() : null)
                     .filter(Objects::nonNull)
@@ -73,7 +73,7 @@ public class ScheduleService {
             
             availablePools = Collections.emptyList();
             selectedPoolId = null;
-            groups = groupRepository.findByTrainer_Id(user.getId());
+            groups = groupRepository.findByTrainerId(user.getId());
         }
 
         

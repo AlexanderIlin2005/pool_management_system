@@ -64,7 +64,7 @@ public class GroupController {
         if (user.getRole() == AdminUser.Role.ADMIN) {
             allGroups = groupService.getAllGroups();
         } else if (user.getRole() == AdminUser.Role.COACH) {
-            allGroups = groupRepository.findByTrainer_Id(user.getId());
+            allGroups = groupRepository.findByTrainerId(user.getId());
         } else {
             return "restricted";
         }
