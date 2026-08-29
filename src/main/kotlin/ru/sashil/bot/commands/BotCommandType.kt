@@ -13,7 +13,7 @@ enum class BotCommandType(
         description = "Регистрация нового ребенка для занятий"
     ),
     SELECT_GROUP(
-        displayName = "Выбрать группу для занятий",
+        displayName = "Выбрать групповые или индивидуальные занятия",
         description = "Подбор группы по возрасту и навыкам"
     ),
     UPLOAD_CERTIFICATE(

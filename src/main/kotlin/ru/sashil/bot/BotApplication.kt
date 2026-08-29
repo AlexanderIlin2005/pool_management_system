@@ -38,7 +38,7 @@ class BotApplication {
                 minioService = MinIOService()
 
                 val vkToken = ConfigLoader.get("VK_BOT_TOKEN")
-                val groupId = 239874040L
+                val groupId = 237058626L
 
                 val bot = VkClient(
                     token = vkToken,
