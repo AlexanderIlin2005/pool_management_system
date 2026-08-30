@@ -662,14 +662,18 @@ public class DatabaseService {
             e.printStackTrace();
         }
 
-        // Обновленный запрос с учетом subscription_type_id и trainer
+        // ИСПРАВЛЕННЫЙ запрос - добавлены day_6 и day_7
         String groupsSql = "SELECT g.id, g.name, g.number, g.min_age, g.max_age, g.skill_1, g.skill_2, " +
                 "g.subscription_type_id, " +
                 "st.display_name as subscription_type_display, " +
                 "au.full_name as trainer_full_name, " +
-                "g.day_1_start, g.day_1_end, g.day_2_start, g.day_2_end, " +
-                "g.day_3_start, g.day_3_end, g.day_4_start, g.day_4_end, " +
-                "g.day_5_start, g.day_5_end " +
+                "g.day_1_start, g.day_1_end, " +
+                "g.day_2_start, g.day_2_end, " +
+                "g.day_3_start, g.day_3_end, " +
+                "g.day_4_start, g.day_4_end, " +
+                "g.day_5_start, g.day_5_end, " +
+                "g.day_6_start, g.day_6_end, " +  // Суббота - добавлено!
+                "g.day_7_start, g.day_7_end " +   // Воскресенье - добавлено!
                 "FROM pool.groups g " +
                 "LEFT JOIN pool.subscription_types st ON g.subscription_type_id = st.id " +
                 "LEFT JOIN pool.admin_users au ON g.trainer_id = au.id " +
