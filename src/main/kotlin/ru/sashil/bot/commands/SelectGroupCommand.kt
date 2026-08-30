@@ -21,9 +21,44 @@ class SelectGroupCommand(
     override fun start(userId: Long): CommandResult {
         userSteps[userId] = 1
         userData[userId] = mutableMapOf()
-        return CommandResult.Continue(
-            "Вы хотите выбрать группу для занятий в бассейне?\n\n(Да/Нет)"
-        )
+
+        // Сразу получаем детей и показываем выбор
+        val children = try {
+            dbService.getChildrenByParentVkId(userId)
+        } catch (e: Exception) {
+            return CommandResult.Error("Ошибка получения данных: ${e.message}")
+        }
+
+        if (children.isEmpty()) {
+            userSteps.remove(userId)
+            userData.remove(userId)
+            return CommandResult.Complete(
+                "У Вас пока нет зарегистрированных детей. Сначала зарегистрируйте ребенка (команда ${BotCommandType.REGISTER_CHILD.getCommandNumber()})."
+            )
+        }
+
+        val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
+        data["children"] = children
+
+        if (children.size == 1) {
+            val child = children[0]
+            data["childId"] = (child["id"] as Number).toLong()
+            data["childName"] = (child["lastName"] as String) + " " + (child["firstName"] as String)
+            userSteps[userId] = 2  // было 3, теперь 2
+            return showSubscriptionTypes()
+        } else {
+            userSteps[userId] = 1  // остаемся на шаге 1 (выбор ребенка)
+            val sb = StringBuilder("Выберите ребенка, для которого Вы хотите выбрать группу:\n\n")
+            children.forEachIndexed { i, child ->
+                val name = (child["lastName"] as String) + " " + (child["firstName"] as String)
+                if (child["middleName"] != null && (child["middleName"] as String).isNotEmpty()) {
+                    sb.append("${i + 1}. ${child["lastName"]} ${child["firstName"]} ${child["middleName"]}\n")
+                } else {
+                    sb.append("${i + 1}. ${child["lastName"]} ${child["firstName"]}\n")
+                }
+            }
+            return CommandResult.Continue(sb.toString())
+        }
     }
 
     override fun processMessage(userId: Long, text: String, rawJson: String?): CommandResult {
@@ -32,57 +67,12 @@ class SelectGroupCommand(
         val cmd = CommandUtils.normalize(text)
 
         if (cmd == "нет" || cmd == "отмена") {
-            if (step == 1) {
-                return CommandResult.Cancel()
-            } else {
-                return CommandResult.Cancel()
-            }
+            return CommandResult.Cancel()
         }
 
         when (step) {
             1 -> {
-                if (cmd != "да") {
-                    return CommandResult.Continue(
-                        "Для возврата в главное меню напишите 'нет'.\n\n" +
-                                "Вы хотите выбрать группу для занятий в бассейне?"
-                    )
-                }
-
-                val children = try {
-                    dbService.getChildrenByParentVkId(userId)
-                } catch (e: Exception) {
-                    return CommandResult.Error("Ошибка получения данных: ${e.message}")
-                }
-
-                if (children.isEmpty()) {
-                    return CommandResult.Continue(
-                        "У Вас пока нет зарегистрированных детей. Сначала зарегистрируйте ребенка (команда ${BotCommandType.REGISTER_CHILD.getCommandNumber()})."
-                    )
-                }
-
-                data["children"] = children
-
-                if (children.size == 1) {
-                    val child = children[0]
-                    data["childId"] = (child["id"] as Number).toLong()
-                    data["childName"] = (child["lastName"] as String) + " " + (child["firstName"] as String)
-                    userSteps[userId] = 3
-                    return showSubscriptionTypes()
-                } else {
-                    userSteps[userId] = 2
-                    val sb = StringBuilder("Выберите ребенка, для которого Вы хотите выбрать группу:\n\n")
-                    children.forEachIndexed { i, child ->
-                        val name = (child["lastName"] as String) + " " + (child["firstName"] as String)
-                        if (child["middleName"] != null && (child["middleName"] as String).isNotEmpty()) {
-                            sb.append("${i + 1}. ${child["lastName"]} ${child["firstName"]} ${child["middleName"]}\n")
-                        } else {
-                            sb.append("${i + 1}. ${child["lastName"]} ${child["firstName"]}\n")
-                        }
-                    }
-                    return CommandResult.Continue(sb.toString())
-                }
-            }
-            2 -> {
+                // Выбор ребенка
                 val children = data["children"] as? List<Map<String, Any>> ?: return CommandResult.Error("Ошибка данных")
                 val num = text.trim().toIntOrNull()
                 if (num == null || num < 1 || num > children.size) {
@@ -93,10 +83,11 @@ class SelectGroupCommand(
                 val child = children[num - 1]
                 data["childId"] = (child["id"] as Number).toLong()
                 data["childName"] = (child["lastName"] as String) + " " + (child["firstName"] as String)
-                userSteps[userId] = 3
+                userSteps[userId] = 2  // было 3, теперь 2
                 return showSubscriptionTypes()
             }
-            3 -> {
+            2 -> {
+                // Выбор типа занятия
                 val types = try {
                     dbService.getAllSubscriptionTypes()
                 } catch (e: Exception) {
@@ -115,10 +106,11 @@ class SelectGroupCommand(
                     return CommandResult.Continue(sb.toString())
                 }
                 data["subscriptionTypeId"] = (types[num - 1]["id"] as Number).toLong()
-                userSteps[userId] = 4
+                userSteps[userId] = 3  // было 4, теперь 3
                 return findSuitableGroups(userId, data)
             }
-            4 -> {
+            3 -> {
+                // Выбор группы
                 val groups = data["groups"] as? List<Map<String, Any>> ?: return CommandResult.Error("Группы не найдены")
                 val num = text.trim().toIntOrNull()
                 if (num == null || num < 1 || num > groups.size) {
@@ -255,7 +247,7 @@ class SelectGroupCommand(
         }
 
         sb.append("\nВыберите, пожалуйста, группу. Напишите только цифру.")
-        userSteps[userId] = 4
+        userSteps[userId] = 3  // было 4, теперь 3
         return CommandResult.Continue(sb.toString())
     }
 
