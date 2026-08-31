@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS pool.children (
     middle_name VARCHAR(100),
     birth_date DATE NOT NULL,
     age INTEGER,
-    grade_number INTEGER CHECK (grade_number BETWEEN 1 AND 11),
+    grade_number INTEGER CHECK (grade_number IS NULL OR (grade_number BETWEEN 1 AND 11)),
     grade_name VARCHAR(50), -- Полное название класса
     skill pool.swimming_skill NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -21,7 +21,18 @@
         <p><strong>ФИО:</strong> <span th:text="${profile.lastName} + ' ' + ${profile.firstName} + ' ' + ${profile.middleName}"></span></p>
         <p><strong>Дата рождения:</strong> <span th:text="${#temporals.format(profile.birthDate, 'dd.MM.yyyy')}"></span></p>
         <p><strong>Возраст:</strong> <span th:text="${profile.age}"></span> лет</p>
-        <p><strong>Класс:</strong> <span th:text="${profile.gradeNumber} + ' (' + ${profile.gradeName} + ')'"></span></p>
+
+        <p><strong>Класс:</strong>
+          <span th:if="${profile.gradeNumber != null and profile.gradeNumber > 0}">
+        <span th:text="${profile.gradeNumber}"></span>
+        <span th:if="${profile.gradeName != null and profile.gradeName != ''}"
+              th:text="' (' + ${profile.gradeName} + ')'"></span>
+    </span>
+          <span th:unless="${profile.gradeNumber != null and profile.gradeNumber > 0}"
+                style="color: #6c757d;">—</span>
+        </p>
+
+
         <p><strong>Навык плавания:</strong>
           <span th:text="${profile.skill != null ? profile.skill.dbValue : 'не указан'}"
                 th:style="${profile.skill != null and profile.skill.dbValue == 'уверенно плавает'} ? 'color: green; font-weight: bold;' :

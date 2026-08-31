@@ -38,24 +38,27 @@
         <div>
           <label>Дата рождения:</label>
           <input type="date" th:value="${#temporals.format(child.birthDate, 'yyyy-MM-dd')}" name="birthDate" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-          <!-- Используем th:value вместо th:field для правильного форматирования -->
         </div>
         <div>
-          <label>Номер класса:</label>
-          <input type="number" th:field="*{gradeNumber}" min="1" max="11" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          <label>Навык плавания:</label>
+          <select th:field="*{skill}" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <option th:each="skill : ${skills}" th:value="${skill}" th:text="${skill}"></option>
+          </select>
         </div>
       </div>
 
-      <div style="margin-bottom: 20px;">
-        <label>Название класса:</label>
-        <input type="text" th:field="*{gradeName}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-      </div>
-
-      <div style="margin-bottom: 20px;">
-        <label>Навык плавания:</label>
-        <select th:field="*{skill}" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-          <option th:each="skill : ${skills}" th:value="${skill}" th:text="${skill}"></option>
-        </select>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div>
+          <label>Номер класса:</label>
+          <input type="number" th:field="*{gradeNumber}" min="1" max="11"
+                 style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          <small style="color: #6c757d;">Оставьте пустым, если ребенок не учится в школе</small>
+        </div>
+        <div>
+          <label>Название класса:</label>
+          <input type="text" th:field="*{gradeName}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          <small style="color: #6c757d;">Оставьте пустым, если ребенок не учится в школе</small>
+        </div>
       </div>
 
       <h3>Данные родителя</h3>

@@ -2,6 +2,8 @@ package ru.sashil.bot.commands
 
 import ru.sashil.bot.util.CommandUtils
 import ru.sashil.common.service.DatabaseService
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
 
 class RegisterCommand(
@@ -73,11 +75,44 @@ class RegisterCommand(
                 return CommandResult.Continue("Спасибо! Введите дату рождения ребенка.\n\n(Например 31.10.2015)")
             }
             3 -> {
-                val birthDate = parseDate(text)
+                val birthDateStr = text.trim()
+                val birthDate = parseDate(birthDateStr)
                 if (birthDate == null) {
                     return CommandResult.Continue("Неверный формат даты. Используйте ДД.ММ.ГГГГ")
                 }
                 data["birthDate"] = birthDate
+
+                // Вычисляем возраст
+                val age = calculateAge(birthDate)
+                data["age"] = age.toString()
+
+                // Проверяем возраст
+                if (age < 6) {
+                    // Дошкольник — пропускаем класс
+                    data["gradeNumber"] = "0"  // 0 означает "без класса"
+                    data["gradeName"] = ""
+                    userSteps[userId] = 6  // Сразу переходим к навыку
+                    return CommandResult.Continue(
+                        "✅ Возраст ребенка ($age лет) меньше 6 лет, поэтому мы пропускаем шаг с вводом класса.\n\n" +
+                                "Уточните уровень владения плавательными навыками (напишите цифру): \n" +
+                                "1. Уверенно плавает\n" +
+                                "2. Держится на воде\n" +
+                                "3. Не умеет плавать"
+                    )
+                } else if (age > 18) {
+                    // Взрослый (для семейных групп) — пропускаем класс
+                    data["gradeNumber"] = "0"  // 0 означает "без класса"
+                    data["gradeName"] = ""
+                    userSteps[userId] = 6  // Сразу переходим к навыку
+                    return CommandResult.Continue(
+                        "✅ Возраст ребенка ($age лет) больше 18 лет, поэтому мы пропускаем шаг с вводом класса.\n\n" +
+                                "Уточните уровень владения плавательными навыками (напишите цифру): \n" +
+                                "1. Уверенно плавает\n" +
+                                "2. Держится на воде\n" +
+                                "3. Не умеет плавать"
+                    )
+                }
+
                 userSteps[userId] = 4
                 return CommandResult.Continue(
                     "Спасибо! Введите номер класса (цифрой от 1 до 11):"
@@ -128,15 +163,25 @@ class RegisterCommand(
                 val firstName = data["firstName"].orEmpty()
                 val middleName = data["middleName"].orEmpty()
                 val birthDate = data["birthDate"].orEmpty()
-                val gradeName = data["gradeName"].orEmpty()
                 val gradeNumber = data["gradeNumber"].orEmpty()
+                val gradeName = data["gradeName"].orEmpty()
+                val age = data["age"].orEmpty()
+
+                // Формируем строку класса для отображения
+                val classDisplay = if (gradeNumber == "0" || gradeNumber.isEmpty()) {
+                    "—"
+                } else {
+                    val gradeNameDisplay = if (gradeName.isNotEmpty()) " ($gradeName)" else ""
+                    "$gradeNumber$gradeNameDisplay"
+                }
 
                 userSteps[userId] = 7
                 return CommandResult.Continue(
                     "Проверьте введенные данные:\n\n" +
                             "ФИО: $lastName $firstName $middleName\n" +
                             "Дата рождения: ${formatDate(birthDate)}\n" +
-                            "Класс: $gradeName ($gradeNumber)\n" +
+                            "Возраст: $age лет\n" +
+                            "Класс: $classDisplay\n" +
                             "Навык: $skill\n\n" +
                             "Всё верно?\n" +
                             "Напишите 'да' для сохранения или 'нет' для отмены."
@@ -150,13 +195,16 @@ class RegisterCommand(
                 }
 
                 try {
+                    val gradeNum = data["gradeNumber"]?.toIntOrNull() ?: 0
+                    // Если gradeNum == 0, передаем 0, а в DatabaseService уже обработается как NULL
+
                     dbService.addChild(
                         userId,
                         data["firstName"].orEmpty(),
                         data["lastName"].orEmpty(),
                         data["middleName"].orEmpty(),
                         data["birthDate"].orEmpty(),
-                        data["gradeNumber"].orEmpty().toInt(),
+                        gradeNum,
                         data["gradeName"].orEmpty(),
                         data["skill"].orEmpty()
                     )
@@ -188,6 +236,22 @@ class RegisterCommand(
             }
         } catch (_: Exception) {}
         return null
+    }
+
+    private fun calculateAge(birthDateStr: String): Int {
+        try {
+            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+            val birthDate = LocalDate.parse(birthDateStr, formatter)
+            val today = LocalDate.now()
+            var age = today.year - birthDate.year
+            if (today.monthValue < birthDate.monthValue ||
+                (today.monthValue == birthDate.monthValue && today.dayOfMonth < birthDate.dayOfMonth)) {
+                age--
+            }
+            return age
+        } catch (_: Exception) {
+            return 0
+        }
     }
 
     private fun formatDate(dateStr: String): String {

@@ -110,6 +110,7 @@ public class DatabaseService {
             }
         }
 
+        // Поддержка NULL для grade_number и grade_name
         String sql = "INSERT INTO pool.children (parent_id, first_name, last_name, middle_name, birth_date, grade_number, grade_name, skill) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?::pool.swimming_skill)";
 
@@ -119,8 +120,21 @@ public class DatabaseService {
             stmt.setString(3, lName);
             stmt.setString(4, mName);
             stmt.setDate(5, Date.valueOf(birthDate));
-            stmt.setInt(6, gradeNum);
-            stmt.setString(7, gradeName);
+
+            // grade_number может быть 0 (для дошкольников) или отрицательным (для взрослых) — сохраняем как NULL
+            if (gradeNum > 0 && gradeNum <= 11) {
+                stmt.setInt(6, gradeNum);
+            } else {
+                stmt.setNull(6, java.sql.Types.INTEGER);
+            }
+
+            // grade_name — если null или пусто, сохраняем NULL
+            if (gradeName != null && !gradeName.trim().isEmpty()) {
+                stmt.setString(7, gradeName.trim());
+            } else {
+                stmt.setNull(7, java.sql.Types.VARCHAR);
+            }
+
             stmt.setString(8, skill);
             stmt.executeUpdate();
             LOGGER.info("Ребенок добавлен для родителя VK:" + parentVkId);
