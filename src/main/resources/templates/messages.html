@@ -133,11 +133,10 @@
     </div>
 
     <script>
-        // Ключи для sessionStorage
+        // ===== СУЩЕСТВУЮЩИЙ КОД =====
         const STORAGE_KEY_OPEN_FORM = 'openReplyFormId';
         const STORAGE_KEY_TEXT_PREFIX = 'replyText_';
 
-        // Функция сохранения состояния открытой формы
         function saveOpenFormState(messageId) {
             if (messageId) {
                 sessionStorage.setItem(STORAGE_KEY_OPEN_FORM, messageId.toString());
@@ -146,72 +145,57 @@
             }
         }
 
-        // Функция сохранения текста ответа
         function saveReplyText(messageId, text) {
             if (messageId) {
                 sessionStorage.setItem(STORAGE_KEY_TEXT_PREFIX + messageId, text);
             }
         }
 
-        // Функция получения сохраненного текста
         function getSavedReplyText(messageId) {
             return sessionStorage.getItem(STORAGE_KEY_TEXT_PREFIX + messageId) || '';
         }
 
-        // Функция очистки сохраненного текста после отправки
         function clearReplyText(messageId) {
             if (messageId) {
                 sessionStorage.removeItem(STORAGE_KEY_TEXT_PREFIX + messageId);
             }
         }
 
-        // Функция показа формы ответа
         function showReplyForm(messageId) {
-            // Сначала скрываем все формы
             document.querySelectorAll('.reply-form').forEach(function(el) {
                 el.classList.remove('visible');
             });
 
-            // Показываем нужную форму
             var form = document.getElementById('reply-form-' + messageId);
             if (form) {
-                // Принудительно показываем форму
                 form.style.display = 'block';
-                // Добавляем класс visible для анимации
                 requestAnimationFrame(function() {
                     form.classList.add('visible');
                 });
 
-                // Восстанавливаем сохраненный текст
                 var textarea = document.getElementById('reply-text-' + messageId);
                 if (textarea) {
                     var savedText = getSavedReplyText(messageId);
                     if (savedText) {
                         textarea.value = savedText;
                     }
-                    // Фокусируемся на текстовом поле
                     setTimeout(function() {
                         textarea.focus();
                         textarea.setSelectionRange(textarea.value.length, textarea.value.length);
                     }, 150);
                 }
 
-                // Сохраняем состояние открытой формы
                 saveOpenFormState(messageId);
-
-                // Прокручиваем к форме
                 setTimeout(function() {
                     form.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 200);
             }
         }
 
-        // Функция скрытия формы ответа
         function hideReplyForm(messageId) {
             var form = document.getElementById('reply-form-' + messageId);
             if (form) {
                 form.classList.remove('visible');
-                // Скрываем после анимации
                 setTimeout(function() {
                     form.style.display = 'none';
                 }, 150);
@@ -223,9 +207,55 @@
             }
         }
 
-        // Обработчики для кнопок
+        // ===== НОВОЕ: ВОССТАНОВЛЕНИЕ ФОКУСА И КУРСОРА (БЕЗ БУФЕРА) =====
+        (function() {
+            var FOCUS_STORAGE_KEY = 'focusedTextareaId';
+            var CURSOR_STORAGE_KEY = 'cursorPosition';
+
+            document.addEventListener('focusin', function(e) {
+                var target = e.target;
+                if (target && target.id && target.id.startsWith('reply-text-')) {
+                    sessionStorage.setItem(FOCUS_STORAGE_KEY, target.id);
+                    sessionStorage.setItem(CURSOR_STORAGE_KEY, target.selectionStart || 0);
+                }
+            });
+
+            document.addEventListener('input', function(e) {
+                var target = e.target;
+                if (target && target.id && target.id.startsWith('reply-text-')) {
+                    sessionStorage.setItem(CURSOR_STORAGE_KEY, target.selectionStart || 0);
+                }
+            });
+
+            document.addEventListener('DOMContentLoaded', function() {
+                var savedId = sessionStorage.getItem(FOCUS_STORAGE_KEY);
+                var savedCursor = parseInt(sessionStorage.getItem(CURSOR_STORAGE_KEY)) || 0;
+
+                if (savedId) {
+                    var textarea = document.getElementById(savedId);
+                    if (textarea) {
+                        var form = textarea.closest('.reply-form');
+                        if (form && !form.classList.contains('visible')) {
+                            var messageId = savedId.replace('reply-text-', '');
+                            if (window.showReplyForm) {
+                                window.showReplyForm(parseInt(messageId));
+                            }
+                        }
+                        setTimeout(function() {
+                            textarea.focus();
+                            var maxPos = textarea.value.length;
+                            var cursor = Math.min(savedCursor, maxPos);
+                            textarea.setSelectionRange(cursor, cursor);
+                        }, 150);
+                    }
+                    sessionStorage.removeItem(FOCUS_STORAGE_KEY);
+                    sessionStorage.removeItem(CURSOR_STORAGE_KEY);
+                }
+            });
+        })();
+
+        // ===== ОСТАЛЬНОЙ СУЩЕСТВУЮЩИЙ КОД =====
         document.addEventListener('DOMContentLoaded', function() {
-            // Обработчики для кнопок "Ответить"
             document.querySelectorAll('.btn-reply').forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -234,7 +264,6 @@
                 });
             });
 
-            // Обработчики для кнопок "Отмена"
             document.querySelectorAll('.btn-cancel-reply').forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -243,7 +272,6 @@
                 });
             });
 
-            // Восстанавливаем открытую форму при загрузке страницы
             var savedOpenFormId = sessionStorage.getItem(STORAGE_KEY_OPEN_FORM);
             if (savedOpenFormId) {
                 var messageId = parseInt(savedOpenFormId);
@@ -266,7 +294,6 @@
                 }
             }
 
-            // Добавляем обработчики для всех текстовых полей
             document.querySelectorAll('[id^="reply-text-"]').forEach(function(textarea) {
                 var messageId = parseInt(textarea.id.replace('reply-text-', ''));
 
@@ -279,7 +306,6 @@
                 });
             });
 
-            // Обработчики для форм - очищаем сохраненный текст после отправки
             document.querySelectorAll('[id^="reply-form-element-"]').forEach(function(form) {
                 var messageId = parseInt(form.id.replace('reply-form-element-', ''));
                 form.addEventListener('submit', function() {
@@ -288,7 +314,6 @@
                 });
             });
 
-            // Если есть параметр success - очищаем все сохраненные данные
             var urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('success')) {
                 Object.keys(sessionStorage).forEach(function(key) {
@@ -300,7 +325,6 @@
             }
         });
 
-        // Сохраняем состояние при закрытии страницы
         window.addEventListener('beforeunload', function() {
             var savedOpenFormId = sessionStorage.getItem(STORAGE_KEY_OPEN_FORM);
             if (savedOpenFormId) {
