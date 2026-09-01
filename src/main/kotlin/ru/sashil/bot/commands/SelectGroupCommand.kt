@@ -4,6 +4,7 @@ import ru.sashil.common.service.DatabaseService
 import ru.sashil.common.util.CommandUtils
 import ru.sashil.common.util.NameUtils
 import java.util.concurrent.ConcurrentHashMap
+import java.util.regex.Pattern
 
 class SelectGroupCommand(
     private val dbService: DatabaseService
@@ -44,10 +45,10 @@ class SelectGroupCommand(
             val child = children[0]
             data["childId"] = (child["id"] as Number).toLong()
             data["childName"] = (child["lastName"] as String) + " " + (child["firstName"] as String)
-            userSteps[userId] = 2  // было 3, теперь 2
+            userSteps[userId] = 2
             return showSubscriptionTypes()
         } else {
-            userSteps[userId] = 1  // остаемся на шаге 1 (выбор ребенка)
+            userSteps[userId] = 1
             val sb = StringBuilder("Выберите ребенка, для которого Вы хотите выбрать группу:\n\n")
             children.forEachIndexed { i, child ->
                 val name = (child["lastName"] as String) + " " + (child["firstName"] as String)
@@ -83,7 +84,7 @@ class SelectGroupCommand(
                 val child = children[num - 1]
                 data["childId"] = (child["id"] as Number).toLong()
                 data["childName"] = (child["lastName"] as String) + " " + (child["firstName"] as String)
-                userSteps[userId] = 2  // было 3, теперь 2
+                userSteps[userId] = 2
                 return showSubscriptionTypes()
             }
             2 -> {
@@ -106,36 +107,75 @@ class SelectGroupCommand(
                     return CommandResult.Continue(sb.toString())
                 }
                 data["subscriptionTypeId"] = (types[num - 1]["id"] as Number).toLong()
-                userSteps[userId] = 3  // было 4, теперь 3
+                userSteps[userId] = 3
                 return findSuitableGroups(userId, data)
             }
             3 -> {
-                // Выбор группы
+                // Выбор группы (одной или нескольких)
                 val groups = data["groups"] as? List<Map<String, Any>> ?: return CommandResult.Error("Группы не найдены")
-                val num = text.trim().toIntOrNull()
-                if (num == null || num < 1 || num > groups.size) {
+                val groupCount = groups.size
+
+                // Парсим ввод: может быть одно число или несколько
+                val selectedIndexes = parseGroupSelection(text.trim(), groupCount)
+
+                if (selectedIndexes.isEmpty()) {
                     return CommandResult.Continue(
-                        "Пожалуйста, введите номер группы от 1 до ${groups.size}."
+                        "Пожалуйста, введите номер группы (или несколько номеров через пробел, запятую или 'и').\n" +
+                                "Доступные номера: от 1 до $groupCount."
                     )
                 }
 
-                val selectedGroup = groups[num - 1]
-                val groupId = (selectedGroup["id"] as Number).toLong()
                 val childId = data["childId"] as Long
+                var successCount = 0
+                var errorMessages = mutableListOf<String>()
 
-                try {
-                    dbService.createJoinRequest(userId, childId, groupId)
-                    userSteps.remove(userId)
-                    userData.remove(userId)
-                    return CommandResult.Complete(
-                        "Благодарим! Вы успешно зарегистрировали ребенка в бассейн и выбрали группу для занятий плаванием.\n\n" +
-                                "В ближайшее время Вы получите уведомление от администратора о зачислении в группу. Вам будут направлены дальнейшие инструкции.\n\n" +
-                                "Просим ознакомиться с текстом договора на оказание услуг, с Правилами посещения бассейна, с текстом Согласия на обработку персональных данных. Эти документы размещены в ВК группе бассейна.\n\n" +
-                                "Будем рады видеть Вашего ребенка на занятиях в бассейне!"
-                    )
-                } catch (e: Exception) {
-                    return CommandResult.Error("Ошибка создания заявки: ${e.message}")
+                for (idx in selectedIndexes) {
+                    try {
+                        val selectedGroup = groups[idx - 1]
+                        val groupId = (selectedGroup["id"] as Number).toLong()
+
+                        dbService.createJoinRequest(userId, childId, groupId)
+                        successCount++
+                    } catch (e: Exception) {
+                        errorMessages.add("Ошибка при создании заявки для группы #${idx}: ${e.message}")
+                    }
                 }
+
+                userSteps.remove(userId)
+                userData.remove(userId)
+
+                if (successCount == 0) {
+                    return CommandResult.Error(
+                        "Не удалось создать ни одной заявки.\n" +
+                                errorMessages.joinToString("\n")
+                    )
+                }
+
+                val message = StringBuilder()
+                message.append("Благодарим! Вы успешно создали заявку")
+                if (successCount > 1) message.append("и")
+                message.append(" на вступление в группу")
+                if (successCount > 1) message.append("ы")
+                message.append("!\n\n")
+
+                if (successCount == 1) {
+                    message.append("В ближайшее время Вы получите уведомление от администратора о зачислении в группу.\n\n")
+                } else {
+                    message.append("В ближайшее время Вы получите уведомления от администратора о зачислении в каждую из выбранных групп.\n\n")
+                }
+
+                message.append(
+                    "Просим ознакомиться с текстом договора на оказание услуг, с Правилами посещения бассейна, с текстом Согласия на обработку персональных данных. " +
+                            "Эти документы размещены в ВК группе бассейна.\n\n" +
+                            "Будем рады видеть Вашего ребенка на занятиях в бассейне!"
+                )
+
+                if (errorMessages.isNotEmpty()) {
+                    message.append("\n\n⚠️ Частичные ошибки:\n")
+                    message.append(errorMessages.joinToString("\n"))
+                }
+
+                return CommandResult.Complete(message.toString())
             }
             else -> {
                 return CommandResult.Cancel()
@@ -184,7 +224,8 @@ class SelectGroupCommand(
             childName
         }
 
-        val gradeName = childData["gradeName"] as String
+        // БЕЗОПАСНОЕ ПОЛУЧЕНИЕ gradeName с обработкой null
+        val gradeName = childData["gradeName"] as? String ?: "—"
 
         val groups = try {
             dbService.findSuitableGroupsForChild(childId)
@@ -230,7 +271,13 @@ class SelectGroupCommand(
         data["groups"] = filteredGroups
 
         val sb = StringBuilder()
-        sb.append("Вашему ребенку ($fullChildName, $age лет, класс $gradeName, $skill) по возрасту и уровню умения плавать подходят следующие группы:\n\n")
+        // БЕЗОПАСНОЕ ФОРМАТИРОВАНИЕ СТРОКИ КЛАССА
+        val gradeDisplay = if (gradeName.isNotEmpty() && gradeName != "—") {
+            ", класс $gradeName"
+        } else {
+            ""
+        }
+        sb.append("Вашему ребенку ($fullChildName, $age лет$gradeDisplay, $skill) по возрасту и уровню умения плавать подходят следующие группы:\n\n")
 
         filteredGroups.forEachIndexed { index, group ->
             val schedule = getGroupSchedule(group)
@@ -241,13 +288,12 @@ class SelectGroupCommand(
                 "тренер не назначен"
             }
 
-            // Убираем тип занятия, так как он уже выбран
-            // Формат: расписание — тренер Фамилия И.О.
+            // Формат: номер. расписание — тренер Фамилия И.О.
             sb.append("${index + 1}. $schedule — $trainerInitials\n")
         }
 
-        sb.append("\nВыберите, пожалуйста, группу. Напишите только цифру.")
-        userSteps[userId] = 3  // было 4, теперь 3
+        sb.append("\nВыберите одну или несколько групп (например: 3, 5 или 3 и 5). Напишите только цифры.")
+        userSteps[userId] = 3
         return CommandResult.Continue(sb.toString())
     }
 
@@ -275,5 +321,45 @@ class SelectGroupCommand(
 
     private fun formatTime(time: Any): String {
         return time.toString().substring(0, 5)
+    }
+
+    /**
+     * Парсит выбор групп из текста пользователя.
+     * Поддерживаются форматы:
+     * - "3" -> [3]
+     * - "3 5" -> [3, 5]
+     * - "3, 5" -> [3, 5]
+     * - "3 и 5" -> [3, 5]
+     * - "3 и 5 и 7" -> [3, 5, 7]
+     * - "3,5,7" -> [3, 5, 7]
+     * - "3 5 7" -> [3, 5, 7]
+     * - "3, 5 и 7" -> [3, 5, 7]
+     *
+     * @param input Входная строка от пользователя
+     * @param maxIndex Максимальный индекс (количество групп)
+     * @return Список индексов (1-based), или пустой список если парсинг не удался
+     */
+    private fun parseGroupSelection(input: String, maxIndex: Int): List<Int> {
+        if (input.isBlank()) return emptyList()
+
+        // Разделители: пробел, запятая, слово "и" (на русском и английском)
+        val separators = arrayOf("\\s+", "\\s*,\\s*", "\\s+и\\s+", "\\s+and\\s+")
+        val pattern = Pattern.compile(separators.joinToString("|"))
+
+        val parts = pattern.split(input.trim()).filter { it.isNotEmpty() }
+
+        if (parts.isEmpty()) return emptyList()
+
+        val result = mutableListOf<Int>()
+        for (part in parts) {
+            val num = part.toIntOrNull()
+            if (num == null || num < 1 || num > maxIndex) {
+                return emptyList() // Если хоть одно число невалидно — возвращаем пустой список
+            }
+            result.add(num)
+        }
+
+        // Убираем дубликаты, сохраняя порядок
+        return result.distinct()
     }
 }
