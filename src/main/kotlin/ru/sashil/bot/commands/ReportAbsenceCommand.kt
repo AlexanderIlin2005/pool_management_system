@@ -10,37 +10,33 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Logger
 
 class ReportAbsenceCommand(
     private val dbService: DatabaseService,
     private val minioService: MinIOService
-) : BotCommand {
+) : BaseBotCommand() {
 
     override val displayName: String = "Сообщить о пропуске занятия тренеру"
     override val description: String = "Уведомление о пропуске занятия"
 
     private val logger = Logger.getLogger(ReportAbsenceCommand::class.java.name)
-    private val userSteps = ConcurrentHashMap<Long, Int>()
-    private val userData = ConcurrentHashMap<Long, MutableMap<String, Any>>()
 
     override fun start(userId: Long): CommandResult {
-        userSteps[userId] = 1
-        userData[userId] = mutableMapOf()
+        setStep(userId, 1)
+        createData(userId)
         return CommandResult.Continue(
             "Вы хотите проинформировать тренера о пропуске занятия в бассейне?\n\n(Да/Нет)"
         )
     }
 
     override fun processMessage(userId: Long, text: String, rawJson: String?): CommandResult {
-        val step = userSteps[userId] ?: return CommandResult.Error("Сессия не найдена")
-        val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
+        val step = getStep(userId)
+        val data = getData(userId) ?: return CommandResult.Error("Ошибка данных")
         val cmd = CommandUtils.normalize(text)
 
         if (cmd == "нет" || cmd == "отмена") {
-            userSteps.remove(userId)
-            userData.remove(userId)
+            removeSession(userId)
             return CommandResult.Cancel()
         }
 
@@ -69,10 +65,10 @@ class ReportAbsenceCommand(
                     val child = children[0]
                     data["childId"] = (child["id"] as Number).toLong()
                     data["childName"] = "${child["lastName"]} ${child["firstName"]}"
-                    userSteps[userId] = 3
+                    setStep(userId, 3)
                     return showAbsenceTypes()
                 } else {
-                    userSteps[userId] = 2
+                    setStep(userId, 2)
                     val sb = StringBuilder("Выберите ребенка, о пропуске которого Вы хотите сообщить:\n\n")
                     children.forEachIndexed { i, child ->
                         val name = "${child["lastName"]} ${child["firstName"]}"
@@ -100,7 +96,7 @@ class ReportAbsenceCommand(
                 val child = children[num - 1]
                 data["childId"] = (child["id"] as Number).toLong()
                 data["childName"] = "${child["lastName"]} ${child["firstName"]}"
-                userSteps[userId] = 3
+                setStep(userId, 3)
                 return showAbsenceTypes()
             }
             3 -> {
@@ -121,11 +117,11 @@ class ReportAbsenceCommand(
 
                 when (type) {
                     "SICK" -> {
-                        userSteps[userId] = 4
+                        setStep(userId, 4)
                         return CommandResult.Continue("Пожалуйста, пришлите справку от врача (фото или PDF файл).")
                     }
                     "UNWELL", "OTHER" -> {
-                        userSteps[userId] = 5
+                        setStep(userId, 5)
                         return CommandResult.Continue(
                             "Укажите дату пропуска в формате ДД.ММ (например, 15.08):\n" +
                                     "(По умолчанию будет использован текущий год)"
@@ -135,7 +131,6 @@ class ReportAbsenceCommand(
                 }
             }
             4 -> {
-                // Загрузка справки для SICK
                 if (rawJson == null || !rawJson.contains("\"attachments\"")) {
                     return CommandResult.Continue("Я не вижу вложения. Пожалуйста, пришлите справку от врача (фото или PDF).")
                 }
@@ -154,7 +149,6 @@ class ReportAbsenceCommand(
                         return CommandResult.Continue("Ошибка скачивания файла. Попробуйте снова.")
                     }
 
-                    val objectName = "certificates/${java.util.UUID.randomUUID()}$extension"
                     val url = minioService.uploadFile(file.absolutePath, "certificate$extension")
                     file.delete()
 
@@ -169,7 +163,6 @@ class ReportAbsenceCommand(
                 }
             }
             5 -> {
-                // Ввод даты для UNWELL / OTHER
                 val dateStr = text.trim()
                 val parsedDate = parseShortDate(dateStr)
                 if (parsedDate == null) {
@@ -177,21 +170,16 @@ class ReportAbsenceCommand(
                         "❌ Неверный формат даты. Используйте ДД.ММ (например, 15.08)."
                     )
                 }
-                data["absenceDate"] = parsedDate.toString() // ISO format yyyy-MM-dd
+                data["absenceDate"] = parsedDate.toString()
                 return saveAbsence(userId, data)
             }
             else -> {
-                userSteps.remove(userId)
-                userData.remove(userId)
+                removeSession(userId)
                 return CommandResult.Cancel()
             }
         }
     }
 
-    /**
-     * Парсит дату в формате ДД.ММ, добавляя текущий год.
-     * Возвращает LocalDate или null при ошибке.
-     */
     private fun parseShortDate(text: String): LocalDate? {
         try {
             val parts = text.split(".")
@@ -200,7 +188,6 @@ class ReportAbsenceCommand(
             val month = parts[1].trim().toInt()
             val year = LocalDate.now().year
             val date = LocalDate.of(year, month, day)
-            // Проверка разумности: не более 6 месяцев в будущее и не более 1 месяца в прошлое
             val now = LocalDate.now()
             if (date.isAfter(now.plusMonths(6)) || date.isBefore(now.minusMonths(1))) {
                 return null
@@ -262,8 +249,7 @@ class ReportAbsenceCommand(
                 }
             }
 
-            userSteps.remove(userId)
-            userData.remove(userId)
+            removeSession(userId)
 
             return when (type) {
                 "SICK" -> CommandResult.Complete(
@@ -358,8 +344,7 @@ class ReportAbsenceCommand(
     }
 
     override fun cancel(userId: Long): CommandResult {
-        userSteps.remove(userId)
-        userData.remove(userId)
+        removeSession(userId)
         return CommandResult.Cancel()
     }
 }

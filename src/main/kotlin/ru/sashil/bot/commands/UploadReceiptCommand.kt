@@ -9,40 +9,34 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDate
-import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Logger
 
 class UploadReceiptCommand(
     private val dbService: DatabaseService,
     private val minioService: MinIOService
-) : BotCommand {
+) : BaseBotCommand() {
 
     override val displayName: String = "Сообщить об оплате абонемента"
     override val description: String = "Загрузка квитанции об оплате"
 
     private val logger = Logger.getLogger(UploadReceiptCommand::class.java.name)
-    private val userSteps = ConcurrentHashMap<Long, Int>()
-    private val userData = ConcurrentHashMap<Long, MutableMap<String, Any>>()
 
     override fun start(userId: Long): CommandResult {
-        userSteps[userId] = 1
-        userData[userId] = mutableMapOf()
+        setStep(userId, 1)
+        createData(userId)
         return CommandResult.Continue(
             "Вы хотите сообщить об оплате абонемента?\n\n(Да/Нет)"
         )
     }
 
     override fun processMessage(userId: Long, text: String, rawJson: String?): CommandResult {
-        val step = userSteps[userId] ?: return CommandResult.Error("Сессия не найдена")
-        val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
+        val step = getStep(userId)
+        val data = getData(userId) ?: return CommandResult.Error("Ошибка данных")
         val cmd = CommandUtils.normalize(text)
 
         if (cmd == "нет" || cmd == "отмена") {
-            if (step == 1) {
-                return CommandResult.Cancel()
-            } else {
-                return CommandResult.Cancel()
-            }
+            removeSession(userId)
+            return CommandResult.Cancel()
         }
 
         when (step) {
@@ -69,12 +63,12 @@ class UploadReceiptCommand(
                 if (children.size == 1) {
                     val child = children[0]
                     data["childId"] = (child["id"] as Number).toLong()
-                    userSteps[userId] = 3
+                    setStep(userId, 3)
                     return CommandResult.Continue(
                         "За какой месяц оплата?\n\nВведите в формате: ММ.ГГГГ (например, 09.2026)"
                     )
                 } else {
-                    userSteps[userId] = 2
+                    setStep(userId, 2)
                     val sb = StringBuilder("Выберите ребенка, для которого Вы хотите сообщить об оплате:\n\n")
                     children.forEachIndexed { i, child ->
                         val name = (child["lastName"] as String) + " " + (child["firstName"] as String)
@@ -102,7 +96,7 @@ class UploadReceiptCommand(
                 }
                 val child = children[num - 1]
                 data["childId"] = (child["id"] as Number).toLong()
-                userSteps[userId] = 3
+                setStep(userId, 3)
                 return CommandResult.Continue(
                     "За какой месяц оплата?\n\nВведите в формате: ММ.ГГГГ (например, 09.2026)"
                 )
@@ -128,7 +122,7 @@ class UploadReceiptCommand(
                     }
 
                     data["monthYear"] = monthYear
-                    userSteps[userId] = 4
+                    setStep(userId, 4)
                     return CommandResult.Continue(
                         "Пожалуйста, пришлите фото квитанции (изображение или PDF файл)."
                     )
@@ -158,7 +152,6 @@ class UploadReceiptCommand(
                         return CommandResult.Continue("Ошибка скачивания файла. Попробуйте снова.")
                     }
 
-                    val objectName = "receipts/${java.util.UUID.randomUUID()}$extension"
                     val url = minioService.uploadFile(file.absolutePath, "receipt$extension")
                     file.delete()
 
@@ -167,8 +160,7 @@ class UploadReceiptCommand(
 
                     dbService.savePaymentReceipt(userId, childId, monthYear, url, originalName)
 
-                    userSteps.remove(userId)
-                    userData.remove(userId)
+                    removeSession(userId)
 
                     return CommandResult.Complete(
                         "✅ Квитанция загружена!\n\nБухгалтер проверит её в ближайшее время.\nСтатус оплаты обновится после проверки."
@@ -179,6 +171,7 @@ class UploadReceiptCommand(
                 }
             }
             else -> {
+                removeSession(userId)
                 return CommandResult.Cancel()
             }
         }
@@ -247,5 +240,10 @@ class UploadReceiptCommand(
             logger.severe("Ошибка скачивания: ${e.message}")
             return null
         }
+    }
+
+    override fun cancel(userId: Long): CommandResult {
+        removeSession(userId)
+        return CommandResult.Cancel()
     }
 }

@@ -1,6 +1,6 @@
 package ru.sashil.bot.commands
 
-class HelpCommand : BotCommand {
+class HelpCommand : BaseBotCommand() {
     override val displayName: String = "Проблемы при регистрации и выборе группы"
     override val description: String = "Помощь в решении проблем"
 

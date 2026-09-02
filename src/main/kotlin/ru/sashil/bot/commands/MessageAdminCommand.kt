@@ -1,35 +1,30 @@
 package ru.sashil.bot.commands
 
+import ru.sashil.bot.util.CommandUtils
 import ru.sashil.common.service.DatabaseService
-import ru.sashil.common.util.CommandUtils
-import java.util.concurrent.ConcurrentHashMap
 
 class MessageAdminCommand(
     private val dbService: DatabaseService
-) : BotCommand {
+) : BaseBotCommand() {
 
     override val displayName: String = "Написать сообщение администратору"
     override val description: String = "Связь с администрацией"
 
-    private val userSteps = ConcurrentHashMap<Long, Int>()
-    private val userData = ConcurrentHashMap<Long, MutableMap<String, String>>()
-
     override fun start(userId: Long): CommandResult {
-        userSteps[userId] = 1
-        userData[userId] = mutableMapOf()
+        setStep(userId, 1)
+        createData(userId)
         return CommandResult.Continue(
             "Напишите Ваше сообщение для администратора.\n\n(Для отмены напишите 'отмена')"
         )
     }
 
     override fun processMessage(userId: Long, text: String, rawJson: String?): CommandResult {
-        val step = userSteps[userId] ?: return CommandResult.Error("Сессия не найдена")
-        val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
+        val step = getStep(userId)
+        val data = getData(userId) ?: return CommandResult.Error("Ошибка данных")
         val cmd = CommandUtils.normalize(text)
 
         if (cmd == "отмена" || cmd == "нет") {
-            userSteps.remove(userId)
-            userData.remove(userId)
+            removeSession(userId)
             return CommandResult.Cancel()
         }
 
@@ -43,7 +38,6 @@ class MessageAdminCommand(
                         "Родитель (VK ID: $userId)"
                     }
 
-                    // Сохраняем сообщение в таблицу messages (для всех админов)
                     val sql = "INSERT INTO pool.messages " +
                             "(from_user_id, from_user_type, to_user_type, " +
                             "message_text, status, created_at) " +
@@ -58,8 +52,7 @@ class MessageAdminCommand(
                         }
                     }
 
-                    userSteps.remove(userId)
-                    userData.remove(userId)
+                    removeSession(userId)
 
                     return CommandResult.Complete(
                         "✅ Ваше сообщение отправлено администратору.\n\n" +
@@ -70,16 +63,14 @@ class MessageAdminCommand(
                 }
             }
             else -> {
-                userSteps.remove(userId)
-                userData.remove(userId)
+                removeSession(userId)
                 return CommandResult.Cancel()
             }
         }
     }
 
     override fun cancel(userId: Long): CommandResult {
-        userSteps.remove(userId)
-        userData.remove(userId)
+        removeSession(userId)
         return CommandResult.Cancel()
     }
 }

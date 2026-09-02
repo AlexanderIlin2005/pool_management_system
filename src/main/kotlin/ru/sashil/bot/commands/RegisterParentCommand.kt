@@ -2,17 +2,14 @@ package ru.sashil.bot.commands
 
 import ru.sashil.bot.util.CommandUtils
 import ru.sashil.common.service.DatabaseService
-import java.util.concurrent.ConcurrentHashMap
 import java.util.regex.Pattern
 
 class RegisterParentCommand(
     private val dbService: DatabaseService
-) : BotCommand {
+) : BaseBotCommand() {
     override val displayName: String = "Зарегистрироваться как родитель"
     override val description: String = "Регистрация родителя в системе"
 
-    private val userSteps = ConcurrentHashMap<Long, Int>()
-    private val userData = ConcurrentHashMap<Long, MutableMap<String, String>>()
     private val emailPattern = Pattern.compile("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$")
 
     override fun start(userId: Long): CommandResult {
@@ -27,21 +24,20 @@ class RegisterParentCommand(
                         "Напишите 'меню' для просмотра всех команд."
             )
         }
-        userSteps[userId] = 1
-        userData[userId] = mutableMapOf()
+        setStep(userId, 1)
+        createData(userId)
         return CommandResult.Continue(
             "Добро пожаловать! Для регистрации в системе введите Вашу фамилию:"
         )
     }
 
     override fun processMessage(userId: Long, text: String, rawJson: String?): CommandResult {
-        val step = userSteps[userId] ?: return CommandResult.Error("Сессия не найдена")
-        val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
+        val step = getStep(userId)
+        val data = getData(userId) ?: return CommandResult.Error("Ошибка данных")
         val cmd = CommandUtils.normalize(text)
 
         if (CommandUtils.isCancelCommand(text)) {
-            userSteps.remove(userId)
-            userData.remove(userId)
+            removeSession(userId)
             return CommandResult.Cancel()
         }
 
@@ -51,7 +47,7 @@ class RegisterParentCommand(
                     return CommandResult.Continue("Пожалуйста, введите корректную фамилию (минимум 2 символа):")
                 }
                 data["lastName"] = text.trim()
-                userSteps[userId] = 2
+                setStep(userId, 2)
                 return CommandResult.Continue("Введите Ваше имя:")
             }
             2 -> {
@@ -59,13 +55,13 @@ class RegisterParentCommand(
                     return CommandResult.Continue("Пожалуйста, введите корректное имя (минимум 2 символа):")
                 }
                 data["firstName"] = text.trim()
-                userSteps[userId] = 3
+                setStep(userId, 3)
                 return CommandResult.Continue("Введите Ваше отчество (или '-'(тире/минус) для пропуска):")
             }
             3 -> {
                 val middleName = if (CommandUtils.isSkipCommand(text)) "" else text.trim()
                 data["middleName"] = middleName
-                userSteps[userId] = 4
+                setStep(userId, 4)
                 return CommandResult.Continue("Введите Ваш email (или '-'(тире/минус) для пропуска):")
             }
             4 -> {
@@ -75,7 +71,7 @@ class RegisterParentCommand(
                     }
                     data["email"] = text.trim()
                 }
-                userSteps[userId] = 5
+                setStep(userId, 5)
                 return CommandResult.Continue("Введите Ваш номер телефона (формат: +7XXXXXXXXXX или 8XXXXXXXXXX):\nили '-'(тире/минус) для пропуска.")
             }
             5 -> {
@@ -88,13 +84,13 @@ class RegisterParentCommand(
                     data["phone"] = phone
                 }
 
-                val lastName = data["lastName"].orEmpty()
-                val firstName = data["firstName"].orEmpty()
-                val middleName = data["middleName"].orEmpty().ifEmpty { "—" }
-                val email = data["email"].orEmpty().ifEmpty { "—" }
-                val phone = data["phone"].orEmpty().ifEmpty { "—" }
+                val lastName = data["lastName"]?.toString().orEmpty()
+                val firstName = data["firstName"]?.toString().orEmpty()
+                val middleName = data["middleName"]?.toString().orEmpty().ifEmpty { "—" }
+                val email = data["email"]?.toString().orEmpty().ifEmpty { "—" }
+                val phone = data["phone"]?.toString().orEmpty().ifEmpty { "—" }
 
-                userSteps[userId] = 6
+                setStep(userId, 6)
                 return CommandResult.Continue(
                     "Проверьте введенные данные:\n" +
                             "Фамилия: $lastName\n" +
@@ -108,21 +104,19 @@ class RegisterParentCommand(
             }
             6 -> {
                 if (cmd != "да") {
-                    userSteps.remove(userId)
-                    userData.remove(userId)
+                    removeSession(userId)
                     return CommandResult.Cancel("Регистрация отменена.")
                 }
                 try {
-                    val firstName = data["firstName"].orEmpty()
-                    val lastName = data["lastName"].orEmpty()
-                    val middleName = data["middleName"].orEmpty()
-                    val email = data["email"].orEmpty()
-                    val phone = data["phone"].orEmpty()
+                    val firstName = data["firstName"]?.toString().orEmpty()
+                    val lastName = data["lastName"]?.toString().orEmpty()
+                    val middleName = data["middleName"]?.toString().orEmpty()
+                    val email = data["email"]?.toString().orEmpty()
+                    val phone = data["phone"]?.toString().orEmpty()
 
                     dbService.saveParentNullable(userId, firstName, lastName, middleName, email, phone)
 
-                    userSteps.remove(userId)
-                    userData.remove(userId)
+                    removeSession(userId)
                     return CommandResult.Complete(
                         "✅ Регистрация завершена!\n" +
                                 "Напишите 'меню' для просмотра всех команд."
@@ -138,8 +132,7 @@ class RegisterParentCommand(
     }
 
     override fun cancel(userId: Long): CommandResult {
-        userSteps.remove(userId)
-        userData.remove(userId)
+        removeSession(userId)
         return CommandResult.Cancel()
     }
 }

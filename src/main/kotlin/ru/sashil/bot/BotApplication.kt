@@ -6,6 +6,7 @@ import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import kotlinx.coroutines.*
 import ru.sashil.bot.commands.*
+import ru.sashil.bot.util.SessionManager
 import ru.sashil.bot.util.WebSocketNotifier
 import ru.sashil.common.service.DatabaseService
 import ru.sashil.common.service.MinIOService
@@ -23,8 +24,8 @@ class BotApplication {
         private lateinit var dbService: DatabaseService
         private lateinit var minioService: MinIOService
         private lateinit var notificationService: NotificationService
+        private lateinit var sessionManager: SessionManager
 
-        // Хранилище активных команд для пользователей
         private val userCommands = ConcurrentHashMap<Long, BotCommand>()
         private val commandData = ConcurrentHashMap<Long, MutableMap<String, Any>>()
 
@@ -36,6 +37,7 @@ class BotApplication {
                 val dbUrl = "jdbc:postgresql://${ConfigLoader.get("DB_HOST")}:${ConfigLoader.get("DB_PORT")}/${ConfigLoader.get("DB_NAME")}"
                 dbService = DatabaseService(dbUrl, ConfigLoader.get("DB_USER"), ConfigLoader.get("DB_PASSWORD"))
                 minioService = MinIOService()
+                sessionManager = SessionManager(dbService)
 
                 val vkToken = ConfigLoader.get("VK_BOT_TOKEN")
                 val groupId = 237058626L
@@ -269,12 +271,50 @@ class BotApplication {
                     val result = activeCommand.processMessage(userId, text, rawJson)
                     handleCommandResult(bot, userId, result)
                 } else {
+                    // Проверяем наличие сессии в БД
+                    if (sessionManager.hasSession(userId)) {
+                        // Пытаемся восстановить предыдущую команду
+                        val restored = restorePreviousCommand(bot, userId, text, rawJson)
+                        if (restored) return
+                    }
+
                     handleNewCommand(bot, userId, text)
                 }
             } catch (e: Exception) {
                 LOGGER.log(Level.SEVERE, "Ошибка обработки сообщения от $userId: ${e.message}", e)
                 sendText(bot, userId, "❌ Произошла внутренняя ошибка. Попробуйте позже.")
             }
+        }
+
+        private suspend fun restorePreviousCommand(bot: VkClient, userId: Long, text: String, rawJson: String?): Boolean {
+            try {
+                val sql = "SELECT command_name FROM pool.bot_sessions WHERE user_id = ?"
+                dbService.getConnection().use { conn ->
+                    conn.prepareStatement(sql).use { stmt ->
+                        stmt.setLong(1, userId)
+                        stmt.executeQuery().use { rs ->
+                            if (rs.next()) {
+                                val commandName = rs.getString("command_name")
+                                val commandType = BotCommandType.fromClassName(commandName)
+                                if (commandType != null) {
+                                    val command = CommandFactory.createCommand(commandType, dbService, minioService)
+                                    if (command is BaseBotCommand) {
+                                        if (sessionManager.restoreSession(userId, command)) {
+                                            userCommands[userId] = command
+                                            val result = command.processMessage(userId, text, rawJson)
+                                            handleCommandResult(bot, userId, result)
+                                            return true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                LOGGER.warning("Не удалось восстановить сессию: ${e.message}")
+            }
+            return false
         }
 
         private suspend fun handleNewCommand(bot: VkClient, userId: Long, text: String) {
@@ -286,18 +326,16 @@ class BotApplication {
 
             val normalized = text.trim().lowercase()
 
-            // Проверяем запрос меню
             if (normalized == "меню" || normalized == "команды" || normalized == "все команды" || normalized == "помощь") {
+                sessionManager.clearSession(userId)
                 sendText(bot, userId, getStartMessage())
                 return
             }
 
-            // Проверяем, является ли текст командой (цифра)
             val commandNumber = text.trim().toIntOrNull()
             val commandType = commandNumber?.let { BotCommandType.fromNumber(it) }
 
             if (commandType != null) {
-                // Если родитель не зарегистрирован - разрешаем только регистрацию родителя и помощь
                 if (!isRegistered && commandType != BotCommandType.REGISTER_PARENT && commandType != BotCommandType.HELP) {
                     sendText(bot, userId,
                         "⚠️ Для выполнения этой команды необходимо сначала зарегистрироваться.\n\n" +
@@ -306,16 +344,24 @@ class BotApplication {
                     return
                 }
 
+                if (isRegistered && sessionManager.hasSession(userId)) {
+                    sendText(bot, userId,
+                        "⚠️ У Вас есть незавершенный диалог. Чтобы продолжить, отправьте ответ на предыдущее сообщение.\n\n" +
+                                "Если хотите начать заново, напишите 'отмена' или 'меню'."
+                    )
+                    return
+                }
+
                 val command = CommandFactory.createCommand(commandType, dbService, minioService)
                 userCommands[userId] = command
-                commandData[userId] = mutableMapOf()
+                val data = mutableMapOf<String, Any>()
+                commandData[userId] = data
 
                 val result = command.start(userId)
                 handleCommandResult(bot, userId, result)
                 return
             }
 
-            // Если пользователь не зарегистрирован - предлагаем регистрацию
             if (!isRegistered) {
                 sendText(bot, userId,
                     "Добро пожаловать! Для начала работы зарегистрируйтесь.\n\n" +
@@ -324,7 +370,6 @@ class BotApplication {
                 return
             }
 
-            // Неизвестная команда
             sendText(bot, userId,
                 "❌ Неизвестная команда.\n\n" +
                         "Напишите 'меню' для просмотра доступных действий."
@@ -348,17 +393,21 @@ class BotApplication {
                 is CommandResult.Complete -> {
                     userCommands.remove(userId)
                     commandData.remove(userId)
+                    sessionManager.clearSession(userId)
                     sendText(bot, userId, result.message)
-                    // Больше не показываем меню автоматически
                 }
                 is CommandResult.Continue -> {
+                    val command = userCommands[userId]
+                    if (command is BaseBotCommand) {
+                        sessionManager.saveSession(userId, command)
+                    }
                     sendText(bot, userId, result.message)
                 }
                 is CommandResult.Cancel -> {
                     userCommands.remove(userId)
                     commandData.remove(userId)
+                    sessionManager.clearSession(userId)
                     sendText(bot, userId, result.message)
-                    // После отмены показываем подсказку, но не полное меню
                     sendText(bot, userId, "Напишите 'меню' для просмотра доступных действий.")
                 }
                 is CommandResult.Error -> {
@@ -366,7 +415,6 @@ class BotApplication {
                 }
             }
         }
-
 
         private suspend fun sendText(bot: VkClient, userId: Long, text: String) {
             try {

@@ -7,12 +7,10 @@ import java.util.regex.Pattern
 
 class EditParentCommand(
     private val dbService: DatabaseService
-) : BotCommand {
+) : BaseBotCommand() {
     override val displayName: String = "Редактировать свои данные"
     override val description: String = "Изменение личных данных родителя"
 
-    private val userSteps = ConcurrentHashMap<Long, Int>()
-    private val userData = ConcurrentHashMap<Long, MutableMap<String, String>>()
     private val emailPattern = Pattern.compile("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$")
 
     override fun start(userId: Long): CommandResult {
@@ -35,14 +33,13 @@ class EditParentCommand(
             return CommandResult.Error("Не удалось получить Ваши данные")
         }
 
-        userSteps[userId] = 1
-        val data = mutableMapOf<String, String>()
-        data["lastName"] = currentData["lastName"].orEmpty()
-        data["firstName"] = currentData["firstName"].orEmpty()
-        data["middleName"] = currentData["middleName"].orEmpty()
-        data["email"] = currentData["email"].orEmpty()
-        data["phone"] = currentData["phone"].orEmpty()
-        userData[userId] = data
+        setStep(userId, 1)
+        val data = createData(userId)
+        data["lastName"] = currentData["lastName"] ?: ""
+        data["firstName"] = currentData["firstName"] ?: ""
+        data["middleName"] = currentData["middleName"] ?: ""
+        data["email"] = currentData["email"] ?: ""
+        data["phone"] = currentData["phone"] ?: ""
 
         return CommandResult.Continue(
             "Редактирование профиля:\n\n" +
@@ -52,13 +49,12 @@ class EditParentCommand(
     }
 
     override fun processMessage(userId: Long, text: String, rawJson: String?): CommandResult {
-        val step = userSteps[userId] ?: return CommandResult.Error("Сессия не найдена")
-        val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
+        val step = getStep(userId)
+        val data = getData(userId) ?: return CommandResult.Error("Ошибка данных")
         val cmd = CommandUtils.normalize(text)
 
         if (CommandUtils.isCancelCommand(text)) {
-            userSteps.remove(userId)
-            userData.remove(userId)
+            removeSession(userId)
             return CommandResult.Cancel()
         }
 
@@ -68,7 +64,7 @@ class EditParentCommand(
                     if (text.trim().length < 2) return CommandResult.Continue("Фамилия должна содержать минимум 2 символа.")
                     data["lastName"] = text.trim()
                 }
-                userSteps[userId] = 2
+                setStep(userId, 2)
                 return CommandResult.Continue(
                     "Текущее имя: ${data["firstName"]}\n" +
                             "Введите новое имя (или '-' для пропуска):"
@@ -79,9 +75,9 @@ class EditParentCommand(
                     if (text.trim().length < 2) return CommandResult.Continue("Имя должно содержать минимум 2 символа.")
                     data["firstName"] = text.trim()
                 }
-                userSteps[userId] = 3
+                setStep(userId, 3)
                 return CommandResult.Continue(
-                    "Текущее отчество: ${data["middleName"]?.ifEmpty { "—" } ?: "—"}\n" +
+                    "Текущее отчество: ${data["middleName"]?.toString() ?: "—"}\n" +
                             "Введите новое отчество (или '-' для пропуска):"
                 )
             }
@@ -89,9 +85,9 @@ class EditParentCommand(
                 if (!CommandUtils.isSkipCommand(text)) {
                     data["middleName"] = text.trim()
                 }
-                userSteps[userId] = 4
+                setStep(userId, 4)
                 return CommandResult.Continue(
-                    "Текущий email: ${data["email"]?.ifEmpty { "—" } ?: "—"}\n" +
+                    "Текущий email: ${data["email"]?.toString() ?: "—"}\n" +
                             "Введите новый email (или '-' для пропуска):"
                 )
             }
@@ -102,9 +98,9 @@ class EditParentCommand(
                     }
                     data["email"] = text.trim()
                 }
-                userSteps[userId] = 5
+                setStep(userId, 5)
                 return CommandResult.Continue(
-                    "Текущий телефон: ${data["phone"]?.ifEmpty { "—" } ?: "—"}\n" +
+                    "Текущий телефон: ${data["phone"]?.toString() ?: "—"}\n" +
                             "Введите новый телефон (формат: +7XXXXXXXXXX или 8XXXXXXXXXX):\nили '-' для пропуска."
                 )
             }
@@ -118,35 +114,33 @@ class EditParentCommand(
                     data["phone"] = phone
                 }
 
-                userSteps[userId] = 6
+                setStep(userId, 6)
                 return CommandResult.Continue(
                     "Проверьте введенные данные:\n\n" +
                             "Фамилия: ${data["lastName"]}\n" +
                             "Имя: ${data["firstName"]}\n" +
-                            "Отчество: ${data["middleName"]?.ifEmpty { "—" } ?: "—"}\n" +
-                            "Email: ${data["email"]?.ifEmpty { "—" } ?: "—"}\n" +
-                            "Телефон: ${data["phone"]?.ifEmpty { "—" } ?: "—"}\n\n" +
+                            "Отчество: ${data["middleName"]?.toString() ?: "—"}\n" +
+                            "Email: ${data["email"]?.toString() ?: "—"}\n" +
+                            "Телефон: ${data["phone"]?.toString() ?: "—"}\n\n" +
                             "Всё верно?\n" +
                             "Напишите 'да' для сохранения или 'нет' для отмены."
                 )
             }
             6 -> {
                 if (cmd != "да") {
-                    userSteps.remove(userId)
-                    userData.remove(userId)
+                    removeSession(userId)
                     return CommandResult.Cancel("Редактирование отменено.")
                 }
                 try {
-                    val firstName = data["firstName"].orEmpty()
-                    val lastName = data["lastName"].orEmpty()
-                    val middleName = data["middleName"].orEmpty()
-                    val email = data["email"].orEmpty()
-                    val phone = data["phone"].orEmpty()
+                    val firstName = data["firstName"]?.toString().orEmpty()
+                    val lastName = data["lastName"]?.toString().orEmpty()
+                    val middleName = data["middleName"]?.toString().orEmpty()
+                    val email = data["email"]?.toString().orEmpty()
+                    val phone = data["phone"]?.toString().orEmpty()
 
                     dbService.updateParentNullable(userId, firstName, lastName, middleName, email, phone)
 
-                    userSteps.remove(userId)
-                    userData.remove(userId)
+                    removeSession(userId)
                     return CommandResult.Complete("✅ Ваши данные успешно обновлены!")
                 } catch (e: Exception) {
                     return CommandResult.Error("Ошибка сохранения: ${e.message}")
@@ -159,8 +153,7 @@ class EditParentCommand(
     }
 
     override fun cancel(userId: Long): CommandResult {
-        userSteps.remove(userId)
-        userData.remove(userId)
+        removeSession(userId)
         return CommandResult.Cancel()
     }
 }

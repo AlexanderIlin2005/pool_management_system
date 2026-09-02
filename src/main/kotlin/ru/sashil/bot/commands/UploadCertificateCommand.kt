@@ -8,40 +8,34 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Logger
 
 class UploadCertificateCommand(
     private val dbService: DatabaseService,
     private val minioService: MinIOService
-) : BotCommand {
+) : BaseBotCommand() {
 
     override val displayName: String = "Прикрепить справку о допуске в бассейн"
     override val description: String = "Загрузка медицинской справки"
 
     private val logger = Logger.getLogger(UploadCertificateCommand::class.java.name)
-    private val userSteps = ConcurrentHashMap<Long, Int>()
-    private val userData = ConcurrentHashMap<Long, MutableMap<String, Any>>()
 
     override fun start(userId: Long): CommandResult {
-        userSteps[userId] = 1
-        userData[userId] = mutableMapOf()
+        setStep(userId, 1)
+        createData(userId)
         return CommandResult.Continue(
             "Вы хотите прикрепить Справку от врача о допуске для занятий в плавательном бассейне?\n\n(Да/Нет)"
         )
     }
 
     override fun processMessage(userId: Long, text: String, rawJson: String?): CommandResult {
-        val step = userSteps[userId] ?: return CommandResult.Error("Сессия не найдена")
-        val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
+        val step = getStep(userId)
+        val data = getData(userId) ?: return CommandResult.Error("Ошибка данных")
         val cmd = CommandUtils.normalize(text)
 
         if (cmd == "нет" || cmd == "отмена") {
-            if (step == 1) {
-                return CommandResult.Cancel()
-            } else {
-                return CommandResult.Cancel()
-            }
+            removeSession(userId)
+            return CommandResult.Cancel()
         }
 
         when (step) {
@@ -68,12 +62,12 @@ class UploadCertificateCommand(
                 if (children.size == 1) {
                     val child = children[0]
                     data["childId"] = (child["id"] as Number).toLong()
-                    userSteps[userId] = 3
+                    setStep(userId, 3)
                     return CommandResult.Continue(
                         "Пожалуйста, выберите файл в формате jpeg и нажмите отправить."
                     )
                 } else {
-                    userSteps[userId] = 2
+                    setStep(userId, 2)
                     val sb = StringBuilder("Выберите ребенка, для которого Вы хотите прикрепить справку:\n\n")
                     children.forEachIndexed { i, child ->
                         val name = (child["lastName"] as String) + " " + (child["firstName"] as String)
@@ -101,7 +95,7 @@ class UploadCertificateCommand(
                 }
                 val child = children[num - 1]
                 data["childId"] = (child["id"] as Number).toLong()
-                userSteps[userId] = 3
+                setStep(userId, 3)
                 return CommandResult.Continue(
                     "Пожалуйста, выберите файл в формате jpeg и нажмите отправить."
                 )
@@ -125,15 +119,13 @@ class UploadCertificateCommand(
                         return CommandResult.Continue("Ошибка скачивания файла. Попробуйте снова.")
                     }
 
-                    val objectName = "certificates/${java.util.UUID.randomUUID()}$extension"
                     val url = minioService.uploadFile(file.absolutePath, "certificate$extension")
                     file.delete()
 
                     val childId = data["childId"] as Long
                     dbService.saveCertificate(userId, childId, url)
 
-                    userSteps.remove(userId)
-                    userData.remove(userId)
+                    removeSession(userId)
 
                     return CommandResult.Complete(
                         "✅ Ваша справка получена! После проверки администратором Вы получите уведомление об успешной загрузке справки.\n\n" +
@@ -145,6 +137,7 @@ class UploadCertificateCommand(
                 }
             }
             else -> {
+                removeSession(userId)
                 return CommandResult.Cancel()
             }
         }
@@ -212,5 +205,10 @@ class UploadCertificateCommand(
             logger.severe("Ошибка скачивания: ${e.message}")
             return null
         }
+    }
+
+    override fun cancel(userId: Long): CommandResult {
+        removeSession(userId)
+        return CommandResult.Cancel()
     }
 }

@@ -348,6 +348,23 @@ CREATE TABLE IF NOT EXISTS pool.messages (
     sent_at TIMESTAMP
 );
 
+
+
+-- Таблица для хранения сессий бота
+CREATE TABLE IF NOT EXISTS pool.bot_sessions (
+    user_id BIGINT PRIMARY KEY,
+    command_name VARCHAR(50) NOT NULL,
+    step INT NOT NULL DEFAULT 1,
+    data JSONB,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Индекс для быстрого поиска
+CREATE INDEX idx_bot_sessions_user_id ON pool.bot_sessions(user_id);
+
+
+
 ALTER TABLE pool.payments DROP CONSTRAINT IF EXISTS payments_status_check;
 ALTER TABLE pool.payments ADD CONSTRAINT payments_status_check
     CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'PAID', 'PARTIAL'));

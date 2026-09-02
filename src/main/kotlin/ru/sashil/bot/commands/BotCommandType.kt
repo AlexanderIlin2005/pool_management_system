@@ -59,7 +59,26 @@ enum class BotCommandType(
                 "${it.ordinal + 1}. ${it.displayName}"
             }
         }
+
+        fun fromClassName(className: String): BotCommandType? {
+            return values().find { it.commandClassName == className }
+        }
     }
 
     fun getCommandNumber(): Int = this.ordinal + 1
+
+    val commandClassName: String
+        get() = when (this) {
+            REGISTER_PARENT -> "RegisterParentCommand"
+            REGISTER_CHILD -> "RegisterCommand"
+            SELECT_GROUP -> "SelectGroupCommand"
+            UPLOAD_CERTIFICATE -> "UploadCertificateCommand"
+            REPORT_ABSENCE -> "ReportAbsenceCommand"
+            UPLOAD_RECEIPT -> "UploadReceiptCommand"
+            MESSAGE_ADMIN -> "MessageAdminCommand"
+            MESSAGE_COACH -> "MessageCoachCommand"
+            EDIT_PARENT -> "EditParentCommand"
+            EDIT_CHILD -> "EditChildCommand"
+            HELP -> "HelpCommand"
+        }
 }

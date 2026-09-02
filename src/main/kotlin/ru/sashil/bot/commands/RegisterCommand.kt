@@ -4,17 +4,13 @@ import ru.sashil.bot.util.CommandUtils
 import ru.sashil.common.service.DatabaseService
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.ConcurrentHashMap
 
 class RegisterCommand(
     private val dbService: DatabaseService
-) : BotCommand {
+) : BaseBotCommand() {
 
     override val displayName: String = "Зарегистрировать ребенка в бассейн"
     override val description: String = "Регистрация нового ребенка для занятий"
-
-    private val userSteps = ConcurrentHashMap<Long, Int>()
-    private val userData = ConcurrentHashMap<Long, MutableMap<String, String>>()
 
     override fun start(userId: Long): CommandResult {
         val isParentRegistered = try {
@@ -30,21 +26,20 @@ class RegisterCommand(
             )
         }
 
-        userSteps[userId] = 1
-        userData[userId] = mutableMapOf()
+        setStep(userId, 1)
+        createData(userId)
         return CommandResult.Continue(
             "Вы хотите зарегистрировать ребенка для занятий в бассейне гимназии №642 «Земля и Вселенная» по адресу Морская набережная, 5?\n\n(Да/Нет)"
         )
     }
 
     override fun processMessage(userId: Long, text: String, rawJson: String?): CommandResult {
-        val step = userSteps[userId] ?: return CommandResult.Error("Сессия не найдена")
-        val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
+        val step = getStep(userId)
+        val data = getData(userId) ?: return CommandResult.Error("Ошибка данных")
         val cmd = CommandUtils.normalize(text)
 
         if (CommandUtils.isCancelCommand(text)) {
-            userSteps.remove(userId)
-            userData.remove(userId)
+            removeSession(userId)
             return CommandResult.Cancel()
         }
 
@@ -56,7 +51,7 @@ class RegisterCommand(
                                 "Вы хотите зарегистрировать ребенка для занятий в бассейне гимназии №642 «Земля и Вселенная» по адресу Морская набережная, 5?"
                     )
                 }
-                userSteps[userId] = 2
+                setStep(userId, 2)
                 return CommandResult.Continue(
                     "Для регистрации Вашего ребенка напишите, пожалуйста, Фамилию Имя Отчество ребенка в такой последовательности.\n\n(Иванов Иван Иванович)"
                 )
@@ -71,7 +66,7 @@ class RegisterCommand(
                 data["lastName"] = parts[0]
                 data["firstName"] = parts[1]
                 data["middleName"] = parts.drop(2).joinToString(" ")
-                userSteps[userId] = 3
+                setStep(userId, 3)
                 return CommandResult.Continue("Спасибо! Введите дату рождения ребенка.\n\n(Например 31.10.2015)")
             }
             3 -> {
@@ -82,16 +77,13 @@ class RegisterCommand(
                 }
                 data["birthDate"] = birthDate
 
-                // Вычисляем возраст
                 val age = calculateAge(birthDate)
                 data["age"] = age.toString()
 
-                // Проверяем возраст
                 if (age < 6) {
-                    // Дошкольник — пропускаем класс
-                    data["gradeNumber"] = "0"  // 0 означает "без класса"
+                    data["gradeNumber"] = "0"
                     data["gradeName"] = ""
-                    userSteps[userId] = 6  // Сразу переходим к навыку
+                    setStep(userId, 6)
                     return CommandResult.Continue(
                         "✅ Возраст ребенка ($age лет) меньше 6 лет, поэтому мы пропускаем шаг с вводом класса.\n\n" +
                                 "Уточните уровень владения плавательными навыками (напишите цифру): \n" +
@@ -100,10 +92,9 @@ class RegisterCommand(
                                 "3. Не умеет плавать"
                     )
                 } else if (age > 18) {
-                    // Взрослый (для семейных групп) — пропускаем класс
-                    data["gradeNumber"] = "0"  // 0 означает "без класса"
+                    data["gradeNumber"] = "0"
                     data["gradeName"] = ""
-                    userSteps[userId] = 6  // Сразу переходим к навыку
+                    setStep(userId, 6)
                     return CommandResult.Continue(
                         "✅ Мы распознали, что регистрируется взрослый человек для занятий в семейной группе или группе по аквааэробике.\n" +
                                 "Ввод класса не требуется, так как он предназначен для школьников.\n\n" +
@@ -114,7 +105,7 @@ class RegisterCommand(
                     )
                 }
 
-                userSteps[userId] = 4
+                setStep(userId, 4)
                 return CommandResult.Continue(
                     "Спасибо! Введите номер класса (цифрой от 1 до 11):"
                 )
@@ -126,7 +117,7 @@ class RegisterCommand(
                         return CommandResult.Continue("Номер класса должен быть от 1 до 11. Попробуйте снова:")
                     }
                     data["gradeNumber"] = gradeNumber.toString()
-                    userSteps[userId] = 5
+                    setStep(userId, 5)
                     return CommandResult.Continue(
                         "Спасибо! Введите полное название класса (например, 5 ЕН, 3 гамма, 10А):"
                     )
@@ -136,7 +127,7 @@ class RegisterCommand(
             }
             5 -> {
                 data["gradeName"] = text.trim()
-                userSteps[userId] = 6
+                setStep(userId, 6)
                 return CommandResult.Continue(
                     "Спасибо! Уточните уровень владения плавательными навыками (напишите цифру): \n" +
                             "1. Уверенно плавает\n" +
@@ -160,15 +151,14 @@ class RegisterCommand(
                 }
                 data["skill"] = skill
 
-                val lastName = data["lastName"].orEmpty()
-                val firstName = data["firstName"].orEmpty()
-                val middleName = data["middleName"].orEmpty()
-                val birthDate = data["birthDate"].orEmpty()
-                val gradeNumber = data["gradeNumber"].orEmpty()
-                val gradeName = data["gradeName"].orEmpty()
-                val age = data["age"].orEmpty()
+                val lastName = data["lastName"]?.toString().orEmpty()
+                val firstName = data["firstName"]?.toString().orEmpty()
+                val middleName = data["middleName"]?.toString().orEmpty()
+                val birthDate = data["birthDate"]?.toString().orEmpty()
+                val gradeNumber = data["gradeNumber"]?.toString().orEmpty()
+                val gradeName = data["gradeName"]?.toString().orEmpty()
+                val age = data["age"]?.toString().orEmpty()
 
-                // Формируем строку класса для отображения
                 val classDisplay = if (gradeNumber == "0" || gradeNumber.isEmpty()) {
                     "—"
                 } else {
@@ -176,7 +166,7 @@ class RegisterCommand(
                     "$gradeNumber$gradeNameDisplay"
                 }
 
-                userSteps[userId] = 7
+                setStep(userId, 7)
                 return CommandResult.Continue(
                     "Проверьте введенные данные:\n\n" +
                             "ФИО: $lastName $firstName $middleName\n" +
@@ -190,27 +180,24 @@ class RegisterCommand(
             }
             7 -> {
                 if (cmd != "да") {
-                    userSteps.remove(userId)
-                    userData.remove(userId)
+                    removeSession(userId)
                     return CommandResult.Cancel("Регистрация ребенка отменена.")
                 }
 
                 try {
-                    val gradeNum = data["gradeNumber"]?.toIntOrNull() ?: 0
-                    // Если gradeNum == 0, передаем 0, а в DatabaseService уже обработается как NULL
+                    val gradeNum = data["gradeNumber"]?.toString()?.toIntOrNull() ?: 0
 
                     dbService.addChild(
                         userId,
-                        data["firstName"].orEmpty(),
-                        data["lastName"].orEmpty(),
-                        data["middleName"].orEmpty(),
-                        data["birthDate"].orEmpty(),
+                        data["firstName"]?.toString().orEmpty(),
+                        data["lastName"]?.toString().orEmpty(),
+                        data["middleName"]?.toString().orEmpty(),
+                        data["birthDate"]?.toString().orEmpty(),
                         gradeNum,
-                        data["gradeName"].orEmpty(),
-                        data["skill"].orEmpty()
+                        data["gradeName"]?.toString().orEmpty(),
+                        data["skill"]?.toString().orEmpty()
                     )
-                    userSteps.remove(userId)
-                    userData.remove(userId)
+                    removeSession(userId)
                     return CommandResult.Complete(
                         "✅ Ваш ребенок успешно зарегистрирован для занятий в бассейне.\n\n" +
                                 "Напишите 'меню' для просмотра доступных действий."
@@ -256,6 +243,7 @@ class RegisterCommand(
     }
 
     private fun formatDate(dateStr: String): String {
+        if (dateStr.isBlank()) return "—"
         try {
             val parts = dateStr.split("-")
             if (parts.size == 3) {
@@ -266,8 +254,7 @@ class RegisterCommand(
     }
 
     override fun cancel(userId: Long): CommandResult {
-        userSteps.remove(userId)
-        userData.remove(userId)
+        removeSession(userId)
         return CommandResult.Cancel()
     }
 }

@@ -3,27 +3,21 @@ package ru.sashil.bot.commands
 import ru.sashil.common.service.DatabaseService
 import ru.sashil.common.util.CommandUtils
 import ru.sashil.common.util.NameUtils
-import java.util.concurrent.ConcurrentHashMap
 import java.util.regex.Pattern
 
 class SelectGroupCommand(
     private val dbService: DatabaseService
-) : BotCommand {
+) : BaseBotCommand() {
 
     override val displayName: String = "Выбрать группу для занятий в бассейне"
     override val description: String = "Подбор группы по возрасту и навыкам"
 
-    private val userSteps = ConcurrentHashMap<Long, Int>()
-    private val userData = ConcurrentHashMap<Long, MutableMap<String, Any>>()
-
-    // Динамически получаем номер команды "Написать администратору"
     private val adminCommandNumber = BotCommandType.MESSAGE_ADMIN.getCommandNumber()
 
     override fun start(userId: Long): CommandResult {
-        userSteps[userId] = 1
-        userData[userId] = mutableMapOf()
+        setStep(userId, 1)
+        val data = createData(userId)
 
-        // Сразу получаем детей и показываем выбор
         val children = try {
             dbService.getChildrenByParentVkId(userId)
         } catch (e: Exception) {
@@ -31,24 +25,22 @@ class SelectGroupCommand(
         }
 
         if (children.isEmpty()) {
-            userSteps.remove(userId)
-            userData.remove(userId)
+            removeSession(userId)
             return CommandResult.Complete(
                 "У Вас пока нет зарегистрированных детей. Сначала зарегистрируйте ребенка (команда ${BotCommandType.REGISTER_CHILD.getCommandNumber()})."
             )
         }
 
-        val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
         data["children"] = children
 
         if (children.size == 1) {
             val child = children[0]
             data["childId"] = (child["id"] as Number).toLong()
             data["childName"] = (child["lastName"] as String) + " " + (child["firstName"] as String)
-            userSteps[userId] = 2
+            setStep(userId, 2)
             return showSubscriptionTypes()
         } else {
-            userSteps[userId] = 1
+            setStep(userId, 1)
             val sb = StringBuilder("Выберите ребенка, для которого Вы хотите выбрать группу:\n\n")
             children.forEachIndexed { i, child ->
                 val name = (child["lastName"] as String) + " " + (child["firstName"] as String)
@@ -63,8 +55,8 @@ class SelectGroupCommand(
     }
 
     override fun processMessage(userId: Long, text: String, rawJson: String?): CommandResult {
-        val step = userSteps[userId] ?: return CommandResult.Error("Сессия не найдена")
-        val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
+        val step = getStep(userId)
+        val data = getData(userId) ?: return CommandResult.Error("Ошибка данных")
         val cmd = CommandUtils.normalize(text)
 
         if (cmd == "нет" || cmd == "отмена") {
@@ -73,7 +65,6 @@ class SelectGroupCommand(
 
         when (step) {
             1 -> {
-                // Выбор ребенка
                 val children = data["children"] as? List<Map<String, Any>> ?: return CommandResult.Error("Ошибка данных")
                 val num = text.trim().toIntOrNull()
                 if (num == null || num < 1 || num > children.size) {
@@ -84,11 +75,10 @@ class SelectGroupCommand(
                 val child = children[num - 1]
                 data["childId"] = (child["id"] as Number).toLong()
                 data["childName"] = (child["lastName"] as String) + " " + (child["firstName"] as String)
-                userSteps[userId] = 2
+                setStep(userId, 2)
                 return showSubscriptionTypes()
             }
             2 -> {
-                // Выбор типа занятия
                 val types = try {
                     dbService.getAllSubscriptionTypes()
                 } catch (e: Exception) {
@@ -107,15 +97,13 @@ class SelectGroupCommand(
                     return CommandResult.Continue(sb.toString())
                 }
                 data["subscriptionTypeId"] = (types[num - 1]["id"] as Number).toLong()
-                userSteps[userId] = 3
+                setStep(userId, 3)
                 return findSuitableGroups(userId, data)
             }
             3 -> {
-                // Выбор группы (одной или нескольких)
                 val groups = data["groups"] as? List<Map<String, Any>> ?: return CommandResult.Error("Группы не найдены")
                 val groupCount = groups.size
 
-                // Парсим ввод: может быть одно число или несколько
                 val selectedIndexes = parseGroupSelection(text.trim(), groupCount)
 
                 if (selectedIndexes.isEmpty()) {
@@ -141,8 +129,7 @@ class SelectGroupCommand(
                     }
                 }
 
-                userSteps.remove(userId)
-                userData.remove(userId)
+                removeSession(userId)
 
                 if (successCount == 0) {
                     return CommandResult.Error(
@@ -224,7 +211,6 @@ class SelectGroupCommand(
             childName
         }
 
-        // БЕЗОПАСНОЕ ПОЛУЧЕНИЕ gradeName с обработкой null
         val gradeName = childData["gradeName"] as? String ?: "—"
 
         val groups = try {
@@ -234,8 +220,7 @@ class SelectGroupCommand(
         }
 
         if (groups.isEmpty()) {
-            userSteps.remove(userId)
-            userData.remove(userId)
+            removeSession(userId)
             return CommandResult.Complete(
                 "К сожалению, сейчас нет подходящих групп для Вашего ребенка. " +
                         "Возможно, он уже состоит во всех подходящих группах.\n\n" +
@@ -243,15 +228,12 @@ class SelectGroupCommand(
             )
         }
 
-        // Фильтрация по типу занятия (теперь по ID)
         val filteredGroups = groups.filter { group ->
             val subTypeId = group["subscription_type_id"] as? Long
-            // null = подходит всем, иначе проверяем совпадение
             subTypeId == null || subTypeId == selectedSubTypeId
         }
 
         if (filteredGroups.isEmpty()) {
-            // Получаем название выбранного типа для отображения
             val subTypeName = try {
                 val types = dbService.getAllSubscriptionTypes()
                 types.find { (it["id"] as Number).toLong() == selectedSubTypeId }
@@ -260,8 +242,7 @@ class SelectGroupCommand(
                 "выбранный тип"
             }
 
-            userSteps.remove(userId)
-            userData.remove(userId)
+            removeSession(userId)
             return CommandResult.Complete(
                 "К сожалению, нет групп с выбранным типом занятия ($subTypeName).\n\n" +
                         "Попробуйте выбрать другой тип занятия или свяжитесь с администратором через команду $adminCommandNumber."
@@ -271,7 +252,6 @@ class SelectGroupCommand(
         data["groups"] = filteredGroups
 
         val sb = StringBuilder()
-        // БЕЗОПАСНОЕ ФОРМАТИРОВАНИЕ СТРОКИ КЛАССА
         val gradeDisplay = if (gradeName.isNotEmpty() && gradeName != "—") {
             ", класс $gradeName"
         } else {
@@ -288,12 +268,11 @@ class SelectGroupCommand(
                 "тренер не назначен"
             }
 
-            // Формат: номер. расписание — тренер Фамилия И.О.
             sb.append("${index + 1}. $schedule — $trainerInitials\n")
         }
 
         sb.append("\nВыберите одну или несколько групп (например: 3, 5 или 3 и 5). Напишите только цифры.")
-        userSteps[userId] = 3
+        setStep(userId, 3)
         return CommandResult.Continue(sb.toString())
     }
 
@@ -323,43 +302,29 @@ class SelectGroupCommand(
         return time.toString().substring(0, 5)
     }
 
-    /**
-     * Парсит выбор групп из текста пользователя.
-     * Поддерживаются форматы:
-     * - "3" -> [3]
-     * - "3 5" -> [3, 5]
-     * - "3, 5" -> [3, 5]
-     * - "3 и 5" -> [3, 5]
-     * - "3 и 5 и 7" -> [3, 5, 7]
-     * - "3,5,7" -> [3, 5, 7]
-     * - "3 5 7" -> [3, 5, 7]
-     * - "3, 5 и 7" -> [3, 5, 7]
-     *
-     * @param input Входная строка от пользователя
-     * @param maxIndex Максимальный индекс (количество групп)
-     * @return Список индексов (1-based), или пустой список если парсинг не удался
-     */
     private fun parseGroupSelection(input: String, maxIndex: Int): List<Int> {
         if (input.isBlank()) return emptyList()
 
-        // Разделители: пробел, запятая, слово "и" (на русском и английском)
         val separators = arrayOf("\\s+", "\\s*,\\s*", "\\s+и\\s+", "\\s+and\\s+")
         val pattern = Pattern.compile(separators.joinToString("|"))
 
         val parts = pattern.split(input.trim()).filter { it.isNotEmpty() }
-
         if (parts.isEmpty()) return emptyList()
 
         val result = mutableListOf<Int>()
         for (part in parts) {
             val num = part.toIntOrNull()
             if (num == null || num < 1 || num > maxIndex) {
-                return emptyList() // Если хоть одно число невалидно — возвращаем пустой список
+                return emptyList()
             }
             result.add(num)
         }
 
-        // Убираем дубликаты, сохраняя порядок
         return result.distinct()
+    }
+
+    override fun cancel(userId: Long): CommandResult {
+        removeSession(userId)
+        return CommandResult.Cancel()
     }
 }

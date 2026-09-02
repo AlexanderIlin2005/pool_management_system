@@ -8,12 +8,10 @@ import java.util.concurrent.ConcurrentHashMap
 
 class EditChildCommand(
     private val dbService: DatabaseService
-) : BotCommand {
+) : BaseBotCommand() {
     override val displayName: String = "Редактировать ребенка"
     override val description: String = "Изменение данных ребенка"
 
-    private val userSteps = ConcurrentHashMap<Long, Int>()
-    private val userData = ConcurrentHashMap<Long, MutableMap<String, String>>()
     private val editingChildId = ConcurrentHashMap<Long, Long>()
 
     override fun start(userId: Long): CommandResult {
@@ -36,8 +34,7 @@ class EditChildCommand(
             return CommandResult.Complete("У Вас пока нет зарегистрированных детей.\nНапишите 'меню' для регистрации ребенка.")
         }
 
-        val data = mutableMapOf<String, String>()
-        userData[userId] = data
+        val data = createData(userId)
 
         if (children.size == 1) {
             val child = children[0]
@@ -46,8 +43,7 @@ class EditChildCommand(
 
             fillChildData(data, child)
 
-            // СРАЗУ ставим шаг 2, минуя выбор номера
-            userSteps[userId] = 2
+            setStep(userId, 2)
 
             return CommandResult.Continue(
                 "Редактирование ребенка: ${data["childName"]}\n\n" +
@@ -55,7 +51,7 @@ class EditChildCommand(
                         "Введите новую фамилию (или '-' для пропуска):"
             )
         } else {
-            userSteps[userId] = 1
+            setStep(userId, 1)
             val sb = StringBuilder("Выберите ребенка для редактирования:\n")
             children.forEachIndexed { i, child ->
                 val name = "${child["lastName"]} ${child["firstName"]}"
@@ -71,18 +67,16 @@ class EditChildCommand(
     }
 
     override fun processMessage(userId: Long, text: String, rawJson: String?): CommandResult {
-        val step = userSteps[userId] ?: return CommandResult.Error("Сессия не найдена")
-        val data = userData[userId] ?: return CommandResult.Error("Ошибка данных")
+        val step = getStep(userId)
+        val data = getData(userId) ?: return CommandResult.Error("Ошибка данных")
         val cmd = CommandUtils.normalize(text)
 
         if (CommandUtils.isCancelCommand(text)) {
-            userSteps.remove(userId)
-            userData.remove(userId)
+            removeSession(userId)
             editingChildId.remove(userId)
             return CommandResult.Cancel()
         }
 
-        // Выбор ребенка (только если их несколько и мы на шаге 1)
         if (!editingChildId.containsKey(userId) && step == 1) {
             val children = try {
                 dbService.getChildrenByParentVkId(userId)
@@ -99,7 +93,7 @@ class EditChildCommand(
 
             fillChildData(data, child)
 
-            userSteps[userId] = 2
+            setStep(userId, 2)
             return CommandResult.Continue(
                 "Редактирование ребенка: ${data["childName"]}\n\n" +
                         "Текущая фамилия: ${data["lastName"]}\n" +
@@ -109,9 +103,7 @@ class EditChildCommand(
 
         when (step) {
             1 -> {
-                // Этот блок достижим только если editingChildId уже установлен,
-                // но по какой-то причине step остался 1. Переходим к шагу 2.
-                userSteps[userId] = 2
+                setStep(userId, 2)
                 return CommandResult.Continue(
                     "Редактирование ребенка: ${data["childName"]}\n\n" +
                             "Текущая фамилия: ${data["lastName"]}\n" +
@@ -123,7 +115,7 @@ class EditChildCommand(
                     if (text.trim().length < 2) return CommandResult.Continue("Фамилия должна содержать минимум 2 символа.")
                     data["lastName"] = text.trim()
                 }
-                userSteps[userId] = 3
+                setStep(userId, 3)
                 return CommandResult.Continue(
                     "Текущее имя: ${data["firstName"]}\n" +
                             "Введите новое имя (или '-' для пропуска):"
@@ -134,9 +126,9 @@ class EditChildCommand(
                     if (text.trim().length < 2) return CommandResult.Continue("Имя должно содержать минимум 2 символа.")
                     data["firstName"] = text.trim()
                 }
-                userSteps[userId] = 4
+                setStep(userId, 4)
                 return CommandResult.Continue(
-                    "Текущее отчество: ${data["middleName"].orEmpty().ifEmpty { "—" }}\n" +
+                    "Текущее отчество: ${data["middleName"] ?: "—"}\n" +
                             "Введите новое отчество (или '-' для пропуска):"
                 )
             }
@@ -144,9 +136,9 @@ class EditChildCommand(
                 if (!CommandUtils.isSkipCommand(text)) {
                     data["middleName"] = text.trim()
                 }
-                userSteps[userId] = 5
+                setStep(userId, 5)
                 return CommandResult.Continue(
-                    "Текущая дата рождения: ${formatDate(data["birthDate"].orEmpty())}\n" +
+                    "Текущая дата рождения: ${formatDate(data["birthDate"] as? String ?: "")}\n" +
                             "Введите новую дату рождения (ДД.ММ.ГГГГ) или '-' для пропуска:"
                 )
             }
@@ -161,7 +153,7 @@ class EditChildCommand(
                     }
                     data["birthDate"] = sqlDate
                 }
-                userSteps[userId] = 6
+                setStep(userId, 6)
                 return CommandResult.Continue(
                     "Текущий номер класса: ${data["gradeNumber"]}\n" +
                             "Введите новый номер класса (1-11) или '-' для пропуска:"
@@ -177,9 +169,9 @@ class EditChildCommand(
                         return CommandResult.Continue("Введите число от 1 до 11.")
                     }
                 }
-                userSteps[userId] = 7
+                setStep(userId, 7)
                 return CommandResult.Continue(
-                    "Текущее название класса: ${data["gradeName"].orEmpty().ifEmpty { "—" }}\n" +
+                    "Текущее название класса: ${data["gradeName"] ?: "—"}\n" +
                             "Введите полное название класса (или '-' для пропуска):"
                 )
             }
@@ -187,9 +179,9 @@ class EditChildCommand(
                 if (!CommandUtils.isSkipCommand(text)) {
                     data["gradeName"] = text.trim()
                 }
-                userSteps[userId] = 8
+                setStep(userId, 8)
                 return CommandResult.Continue(
-                    "Текущий навык: ${data["skill"].orEmpty().ifEmpty { "—" }}\n\n" +
+                    "Текущий навык: ${data["skill"] ?: "—"}\n\n" +
                             "Выберите навык плавания:\n" +
                             "1. Уверенно плавает\n" +
                             "2. Держится на воде\n" +
@@ -207,11 +199,11 @@ class EditChildCommand(
                     }
                     data["skill"] = skill
                 }
-                userSteps[userId] = 9
+                setStep(userId, 9)
                 return CommandResult.Continue(
                     "Проверьте введенные данные:\n" +
                             "ФИО: ${data["lastName"]} ${data["firstName"]} ${data["middleName"]}\n" +
-                            "Дата рождения: ${formatDate(data["birthDate"].orEmpty())}\n" +
+                            "Дата рождения: ${formatDate(data["birthDate"] as? String ?: "")}\n" +
                             "Класс: ${data["gradeName"]} (${data["gradeNumber"]})\n" +
                             "Навык: ${data["skill"]}\n\n" +
                             "Всё верно?\n" +
@@ -220,21 +212,20 @@ class EditChildCommand(
             }
             9 -> {
                 if (cmd != "да") {
-                    userSteps.remove(userId)
-                    userData.remove(userId)
+                    removeSession(userId)
                     editingChildId.remove(userId)
                     return CommandResult.Cancel("Редактирование отменено.")
                 }
                 try {
                     val childId = editingChildId[userId] ?: return CommandResult.Error("Ребенок не найден")
 
-                    val firstName = data["firstName"].orEmpty()
-                    val lastName = data["lastName"].orEmpty()
-                    val middleName = data["middleName"].orEmpty()
-                    val birthDate = data["birthDate"].orEmpty()
-                    val gradeNumber = data["gradeNumber"]?.toIntOrNull() ?: 0
-                    val gradeName = data["gradeName"].orEmpty()
-                    val skill = data["skill"].orEmpty()
+                    val firstName = (data["firstName"] as? String).orEmpty()
+                    val lastName = (data["lastName"] as? String).orEmpty()
+                    val middleName = (data["middleName"] as? String).orEmpty()
+                    val birthDate = (data["birthDate"] as? String).orEmpty()
+                    val gradeNumber = (data["gradeNumber"] as? String)?.toIntOrNull() ?: 0
+                    val gradeName = (data["gradeName"] as? String).orEmpty()
+                    val skill = (data["skill"] as? String).orEmpty()
 
                     dbService.updateChild(
                         childId,
@@ -247,8 +238,7 @@ class EditChildCommand(
                         skill
                     )
 
-                    userSteps.remove(userId)
-                    userData.remove(userId)
+                    removeSession(userId)
                     editingChildId.remove(userId)
                     return CommandResult.Complete("✅ Данные ребенка успешно обновлены!")
                 } catch (e: Exception) {
@@ -261,10 +251,7 @@ class EditChildCommand(
         }
     }
 
-    /**
-     * Заполняет map данными ребенка из БД
-     */
-    private fun fillChildData(data: MutableMap<String, String>, child: Map<String, Any?>) {
+    private fun fillChildData(data: MutableMap<String, Any>, child: Map<String, Any?>) {
         data["childName"] = "${child["lastName"]} ${child["firstName"]}"
         data["lastName"] = child["lastName"] as? String ?: ""
         data["firstName"] = child["firstName"] as? String ?: ""
@@ -287,8 +274,7 @@ class EditChildCommand(
     }
 
     override fun cancel(userId: Long): CommandResult {
-        userSteps.remove(userId)
-        userData.remove(userId)
+        removeSession(userId)
         editingChildId.remove(userId)
         return CommandResult.Cancel()
     }
