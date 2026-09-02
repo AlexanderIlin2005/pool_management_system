@@ -109,8 +109,14 @@ public class GroupJoinService {
                     "Расписание занятий:\n" +
                     schedule + "\n\n" +
                     "Тренер: " + trainerName + "\n" +
-                    "Группа: " + groupName + "\n\n" +
-                    "Пожалуйста, запомните эти данные.";
+                    "Группа: " + groupName;
+
+            // Добавляем комментарий администратора, если он есть
+            if (comment != null && !comment.trim().isEmpty()) {
+                msgText += "\n\nКомментарий администратора: " + comment;
+            }
+
+            msgText += "\n\nПожалуйста, запомните эти данные.";
         } else {
             msgText = "❌ Заявка на вступление в группу \"" + req.getGroup().getName() + "\" отклонена.";
             if (comment != null && !comment.isEmpty()) {
