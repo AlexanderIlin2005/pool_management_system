@@ -64,7 +64,7 @@ class UploadCertificateCommand(
                     data["childId"] = (child["id"] as Number).toLong()
                     setStep(userId, 3)
                     return CommandResult.Continue(
-                        "Пожалуйста, выберите файл в формате jpeg и нажмите отправить."
+                        "Пожалуйста, выберите фото или pdf файл и нажмите отправить."
                     )
                 } else {
                     setStep(userId, 2)
@@ -97,12 +97,12 @@ class UploadCertificateCommand(
                 data["childId"] = (child["id"] as Number).toLong()
                 setStep(userId, 3)
                 return CommandResult.Continue(
-                    "Пожалуйста, выберите файл в формате jpeg и нажмите отправить."
+                    "Пожалуйста, выберите фото или pdf и нажмите отправить."
                 )
             }
             3 -> {
                 if (rawJson == null || !rawJson.contains("\"attachments\"")) {
-                    return CommandResult.Continue("Я не вижу вложения. Пожалуйста, выберите файл в формате jpeg и нажмите отправить.")
+                    return CommandResult.Continue("Я не вижу вложения. Пожалуйста, выберите фото или pdf и нажмите отправить.")
                 }
 
                 try {
