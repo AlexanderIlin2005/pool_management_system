@@ -129,24 +129,7 @@ public class GroupMemberService {
                 return; // У родителя нет VK ID
             }
 
-            // ===== ПОЛУЧАЕМ КОММЕНТАРИЙ ИЗ ЗАЯВКИ (если она была) =====
-            String adminComment = null;
-            String joinRequestSql =
-                    "SELECT admin_comment, status FROM pool.group_join_requests " +
-                            "WHERE child_id = ? AND group_id = ? AND status = 'APPROVED' " +
-                            "ORDER BY processed_at DESC LIMIT 1";
-
-            try {
-                Map<String, Object> joinRequest = jdbcTemplate.queryForMap(joinRequestSql, childId, groupId);
-                String status = (String) joinRequest.get("status");
-                if ("APPROVED".equals(status)) {
-                    adminComment = (String) joinRequest.get("admin_comment");
-                }
-            } catch (Exception e) {
-                // Нет заявки или ошибка — просто игнорируем
-            }
-
-            // Дополнительная проверка: есть ли уже неотправленное уведомление в group_member_notifications
+            // Проверяем, есть ли уже неотправленное уведомление в group_member_notifications
             String notificationType = "ADDED".equals(type) ? "ADDED" : "REMOVED";
             boolean alreadyNotified = databaseService.hasPendingGroupMemberNotification(
                     parentVkId, childId, groupId, notificationType
@@ -192,14 +175,8 @@ public class GroupMemberService {
                         "Расписание занятий:\n" +
                         schedule + "\n\n" +
                         "Тренер: " + trainerDisplay + "\n" +
-                        "Группа: " + groupName;
-
-                // Добавляем комментарий администратора, если он есть
-                if (adminComment != null && !adminComment.trim().isEmpty()) {
-                    message += "\n\nКомментарий администратора: " + adminComment;
-                }
-
-                message += "\n\nПожалуйста, запомните эти данные.";
+                        "Группа: " + groupName + "\n\n" +
+                        "Пожалуйста, запомните эти данные.";
             } else {
                 message = "❌ Ребенок " + childName + " исключен из группы \"" + groupName + "\" администратором.";
             }

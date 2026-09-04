@@ -80,12 +80,24 @@ public class GroupJoinService {
         requestRepo.save(req);
 
         if ("APPROVED".equals(status)) {
+            // 1. Добавляем ребенка в группу (это вызовет уведомление о членстве с расписанием)
             memberService.addChildToGroup(req.getGroup().getId(), req.getChild().getId(), null);
-            // Уведомление о вступлении теперь отправляется в memberService
-            // с комментарием из заявки
+
+            // 2. Отправляем отдельное уведомление ТОЛЬКО с комментарием администратора (если есть)
+            if (comment != null && !comment.trim().isEmpty()) {
+                JoinRequestNotification notif = new JoinRequestNotification();
+                notif.setRequest(req);
+                notif.setParentVkId(req.getParent().getVkId());
+                notif.setCreatedAt(LocalDateTime.now());
+                notif.setIsSent(false);
+
+                String msgText = "Комментарий администратора: " + comment;
+                notif.setMessageText(msgText);
+                notifRepo.save(notif);
+            }
         }
 
-        // Уведомление ТОЛЬКО для отклонения
+        // Уведомление для отклонения
         if ("REJECTED".equals(status)) {
             JoinRequestNotification notif = new JoinRequestNotification();
             notif.setRequest(req);
