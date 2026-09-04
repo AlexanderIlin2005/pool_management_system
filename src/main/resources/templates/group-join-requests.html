@@ -31,7 +31,7 @@
         <th style="padding: 10px; border: 1px solid #ddd;">Ребенок</th>
         <th style="padding: 10px; border: 1px solid #ddd;">Группа</th>
         <th th:if="${currentTab == 'archive'}" style="padding: 10px; border: 1px solid #ddd;">Статус</th>
-        <th style="padding: 10px; border: 1px solid #ddd;">Действие</th>
+        <th th:if="${currentTab == 'new' or currentTab == null}" style="padding: 10px; border: 1px solid #ddd;">Действие</th>
       </tr>
       </thead>
       <tbody>
@@ -53,21 +53,14 @@
           <span th:if="${req.status == 'REJECTED'}" style="color: red; font-weight: bold;">❌ Отклонена</span>
         </td>
 
-        <td style="padding: 10px; border: 1px solid #ddd;">
-          <!-- Для новых заявок - кнопка просмотра -->
-          <a th:if="${currentTab == 'new' or currentTab == null}"
-             th:href="@{/join-requests/{id}(id=${req.id})}"
+        <!-- Действие (только для новых заявок) -->
+        <td th:if="${currentTab == 'new' or currentTab == null}" style="padding: 10px; border: 1px solid #ddd;">
+          <a th:href="@{/join-requests/{id}(id=${req.id})}"
              class="btn" style="background-color: #007bff; font-size: 0.8em;">Просмотреть</a>
-
-          <!-- Для обработанных - просто статус -->
-          <span th:if="${currentTab == 'archive'}" style="color: #6c757d; font-size: 0.85em;">
-            <span th:if="${req.status == 'APPROVED'}">✅</span>
-            <span th:if="${req.status == 'REJECTED'}">❌</span>
-          </span>
         </td>
       </tr>
       <tr th:if="${#lists.isEmpty(requests)}">
-        <td th:colspan="${currentTab == 'archive' ? 7 : 6}" style="padding: 20px; text-align: center; color: #999;">
+        <td th:colspan="${currentTab == 'archive' ? 6 : 6}" style="padding: 20px; text-align: center; color: #999;">
           <span th:if="${currentTab == 'new' or currentTab == null}">Нет новых заявок</span>
           <span th:if="${currentTab == 'archive'}">Нет обработанных заявок</span>
         </td>
