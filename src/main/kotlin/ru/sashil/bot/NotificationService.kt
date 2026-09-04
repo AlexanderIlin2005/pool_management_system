@@ -13,11 +13,13 @@ class NotificationService(
 ) {
     private val logger = Logger.getLogger(NotificationService::class.java.name)
 
-    suspend fun checkAndSendNotifications() {
-        logger.info("Запуск проверки уведомлений...")
+    /**
+     * Ежедневная проверка (вечером) — только напоминания о завтрашних занятиях
+     */
+    suspend fun checkDailyNotifications() {
+        logger.info("Запуск ежедневной проверки уведомлений...")
         val now = LocalDateTime.now()
-        val today = now.toLocalDate()
-        val tomorrow = today.plusDays(1)
+        val tomorrow = now.toLocalDate().plusDays(1)
 
         // Проверяем, что сейчас вечер (18:00 - 21:00)
         val currentTime = now.toLocalTime()
@@ -25,7 +27,7 @@ class NotificationService(
                 currentTime.isBefore(LocalTime.of(21, 0))
 
         if (!isEvening) {
-            logger.info("Сейчас не вечернее время (${currentTime}), пропускаем отправку уведомлений")
+            logger.info("Сейчас не вечернее время (${currentTime}), пропускаем отправку уведомлений о занятиях")
             return
         }
 
@@ -46,14 +48,19 @@ class NotificationService(
             }
         }
 
-        // Отправка остальных уведомлений (не зависят от времени)
+        logger.info("Ежедневная проверка уведомлений завершена.")
+    }
+
+    /**
+     * Мгновенная отправка всех остальных уведомлений (каждую минуту)
+     */
+    suspend fun sendInstantNotifications() {
         sendPendingSkillNotifications()
         sendPendingJoinRequestNotifications()
         sendPendingPaymentNotifications()
         sendPendingChildUpdateNotifications()
         sendPendingMessagesToParents()
-
-        logger.info("Проверка уведомлений завершена.")
+        sendPendingGroupMemberNotifications()
     }
 
     /**
@@ -180,6 +187,23 @@ class NotificationService(
                 logger.info("Уведомление об изменении навыка отправлено родителю $vkId")
             } catch (e: Exception) {
                 logger.severe("Не удалось отправить уведомление об изменении навыка пользователю $vkId: ${e.message}")
+            }
+        }
+    }
+
+    private suspend fun sendPendingGroupMemberNotifications() {
+        val notifications = dbService.getPendingGroupMemberNotifications()
+        for (notif in notifications) {
+            val parentVkId = notif["parent_vk_id"] as Long
+            val message = notif["message_text"] as String
+            val notifId = notif["id"] as Long
+
+            try {
+                sendMessage(parentVkId, message)
+                dbService.markGroupMemberNotificationSent(notifId)
+                logger.info("Уведомление о членстве в группе #$notifId отправлено родителю $parentVkId")
+            } catch (e: Exception) {
+                logger.severe("Не удалось отправить уведомление о членстве в группе пользователю $parentVkId: ${e.message}")
             }
         }
     }

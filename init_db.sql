@@ -360,6 +360,22 @@ CREATE TABLE IF NOT EXISTS pool.bot_sessions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Таблица для уведомлений о добавлении/удалении из группы (вне заявок)
+CREATE TABLE IF NOT EXISTS pool.group_member_notifications (
+    id BIGSERIAL PRIMARY KEY,
+    parent_vk_id BIGINT NOT NULL,
+    child_id BIGINT REFERENCES pool.children(id) ON DELETE CASCADE,
+    group_id BIGINT REFERENCES pool.groups(id) ON DELETE CASCADE,
+    message_text TEXT NOT NULL,
+    notification_type VARCHAR(20) NOT NULL CHECK (notification_type IN ('ADDED', 'REMOVED')),
+    is_sent BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    sent_at TIMESTAMP
+);
+
+CREATE INDEX idx_group_member_notif_pending ON pool.group_member_notifications(is_sent);
+CREATE INDEX idx_group_member_notif_parent ON pool.group_member_notifications(parent_vk_id);
+
 -- Индекс для быстрого поиска
 CREATE INDEX idx_bot_sessions_user_id ON pool.bot_sessions(user_id);
 

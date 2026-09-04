@@ -1564,4 +1564,81 @@ public class DatabaseService {
             e.printStackTrace();
         }
     }
+
+
+
+
+    // Добавить в DatabaseService.java после существующих методов
+
+    /**
+     * Сохраняет уведомление о добавлении/удалении ребенка из группы
+     */
+    public void saveGroupMemberNotification(long parentVkId, long childId, long groupId, String type, String message) {
+        String sql = "INSERT INTO pool.group_member_notifications (parent_vk_id, child_id, group_id, message_text, notification_type) " +
+                "VALUES (?, ?, ?, ?, ?)";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, parentVkId);
+            stmt.setLong(2, childId);
+            stmt.setLong(3, groupId);
+            stmt.setString(4, message);
+            stmt.setString(5, type);
+            stmt.executeUpdate();
+            LOGGER.info("✅ Уведомление о членстве в группе сохранено для parent_vk_id=" + parentVkId + ", type=" + type);
+        } catch (SQLException e) {
+            LOGGER.severe("❌ Ошибка сохранения уведомления о членстве в группе: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Получает неотправленные уведомления о членстве в группе
+     */
+    public List<Map<String, Object>> getPendingGroupMemberNotifications() {
+        String sql = "SELECT gmn.id, gmn.parent_vk_id, gmn.message_text, gmn.notification_type, " +
+                "c.first_name, c.last_name, g.name as group_name " +
+                "FROM pool.group_member_notifications gmn " +
+                "JOIN pool.children c ON gmn.child_id = c.id " +
+                "JOIN pool.groups g ON gmn.group_id = g.id " +
+                "WHERE gmn.is_sent = FALSE " +
+                "ORDER BY gmn.created_at ASC";
+        return executeQuery(sql);
+    }
+
+    /**
+     * Помечает уведомление о членстве в группе как отправленное
+     */
+    public void markGroupMemberNotificationSent(long notifId) {
+        String sql = "UPDATE pool.group_member_notifications SET is_sent = TRUE, sent_at = CURRENT_TIMESTAMP WHERE id = ?";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, notifId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Проверяет, есть ли неотправленные уведомления о членстве в группе для конкретного родителя и ребенка
+     * (чтобы избежать дублирования при подтверждении заявки)
+     */
+    public boolean hasPendingGroupMemberNotification(long parentVkId, long childId, long groupId, String type) {
+        String sql = "SELECT COUNT(*) FROM pool.group_member_notifications " +
+                "WHERE parent_vk_id = ? AND child_id = ? AND group_id = ? AND notification_type = ? AND is_sent = FALSE";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, parentVkId);
+            stmt.setLong(2, childId);
+            stmt.setLong(3, groupId);
+            stmt.setString(4, type);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1) > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+
+
 }

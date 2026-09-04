@@ -81,82 +81,24 @@ public class GroupJoinService {
 
         if ("APPROVED".equals(status)) {
             memberService.addChildToGroup(req.getGroup().getId(), req.getChild().getId(), null);
+            // Уведомление о вступлении теперь отправляется в memberService
+            // с комментарием из заявки
         }
 
-        // Создаем уведомление для родителя
-        JoinRequestNotification notif = new JoinRequestNotification();
-        notif.setRequest(req);
-        notif.setParentVkId(req.getParent().getVkId());
-        notif.setCreatedAt(LocalDateTime.now());
-        notif.setIsSent(false);
+        // Уведомление ТОЛЬКО для отклонения
+        if ("REJECTED".equals(status)) {
+            JoinRequestNotification notif = new JoinRequestNotification();
+            notif.setRequest(req);
+            notif.setParentVkId(req.getParent().getVkId());
+            notif.setCreatedAt(LocalDateTime.now());
+            notif.setIsSent(false);
 
-        String msgText;
-        if ("APPROVED".equals(status)) {
-            // Получаем информацию о группе
-            Group group = req.getGroup();
-            String groupName = group.getName();
-
-            // Получаем расписание группы
-            String schedule = getGroupSchedule(group);
-
-            // Получаем ФИО тренера (с инициалами)
-            String trainerName = "не назначен";
-            if (group.getTrainer() != null && group.getTrainer().getFullName() != null) {
-                trainerName = ru.sashil.common.util.NameUtils.toInitials(group.getTrainer().getFullName());
-            }
-
-            msgText = "✅ Заявка на вступление в группу \"" + groupName + "\" одобрена! Ребенок зачислен.\n\n" +
-                    "Расписание занятий:\n" +
-                    schedule + "\n\n" +
-                    "Тренер: " + trainerName + "\n" +
-                    "Группа: " + groupName;
-
-            // Добавляем комментарий администратора, если он есть
-            if (comment != null && !comment.trim().isEmpty()) {
-                msgText += "\n\nКомментарий администратора: " + comment;
-            }
-
-            msgText += "\n\nПожалуйста, запомните эти данные.";
-        } else {
-            msgText = "❌ Заявка на вступление в группу \"" + req.getGroup().getName() + "\" отклонена.";
+            String msgText = "❌ Заявка на вступление в группу \"" + req.getGroup().getName() + "\" отклонена.";
             if (comment != null && !comment.isEmpty()) {
                 msgText += "\nПричина: " + comment;
             }
+            notif.setMessageText(msgText);
+            notifRepo.save(notif);
         }
-        notif.setMessageText(msgText);
-        notifRepo.save(notif);
     }
-
-    /**
-     * Форматирует расписание группы в читаемый вид
-     */
-    private String getGroupSchedule(Group group) {
-        StringBuilder sb = new StringBuilder();
-
-        // Маппинг дней недели
-        String[] dayNames = {"Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"};
-        LocalTime[] starts = {group.getDay1Start(), group.getDay2Start(), group.getDay3Start(),
-                group.getDay4Start(), group.getDay5Start(), group.getDay6Start(),
-                group.getDay7Start()};
-        LocalTime[] ends = {group.getDay1End(), group.getDay2End(), group.getDay3End(),
-                group.getDay4End(), group.getDay5End(), group.getDay6End(),
-                group.getDay7End()};
-
-        boolean hasSchedule = false;
-        for (int i = 0; i < 7; i++) {
-            if (starts[i] != null && ends[i] != null) {
-                if (hasSchedule) sb.append("\n");
-                sb.append(dayNames[i] + " " + starts[i] + " - " + ends[i]);
-                hasSchedule = true;
-            }
-        }
-
-        if (!hasSchedule) {
-            sb.append("Расписание не указано");
-        }
-
-        return sb.toString();
-    }
-
-
 }

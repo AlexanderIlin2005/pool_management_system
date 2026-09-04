@@ -59,9 +59,18 @@ class BotApplication {
                     }
                     LOGGER.info("LongPoll настроен.")
 
-                    launch { startNotificationScheduler(bot) }
+                    // ===== ПЛАНИРОВЩИКИ =====
+
+                    // 1. Ежедневные уведомления (о завтрашних занятиях) — раз в час, только вечером
+                    launch { startDailyNotificationScheduler(bot) }
+
+                    // 2. Мгновенные уведомления (заявки, оплаты, изменения, сообщения) — каждую минуту
+                    launch { startInstantNotificationSender(bot) }
+
+                    // 3. Рассылки — каждые 30 секунд
                     launch { startBroadcastListener(bot, dbUrl, ConfigLoader.get("DB_USER"), ConfigLoader.get("DB_PASSWORD")) }
-                    launch { startPendingNotificationSender(bot) }
+
+                    // 4. Сообщения от админов/тренеров родителям — каждые 10 секунд
                     launch { startMessageSender(bot) }
 
                     LOGGER.info("Запуск LongPoll polling...")
@@ -75,14 +84,33 @@ class BotApplication {
             }
         }
 
-        private suspend fun CoroutineScope.startNotificationScheduler(bot: VkClient) {
+        /**
+         * Планировщик ежедневных уведомлений (о завтрашних занятиях)
+         * Проверяет каждый час, но отправляет только вечером (18:00-21:00)
+         */
+        private suspend fun CoroutineScope.startDailyNotificationScheduler(bot: VkClient) {
             while (isActive) {
                 try {
-                    notificationService.checkAndSendNotifications()
+                    notificationService.checkDailyNotifications()
                 } catch (e: Exception) {
-                    LOGGER.severe("Ошибка в планировщике уведомлений: ${e.message}")
+                    LOGGER.severe("Ошибка в планировщике ежедневных уведомлений: ${e.message}")
                 }
-                delay(60 * 60 * 1000)
+                delay(60 * 60 * 1000) // 1 час
+            }
+        }
+
+        /**
+         * Планировщик мгновенных уведомлений
+         * Отправляет все остальные уведомления каждую минуту
+         */
+        private suspend fun CoroutineScope.startInstantNotificationSender(bot: VkClient) {
+            while (isActive) {
+                try {
+                    notificationService.sendInstantNotifications()
+                } catch (e: Exception) {
+                    LOGGER.severe("Ошибка в отправке мгновенных уведомлений: ${e.message}")
+                }
+                delay(60 * 1000) // 1 минута
             }
         }
 
@@ -93,7 +121,7 @@ class BotApplication {
                 } catch (e: Exception) {
                     LOGGER.severe("Ошибка в слушателе рассылок: ${e.message}")
                 }
-                delay(30000)
+                delay(30000) // 30 секунд
             }
         }
 
@@ -104,7 +132,7 @@ class BotApplication {
                 } catch (e: Exception) {
                     LOGGER.severe("Ошибка в отправке сообщений родителям: ${e.message}")
                 }
-                delay(10000)
+                delay(10000) // 10 секунд
             }
         }
 
@@ -183,71 +211,6 @@ class BotApplication {
             rs.close()
             stmt.close()
             return ids
-        }
-
-        private suspend fun CoroutineScope.startPendingNotificationSender(bot: VkClient) {
-            while (isActive) {
-                try {
-                    val joinNotifications = dbService.getPendingJoinRequestNotifications()
-                    for (notif in joinNotifications) {
-                        val vkId = notif["parent_vk_id"] as Long
-                        val message = notif["message_text"] as String
-                        val notifId = notif["id"] as Long
-                        try {
-                            sendText(bot, vkId, message)
-                            dbService.markJoinRequestNotificationSent(notifId)
-                        } catch (e: Exception) {
-                            LOGGER.severe("Ошибка отправки уведомления о заявке: ${e.message}")
-                        }
-                    }
-
-                    val childUpdateNotifications = dbService.getPendingChildUpdateNotifications()
-                    for (notif in childUpdateNotifications) {
-                        val vkId = notif["parent_vk_id"] as Long
-                        val message = notif["message_text"] as String
-                        val notifId = notif["id"] as Long
-                        try {
-                            sendText(bot, vkId, message)
-                            dbService.markChildUpdateNotificationSent(notifId)
-                        } catch (e: Exception) {
-                            LOGGER.severe("Ошибка отправки уведомления об изменении данных: ${e.message}")
-                        }
-                    }
-
-                    val paymentNotifications = dbService.getPendingPaymentNotifications()
-                    for (notif in paymentNotifications) {
-                        val vkId = notif["parent_vk_id"] as Long
-                        val message = notif["message_text"] as String
-                        val notifId = notif["id"] as Long
-                        try {
-                            sendText(bot, vkId, message)
-                            dbService.markPaymentNotificationSent(notifId)
-                        } catch (e: Exception) {
-                            LOGGER.severe("Ошибка отправки уведомления об оплате: ${e.message}")
-                        }
-                    }
-
-                    val skillNotifications = dbService.getPendingSkillNotifications()
-                    for (notif in skillNotifications) {
-                        val vkId = notif["vk_id"] as Long
-                        val childName = notif["child_name"] as String
-                        val oldSkill = notif["old_skill"] as String
-                        val newSkill = notif["new_skill"] as String
-                        val notifId = notif["id"] as Long
-
-                        val text = "Навык плавания ребенка $childName был изменен с '$oldSkill' на '$newSkill'."
-                        try {
-                            sendText(bot, vkId, text)
-                            dbService.markSkillNotificationSent(notifId)
-                        } catch (e: Exception) {
-                            LOGGER.severe("Ошибка отправки уведомления об изменении навыка: ${e.message}")
-                        }
-                    }
-                } catch (e: Exception) {
-                    LOGGER.severe("Ошибка в планировщике уведомлений: ${e.message}")
-                }
-                delay(60 * 1000)
-            }
         }
 
         private suspend fun processUpdate(bot: VkClient, update: GetUpdatesVkMethod.Result.Update) {
