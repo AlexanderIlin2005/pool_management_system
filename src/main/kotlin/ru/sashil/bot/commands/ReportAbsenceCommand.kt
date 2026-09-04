@@ -118,7 +118,7 @@ class ReportAbsenceCommand(
                 when (type) {
                     "SICK" -> {
                         setStep(userId, 4)
-                        return CommandResult.Continue("Пожалуйста, пришлите справку от врача (фото или PDF файл).")
+                        return CommandResult.Continue("Пожалуйста, пришлите справку от врача (фото или PDF).")
                     }
                     "UNWELL", "OTHER" -> {
                         setStep(userId, 5)
