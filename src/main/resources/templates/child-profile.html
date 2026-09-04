@@ -24,14 +24,13 @@
 
         <p><strong>Класс:</strong>
           <span th:if="${profile.gradeNumber != null and profile.gradeNumber > 0}">
-        <span th:text="${profile.gradeNumber}"></span>
-        <span th:if="${profile.gradeName != null and profile.gradeName != ''}"
-              th:text="' (' + ${profile.gradeName} + ')'"></span>
-    </span>
+            <span th:text="${profile.gradeNumber}"></span>
+            <span th:if="${profile.gradeName != null and profile.gradeName != ''}"
+                  th:text="' (' + ${profile.gradeName} + ')'"></span>
+          </span>
           <span th:unless="${profile.gradeNumber != null and profile.gradeNumber > 0}"
                 style="color: #6c757d;">—</span>
         </p>
-
 
         <p><strong>Навык плавания:</strong>
           <span th:text="${profile.skill != null ? profile.skill.dbValue : 'не указан'}"
@@ -45,14 +44,14 @@
           <span th:if="${profile.certificateReceived}" style="color: green; font-weight: bold;">✅ Получен</span>
           <span th:unless="${profile.certificateReceived}" style="color: #dc3545; font-weight: bold;">❌ Не получен</span>
           <span style="margin-left: 10px;">
-    <button class="btn toggle-certificate-btn"
-            style="padding: 2px 10px; font-size: 0.7em; background-color: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer;"
-            th:attr="data-child-id=${profile.childId},
-                     data-child-name=${profile.firstName + ' ' + profile.lastName},
-                     data-current-status=${profile.certificateReceived}">
-      Изменить
-    </button>
-  </span>
+            <button class="btn toggle-certificate-btn"
+                    style="padding: 2px 10px; font-size: 0.7em; background-color: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer;"
+                    th:attr="data-child-id=${profile.childId},
+                             data-child-name=${profile.firstName + ' ' + profile.lastName},
+                             data-current-status=${profile.certificateReceived}">
+              Изменить
+            </button>
+          </span>
         </p>
 
       </div>
@@ -63,7 +62,6 @@
         <p th:if="${profile.parentPhone != null}"><strong>Телефон:</strong> <span th:text="${profile.parentPhone}"></span></p>
       </div>
     </div>
-
 
     <div style="margin-top: -10px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
       <a th:if="${role.name() == 'ADMIN'}"
@@ -90,8 +88,19 @@
         </div>
         <div style="font-size: 0.85em; color: #6c757d;">Тренер: <span th:text="${group.trainerName}"></span></div>
         <div style="font-size: 0.85em; color: #6c757d;">Расписание: <span th:text="${group.schedule}"></span></div>
-        <div style="margin-top: 8px;">
+        <div style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap;">
           <a th:href="@{/groups/{id}/attendance(id=${group.groupId})}" class="btn" style="padding: 2px 8px; font-size: 0.7em; background-color: #17a2b8;">Посещаемость группы</a>
+
+          <!-- Кнопка исключения из группы (только для ADMIN) -->
+          <button th:if="${role.name() == 'ADMIN'}"
+                  class="btn btn-danger remove-from-group-btn"
+                  style="padding: 2px 8px; font-size: 0.7em; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;"
+                  th:attr="data-child-id=${profile.childId},
+                           data-child-name=${profile.firstName + ' ' + profile.lastName},
+                           data-group-id=${group.groupId},
+                           data-group-name=${group.groupName}">
+            ✕ Исключить
+          </button>
         </div>
       </div>
     </div>
@@ -221,8 +230,52 @@
     </div>
 
   </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Обработчики для кнопок "Исключить из группы"
+      document.querySelectorAll('.remove-from-group-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+
+          var childId = this.getAttribute('data-child-id');
+          var childName = this.getAttribute('data-child-name');
+          var groupId = this.getAttribute('data-group-id');
+          var groupName = this.getAttribute('data-group-name');
+
+          var confirmMessage = 'Вы уверены, что хотите исключить ребенка ' + childName + ' из группы "' + groupName + '"?';
+
+          if (confirm(confirmMessage)) {
+            // Отправляем AJAX запрос
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/children/remove-from-group', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+
+            xhr.onload = function() {
+              if (xhr.status === 200) {
+                var response = xhr.responseText;
+                if (response === 'success') {
+                  // Успешно — перезагружаем страницу, чтобы обновить список групп
+                  location.reload();
+                } else {
+                  alert('Ошибка при исключении из группы: ' + response);
+                }
+              } else {
+                alert('Ошибка при выполнении запроса. Попробуйте еще раз.');
+              }
+            };
+
+            xhr.onerror = function() {
+              alert('Ошибка соединения. Попробуйте еще раз.');
+            };
+
+            xhr.send('childId=' + encodeURIComponent(childId) + '&groupId=' + encodeURIComponent(groupId));
+          }
+        });
+      });
+    });
+  </script>
+
 </div>
-
-
 </body>
 </html>
