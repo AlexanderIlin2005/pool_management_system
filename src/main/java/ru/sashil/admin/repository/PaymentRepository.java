@@ -4,7 +4,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import ru.sashil.admin.model.Payment;
-import ru.sashil.admin.model.Child;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -18,8 +17,14 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     List<Payment> findByStatusOrderByCreatedAtDesc(String status);
 
-    @Query("SELECT p FROM Payment p WHERE p.monthYear >= :startMonth AND p.monthYear <= :endMonth ORDER BY p.monthYear, p.child.lastName, p.child.firstName")
-    List<Payment> findPaymentsInPeriod(@Param("startMonth") LocalDate startMonth, @Param("endMonth") LocalDate endMonth);
+    // ✅ ЕДИНСТВЕННОЕ ИЗМЕНЕНИЕ - добавляем LEFT JOIN FETCH
+    @Query("SELECT p FROM Payment p " +
+            "LEFT JOIN FETCH p.child c " +
+            "LEFT JOIN FETCH c.parent " +
+            "WHERE p.monthYear >= :startMonth AND p.monthYear <= :endMonth " +
+            "ORDER BY p.monthYear, c.lastName, c.firstName")
+    List<Payment> findPaymentsInPeriod(@Param("startMonth") LocalDate startMonth,
+                                       @Param("endMonth") LocalDate endMonth);
 
     @Query("SELECT p FROM Payment p WHERE p.monthYear < :currentMonth AND p.isPaid = false AND p.status != 'REJECTED'")
     List<Payment> findOverduePayments(@Param("currentMonth") LocalDate currentMonth);

@@ -373,8 +373,7 @@ CREATE TABLE IF NOT EXISTS pool.group_member_notifications (
     sent_at TIMESTAMP
 );
 
-CREATE INDEX idx_group_member_notif_pending ON pool.group_member_notifications(is_sent);
-CREATE INDEX idx_group_member_notif_parent ON pool.group_member_notifications(parent_vk_id);
+
 
 -- Индекс для быстрого поиска
 CREATE INDEX idx_bot_sessions_user_id ON pool.bot_sessions(user_id);
@@ -407,10 +406,11 @@ CREATE INDEX idx_child_update_notifications_pending ON pool.child_update_notific
 CREATE INDEX idx_child_update_notifications_parent ON pool.child_update_notifications(parent_vk_id);
 
 -- Индексы для быстрого поиска
-CREATE INDEX idx_payments_child_month ON pool.payments(child_id, month_year);
-CREATE INDEX idx_payments_status ON pool.payments(status);
-CREATE INDEX idx_payment_notifications_pending ON pool.payment_notifications(is_sent);
-CREATE INDEX idx_payment_notifications_parent ON pool.payment_notifications(parent_vk_id);
+
+CREATE INDEX CONCURRENTLY idx_payments_period_covering
+ON pool.payments(month_year, child_id)
+INCLUDE (is_paid, status, amount, total_paid, receipt_file_url);
+
 
 CREATE INDEX idx_join_notif_pending ON pool.join_request_notifications(is_sent);
 

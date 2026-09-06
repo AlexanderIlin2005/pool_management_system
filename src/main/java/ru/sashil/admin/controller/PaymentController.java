@@ -82,7 +82,9 @@ public class PaymentController {
     public String paymentsPage(Model model, HttpSession session,
                                @RequestParam(required = false) String search,
                                @RequestParam(required = false) Integer year,
-                               @RequestParam(required = false) Integer month) {
+                               @RequestParam(required = false) Integer month,
+                               @RequestParam(defaultValue = "1") Integer page,
+                               @RequestParam(defaultValue = "20") Integer size) {
 
         if (!hasAccountingAccess(session)) {
             return "redirect:/login";
@@ -96,7 +98,6 @@ public class PaymentController {
         if (year != null && month != null) {
             startMonth = LocalDate.of(year, month, 1);
             endMonth = startMonth.plusMonths(8);
-
             if (startMonth.isBefore(MIN_DATE)) {
                 return "redirect:/payments";
             }
@@ -105,6 +106,7 @@ public class PaymentController {
             endMonth = startMonth.plusMonths(8);
         }
 
+        // Генерируем платежи
         LocalDate current = startMonth;
         while (!current.isAfter(endMonth)) {
             if (!current.isBefore(LocalDate.now().minusMonths(3).withDayOfMonth(1))) {
@@ -113,7 +115,10 @@ public class PaymentController {
             current = current.plusMonths(1);
         }
 
-        Map<String, Object> data = paymentService.getPaymentTableData(startMonth, endMonth, search);
+        // Получаем данные с пагинацией
+        Map<String, Object> data = paymentService.getPaymentTableDataPaged(
+                startMonth, endMonth, search, page, size
+        );
 
         boolean canGoPrevYear = startMonth.minusYears(1).isAfter(MIN_DATE) ||
                 startMonth.minusYears(1).isEqual(MIN_DATE);
@@ -132,6 +137,12 @@ public class PaymentController {
         model.addAttribute("monthFormatter", DateTimeFormatter.ofPattern("MMM yyyy"));
         model.addAttribute("defaultAmount", BigDecimal.ZERO);
         model.addAttribute("allMonths", getMonthsInPeriod(startMonth, endMonth));
+
+        // Пагинация
+        model.addAttribute("currentPage", data.get("currentPage"));
+        model.addAttribute("totalPages", data.get("totalPages"));
+        model.addAttribute("totalItems", data.get("totalItems"));
+        model.addAttribute("pageSize", size);
 
         return "payments";
     }

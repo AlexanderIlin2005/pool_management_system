@@ -19,7 +19,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <div style="display: flex; align-items: center; gap: 15px;">
         <a th:if="${canGoPrevYear}"
-           th:href="@{/payments(year=${prevYearStart.year}, month=${prevYearStart.monthValue}, search=${currentSearch})}"
+           th:href="@{/payments(year=${prevYearStart.year}, month=${prevYearStart.monthValue}, search=${currentSearch}, page=1, size=${pageSize})}"
            class="btn" style="padding: 5px 10px;">← Год</a>
         <span th:unless="${canGoPrevYear}"
               class="btn" style="padding: 5px 10px; background-color: #6c757d; color: white; cursor: not-allowed; opacity: 0.6;">← Год</span>
@@ -30,7 +30,7 @@
           <span th:text="${#temporals.format(endMonth, 'MMMM yyyy')}"></span>
         </h3>
 
-        <a th:href="@{/payments(year=${nextYearStart.year}, month=${nextYearStart.monthValue}, search=${currentSearch})}"
+        <a th:href="@{/payments(year=${nextYearStart.year}, month=${nextYearStart.monthValue}, search=${currentSearch}, page=1, size=${pageSize})}"
            class="btn" style="padding: 5px 10px;">Год →</a>
       </div>
     </div>
@@ -39,13 +39,21 @@
     <form method="get" style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
       <input type="hidden" name="year" th:value="${startMonth.year}" />
       <input type="hidden" name="month" th:value="${startMonth.monthValue}" />
+      <input type="hidden" name="page" value="1" />
+      <input type="hidden" name="size" th:value="${pageSize}" />
 
       <input type="text" name="search" placeholder="Поиск по ФИО..." th:value="${currentSearch}"
              style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; min-width: 200px;">
 
       <button type="submit" class="btn">Применить</button>
-      <a th:href="@{/payments}" class="btn" style="background-color: #6c757d;">Сброс</a>
+      <a th:href="@{/payments(page=1, size=${pageSize})}" class="btn" style="background-color: #6c757d;">Сброс</a>
     </form>
+
+    <!-- Информация о количестве записей -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.9em; color: #666;">
+      <span>Показано <span th:text="${#lists.size(rows)}"></span> из <span th:text="${totalItems}"></span> детей</span>
+      <span th:if="${totalPages > 1}">Страница <span th:text="${currentPage}"></span> из <span th:text="${totalPages}"></span></span>
+    </div>
 
     <!-- Таблица оплат -->
     <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
@@ -121,6 +129,98 @@
       </tr>
       </tbody>
     </table>
+
+    <!-- Пагинация -->
+    <div th:if="${totalPages > 1}"
+         style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px; padding: 15px; flex-wrap: wrap;">
+
+      <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+        <!-- Первая -->
+        <a th:if="${currentPage > 1}"
+           th:href="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=1, size=${pageSize})}"
+           class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">
+          &laquo;
+        </a>
+        <span th:unless="${currentPage > 1}"
+              class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; opacity: 0.5; cursor: not-allowed; border-radius: 4px;">
+          &laquo;
+        </span>
+
+        <!-- Назад -->
+        <a th:if="${currentPage > 1}"
+           th:href="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=${currentPage - 1}, size=${pageSize})}"
+           class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">
+          Назад
+        </a>
+        <span th:unless="${currentPage > 1}"
+              class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; opacity: 0.5; cursor: not-allowed; border-radius: 4px;">
+          Назад
+        </span>
+
+        <!-- Номера страниц (показываем ограниченное количество) -->
+        <span th:each="p : ${#numbers.sequence(1, totalPages)}" th:if="${p >= currentPage - 2 and p <= currentPage + 2}">
+          <span th:if="${p == currentPage}"
+                style="padding: 5px 12px; background-color: #007bff; color: white; border-radius: 4px; font-weight: bold; display: inline-block;">
+            <span th:text="${p}"></span>
+          </span>
+          <a th:unless="${p == currentPage}"
+             th:href="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=${p}, size=${pageSize})}"
+             style="padding: 5px 12px; background-color: #f8f9fa; color: #007bff; border-radius: 4px; text-decoration: none; border: 1px solid #dee2e6; display: inline-block;">
+            <span th:text="${p}"></span>
+          </a>
+        </span>
+
+        <!-- Многоточие между страницами -->
+        <span th:if="${currentPage + 2 < totalPages}" style="padding: 5px 8px; color: #666;">...</span>
+
+        <!-- Последняя страница (если не видна) -->
+        <a th:if="${currentPage + 2 < totalPages}"
+           th:href="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=${totalPages}, size=${pageSize})}"
+           style="padding: 5px 12px; background-color: #f8f9fa; color: #007bff; border-radius: 4px; text-decoration: none; border: 1px solid #dee2e6; display: inline-block;">
+          <span th:text="${totalPages}"></span>
+        </a>
+
+        <!-- Вперед -->
+        <a th:if="${currentPage < totalPages}"
+           th:href="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=${currentPage + 1}, size=${pageSize})}"
+           class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">
+          Вперед
+        </a>
+        <span th:unless="${currentPage < totalPages}"
+              class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; opacity: 0.5; cursor: not-allowed; border-radius: 4px;">
+          Вперед
+        </span>
+
+        <!-- Последняя -->
+        <a th:if="${currentPage < totalPages}"
+           th:href="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=${totalPages}, size=${pageSize})}"
+           class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">
+          &raquo;
+        </a>
+        <span th:unless="${currentPage < totalPages}"
+              class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; opacity: 0.5; cursor: not-allowed; border-radius: 4px;">
+          &raquo;
+        </span>
+      </div>
+
+      <!-- Выбор размера страницы -->
+      <div style="display: flex; align-items: center; gap: 5px; margin-left: 15px;">
+        <span style="font-size: 0.9em; color: #666;">Показывать:</span>
+        <select onchange="window.location.href=this.value"
+                style="padding: 5px; border-radius: 4px; border: 1px solid #ced4da;">
+          <option th:value="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=1, size=10)}"
+                  th:selected="${pageSize == 10}">10</option>
+          <option th:value="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=1, size=20)}"
+                  th:selected="${pageSize == 20}">20</option>
+          <option th:value="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=1, size=50)}"
+                  th:selected="${pageSize == 50}">50</option>
+          <option th:value="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=1, size=100)}"
+                  th:selected="${pageSize == 100}">100</option>
+        </select>
+      </div>
+
+
+    </div>
   </div>
 
   <!-- Модальное окно для добавления оплаты -->
@@ -268,17 +368,18 @@
       document.getElementById('reminderModal').style.display = 'none';
     }
 
-    // === Умное обновление страницы (раз в 30 секунд, только если модальные окна закрыты) ===
+    // === Функция для проверки открытых модальных окон ===
     function isAnyModalOpen() {
       var modals = document.querySelectorAll('.modal, [id$="Modal"]');
       for (var i = 0; i < modals.length; i++) {
-        if (modals[i].style.display !== 'none') {
+        if (modals[i].style.display !== 'none' && modals[i].style.display !== '') {
           return true;
         }
       }
       return false;
     }
 
+    // === Обработчики событий ===
     document.addEventListener('DOMContentLoaded', function() {
       // Обработчики для кнопок "Добавить оплату"
       document.querySelectorAll('.add-payment-btn').forEach(btn => {
@@ -327,15 +428,20 @@
         }
       });
 
-      // Умное обновление каждые 30 секунд
-      setInterval(function() {
-        if (!isAnyModalOpen()) {
-          console.log('🔄 Умное обновление страницы оплат...');
-          location.reload();
-        } else {
-          console.log('⏸️ Обновление отложено (открыто модальное окно)');
+      // Закрытие модальных окон по Escape
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          if (document.getElementById('addPaymentModal').style.display !== 'none') {
+            closeAddPaymentModal();
+          }
+          if (document.getElementById('editPaymentModal').style.display !== 'none') {
+            closeEditPaymentModal();
+          }
+          if (document.getElementById('reminderModal').style.display !== 'none') {
+            closeReminderModal();
+          }
         }
-      }, 30000);
+      });
     });
   </script>
 </div>
