@@ -139,15 +139,11 @@ class SelectGroupCommand(
                 }
 
                 val message = StringBuilder()
-                message.append("Благодарим! Вы успешно создали заявку")
-                if (successCount > 1) message.append("и")
-                message.append(" на вступление в группу")
-                if (successCount > 1) message.append("ы")
-                message.append("!\n\n")
-
                 if (successCount == 1) {
+                    message.append("Благодарим! Вы успешно оформили заявку на вступление в группу!\n\n")
                     message.append("В ближайшее время Вы получите уведомление от администратора о зачислении в группу.\n\n")
                 } else {
+                    message.append("Благодарим! Вы успешно оформили заявки на вступление в группы!\n\n")
                     message.append("В ближайшее время Вы получите уведомления от администратора о зачислении в каждую из выбранных групп.\n\n")
                 }
 
