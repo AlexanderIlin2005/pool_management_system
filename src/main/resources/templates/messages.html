@@ -46,7 +46,7 @@
         </div>
 
         <div th:if="${#lists.isEmpty(messages)}" style="text-align: center; padding: 40px; color: #6c757d;">
-            <p style="font-size: 1.2em;">📭 Нет новых сообщений</p>
+            <p style="font-size: 1.2em;">Нет новых сообщений</p>
         </div>
 
         <div th:unless="${#lists.isEmpty(messages)}">
@@ -54,18 +54,18 @@
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
                         <div style="font-weight: bold; font-size: 1.1em;">
-                            <span th:if="${msg.fromUserType == 'PARENT'}">👤 Родитель</span>
-                            <span th:if="${msg.fromUserType == 'ADMIN'}">👨‍💼 Администратор</span>
-                            <span th:if="${msg.fromUserType == 'COACH'}">🏊 Тренер</span>
+                            <span th:if="${msg.fromUserType == 'PARENT'}">Родитель</span>
+                            <span th:if="${msg.fromUserType == 'ADMIN'}">Администратор</span>
+                            <span th:if="${msg.fromUserType == 'COACH'}">Тренер</span>
                         </div>
                         <div style="color: #6c757d; font-size: 0.85em;"
                              th:text="${#temporals.format(msg.createdAt, 'dd.MM.yyyy HH:mm')}">
                         </div>
                         <div th:if="${msg.child != null}" style="color: #6c757d; font-size: 0.85em; margin-top: 2px;">
-                            👶 Ребенок: <span th:text="${msg.child.lastName} + ' ' + ${msg.child.firstName}"></span>
+                            Ребенок: <span th:text="${msg.child.lastName} + ' ' + ${msg.child.firstName}"></span>
                         </div>
                         <div th:if="${msg.group != null}" style="color: #6c757d; font-size: 0.85em;">
-                            📋 Группа: <span th:text="${msg.group.name}"></span>
+                            Группа: <span th:text="${msg.group.name}"></span>
                         </div>
                     </div>
                     <div>
