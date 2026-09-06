@@ -86,9 +86,14 @@ public class PaymentController {
                                @RequestParam(defaultValue = "1") Integer page,
                                @RequestParam(defaultValue = "20") Integer size) {
 
+        long startAll = System.currentTimeMillis();
+        System.out.println("🚀 ===== START /payments =====");
+
         if (!hasAccountingAccess(session)) {
             return "redirect:/login";
         }
+        long t1 = System.currentTimeMillis();
+        System.out.println("⏱ Auth check: " + (t1 - startAll) + " ms");
 
         AdminUser user = (AdminUser) session.getAttribute("currentUser");
 
@@ -105,20 +110,15 @@ public class PaymentController {
             startMonth = MIN_DATE;
             endMonth = startMonth.plusMonths(8);
         }
+        long t2 = System.currentTimeMillis();
+        System.out.println("⏱ Date calc: " + (t2 - t1) + " ms");
 
-        // Генерируем платежи
-        LocalDate current = startMonth;
-        while (!current.isAfter(endMonth)) {
-            if (!current.isBefore(LocalDate.now().minusMonths(3).withDayOfMonth(1))) {
-                paymentService.generatePaymentsForMonth(current);
-            }
-            current = current.plusMonths(1);
-        }
-
-        // Получаем данные с пагинацией
+        // ✅ Получаем данные с пагинацией (теперь быстро!)
         Map<String, Object> data = paymentService.getPaymentTableDataPaged(
                 startMonth, endMonth, search, page, size
         );
+        long t3 = System.currentTimeMillis();
+        System.out.println("⏱ Service call: " + (t3 - t2) + " ms");
 
         boolean canGoPrevYear = startMonth.minusYears(1).isAfter(MIN_DATE) ||
                 startMonth.minusYears(1).isEqual(MIN_DATE);
@@ -137,14 +137,23 @@ public class PaymentController {
         model.addAttribute("monthFormatter", DateTimeFormatter.ofPattern("MMM yyyy"));
         model.addAttribute("defaultAmount", BigDecimal.ZERO);
         model.addAttribute("allMonths", getMonthsInPeriod(startMonth, endMonth));
-
-        // Пагинация
         model.addAttribute("currentPage", data.get("currentPage"));
         model.addAttribute("totalPages", data.get("totalPages"));
         model.addAttribute("totalItems", data.get("totalItems"));
         model.addAttribute("pageSize", size);
 
-        return "payments";
+        long t4 = System.currentTimeMillis();
+        System.out.println("⏱ Model setup: " + (t4 - t3) + " ms");
+
+        long t5 = System.currentTimeMillis();
+        String view = "payments";
+        System.out.println("⏱ View name: " + (t5 - t4) + " ms");
+
+        long totalTime = System.currentTimeMillis();
+        System.out.println("⏱ TOTAL controller time: " + (totalTime - startAll) + " ms");
+        System.out.println("🚀 ===== END /payments =====");
+
+        return view;
     }
 
     /**
