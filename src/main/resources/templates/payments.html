@@ -23,13 +23,11 @@
            class="btn" style="padding: 5px 10px;">← Год</a>
         <span th:unless="${canGoPrevYear}"
               class="btn" style="padding: 5px 10px; background-color: #6c757d; color: white; cursor: not-allowed; opacity: 0.6;">← Год</span>
-
         <h3 style="margin: 0;">
           <span th:text="${#temporals.format(startMonth, 'MMMM yyyy')}"></span>
           —
           <span th:text="${#temporals.format(endMonth, 'MMMM yyyy')}"></span>
         </h3>
-
         <a th:href="@{/payments(year=${nextYearStart.year}, month=${nextYearStart.monthValue}, search=${currentSearch}, page=1, size=${pageSize})}"
            class="btn" style="padding: 5px 10px;">Год →</a>
       </div>
@@ -41,10 +39,8 @@
       <input type="hidden" name="month" th:value="${startMonth.monthValue}" />
       <input type="hidden" name="page" value="1" />
       <input type="hidden" name="size" th:value="${pageSize}" />
-
       <input type="text" name="search" placeholder="Поиск по ФИО..." th:value="${currentSearch}"
              style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; min-width: 200px;">
-
       <button type="submit" class="btn">Применить</button>
       <a th:href="@{/payments(page=1, size=${pageSize})}" class="btn" style="background-color: #6c757d;">Сброс</a>
     </form>
@@ -55,71 +51,67 @@
       <span th:if="${totalPages > 1}">Страница <span th:text="${currentPage}"></span> из <span th:text="${totalPages}"></span></span>
     </div>
 
-    <!-- Таблица оплат -->
+    <!-- ТАБЛИЦА - МАКСИМАЛЬНО УПРОЩЕНА -->
     <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
       <thead>
       <tr style="background: #f8f9fa; position: sticky; top: 0; z-index: 2;">
         <th style="padding: 10px; border: 1px solid #ddd; position: sticky; left: 0; background: #f8f9fa; z-index: 3; min-width: 180px;">Ребенок</th>
         <th th:each="month : ${months}"
             style="padding: 10px; border: 1px solid #ddd; text-align: center; min-width: 85px;"
-            th:text="${#temporals.format(month, 'MMM yyyy')}">
+            th:text="${month}">
         </th>
         <th style="padding: 10px; border: 1px solid #ddd; min-width: 100px; text-align: center; background: #e9ecef;">Итого (₽)</th>
         <th style="padding: 10px; border: 1px solid #ddd; min-width: 200px;">Действие</th>
       </tr>
       </thead>
       <tbody>
-      <tr th:each="row : ${rows}" style="border-bottom: 1px solid #eee;">
+      <tr th:each="row, rowStat : ${rows}" style="border-bottom: 1px solid #eee;">
         <td style="padding: 10px; border: 1px solid #ddd; position: sticky; left: 0; background: white; z-index: 1; font-weight: 500;"
-            th:text="${row['childName']}"></td>
+            th:text="${row.childName}"></td>
 
-        <td th:each="month : ${months}"
+        <!-- Каждая ячейка - берем готовые значения из массивов -->
+        <td th:each="month, monthStat : ${months}"
             style="padding: 5px; border: 1px solid #ddd; text-align: center;"
-            th:with="cell=${row['months'].get(month)}">
+            th:with="idx=${monthStat.index}, status=${row.statuses[idx]}, total=${row.totals[idx]}">
 
-          <!-- Показываем сумму за конкретный месяц -->
-          <div th:if="${cell.totalPaid != null and cell.totalPaid.compareTo(0) > 0}"
+          <!-- ВСЕ ДАННЫЕ УЖЕ ГОТОВЫ, ПРОСТО ПОКАЗЫВАЕМ -->
+          <div th:if="${status == 'paid' and total != '0'}"
                style="color: green; font-weight: bold; font-size: 1.1em;">
             ✅
-            <span style="font-size: 0.75em; color: #28a745; display: block;"
-                  th:text="${cell.totalPaid} + ' ₽'"></span>
+            <span style="font-size: 0.75em; color: #28a745; display: block;" th:text="${total} + ' ₽'"></span>
           </div>
-          <div th:unless="${cell.totalPaid != null and cell.totalPaid.compareTo(0) > 0}" style="color: #ccc;">
-            <span th:if="${cell.status == 'PENDING'}" style="color: #ccc;">•</span>
-            <span th:if="${cell.status == 'REJECTED'}" style="color: red;">❌</span>
-            <span th:if="${cell.status == 'NOT_GENERATED'}" style="color: #ccc;">-</span>
+          <div th:unless="${status == 'paid' and total != '0'}" style="color: #ccc;">
+            <span th:if="${status == 'pending'}" style="color: #ccc;">•</span>
+            <span th:if="${status == 'rejected'}" style="color: red;">❌</span>
+            <span th:if="${status == 'not_generated'}" style="color: #ccc;">-</span>
           </div>
         </td>
 
-        <!-- Колонка "Итого" - сумма за все месяцы -->
+        <!-- Итого -->
         <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; background: #f8f9fa;">
-          <span th:text="${row['totalPaid']} + ' ₽'"></span>
+          <span th:text="${row.totalPaid} + ' ₽'"></span>
         </td>
 
+        <!-- Кнопки -->
         <td style="padding: 10px; border: 1px solid #ddd;">
-          <!-- Кнопка "Добавить оплату" -->
           <button class="btn btn-sm btn-success add-payment-btn"
                   style="padding: 4px 8px; font-size: 0.75em; background-color: #28a745; color: white;"
-                  th:data-child-id="${row['childId']}"
-                  th:data-child-name="${row['childName']}">
+                  th:data-child-id="${row.childId}"
+                  th:data-child-name="${row.childName}">
             + Добавить оплату
           </button>
-
-          <!-- Кнопка "Изменить оплату" -->
           <button class="btn btn-sm btn-primary edit-payment-btn"
                   style="padding: 4px 8px; font-size: 0.75em; background-color: #007bff; color: white; margin-top: 4px;"
-                  th:data-child-id="${row['childId']}"
-                  th:data-child-name="${row['childName']}">
+                  th:data-child-id="${row.childId}"
+                  th:data-child-name="${row.childName}">
             ✏ Изменить оплату
           </button>
-
-          <!-- Кнопка для отправки сообщения родителю -->
-          <button th:if="${row['parentVkId'] != null}"
+          <button th:if="${row.parentVkId != null}"
                   class="btn btn-sm btn-warning send-reminder-btn"
                   style="padding: 4px 8px; font-size: 0.75em; background-color: #ffc107; color: black; margin-top: 4px;"
-                  th:data-child-id="${row['childId']}"
-                  th:data-child-name="${row['childName']}"
-                  th:data-parent-vk="${row['parentVkId']}">
+                  th:data-child-id="${row.childId}"
+                  th:data-child-name="${row.childName}"
+                  th:data-parent-vk="${row.parentVkId}">
             Напомнить
           </button>
         </td>
@@ -133,77 +125,39 @@
     <!-- Пагинация -->
     <div th:if="${totalPages > 1}"
          style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px; padding: 15px; flex-wrap: wrap;">
-
       <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-        <!-- Первая -->
         <a th:if="${currentPage > 1}"
            th:href="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=1, size=${pageSize})}"
-           class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">
-          &laquo;
-        </a>
+           class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">&laquo;</a>
         <span th:unless="${currentPage > 1}"
-              class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; opacity: 0.5; cursor: not-allowed; border-radius: 4px;">
-          &laquo;
-        </span>
-
-        <!-- Назад -->
+              class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; opacity: 0.5; cursor: not-allowed; border-radius: 4px;">&laquo;</span>
         <a th:if="${currentPage > 1}"
            th:href="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=${currentPage - 1}, size=${pageSize})}"
-           class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">
-          Назад
-        </a>
+           class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">Назад</a>
         <span th:unless="${currentPage > 1}"
-              class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; opacity: 0.5; cursor: not-allowed; border-radius: 4px;">
-          Назад
-        </span>
-
-        <!-- Номера страниц (показываем ограниченное количество) -->
+              class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; opacity: 0.5; cursor: not-allowed; border-radius: 4px;">Назад</span>
         <span th:each="p : ${#numbers.sequence(1, totalPages)}" th:if="${p >= currentPage - 2 and p <= currentPage + 2}">
           <span th:if="${p == currentPage}"
-                style="padding: 5px 12px; background-color: #007bff; color: white; border-radius: 4px; font-weight: bold; display: inline-block;">
-            <span th:text="${p}"></span>
-          </span>
+                style="padding: 5px 12px; background-color: #007bff; color: white; border-radius: 4px; font-weight: bold; display: inline-block;" th:text="${p}"></span>
           <a th:unless="${p == currentPage}"
              th:href="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=${p}, size=${pageSize})}"
-             style="padding: 5px 12px; background-color: #f8f9fa; color: #007bff; border-radius: 4px; text-decoration: none; border: 1px solid #dee2e6; display: inline-block;">
-            <span th:text="${p}"></span>
-          </a>
+             style="padding: 5px 12px; background-color: #f8f9fa; color: #007bff; border-radius: 4px; text-decoration: none; border: 1px solid #dee2e6; display: inline-block;" th:text="${p}"></a>
         </span>
-
-        <!-- Многоточие между страницами -->
         <span th:if="${currentPage + 2 < totalPages}" style="padding: 5px 8px; color: #666;">...</span>
-
-        <!-- Последняя страница (если не видна) -->
         <a th:if="${currentPage + 2 < totalPages}"
            th:href="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=${totalPages}, size=${pageSize})}"
-           style="padding: 5px 12px; background-color: #f8f9fa; color: #007bff; border-radius: 4px; text-decoration: none; border: 1px solid #dee2e6; display: inline-block;">
-          <span th:text="${totalPages}"></span>
-        </a>
-
-        <!-- Вперед -->
+           style="padding: 5px 12px; background-color: #f8f9fa; color: #007bff; border-radius: 4px; text-decoration: none; border: 1px solid #dee2e6; display: inline-block;" th:text="${totalPages}"></a>
         <a th:if="${currentPage < totalPages}"
            th:href="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=${currentPage + 1}, size=${pageSize})}"
-           class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">
-          Вперед
-        </a>
+           class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">Вперед</a>
         <span th:unless="${currentPage < totalPages}"
-              class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; opacity: 0.5; cursor: not-allowed; border-radius: 4px;">
-          Вперед
-        </span>
-
-        <!-- Последняя -->
+              class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; opacity: 0.5; cursor: not-allowed; border-radius: 4px;">Вперед</span>
         <a th:if="${currentPage < totalPages}"
            th:href="@{/payments(year=${startMonth.year}, month=${startMonth.monthValue}, search=${currentSearch}, page=${totalPages}, size=${pageSize})}"
-           class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">
-          &raquo;
-        </a>
+           class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">&raquo;</a>
         <span th:unless="${currentPage < totalPages}"
-              class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; opacity: 0.5; cursor: not-allowed; border-radius: 4px;">
-          &raquo;
-        </span>
+              class="btn btn-sm" style="padding: 5px 10px; background-color: #6c757d; color: white; opacity: 0.5; cursor: not-allowed; border-radius: 4px;">&raquo;</span>
       </div>
-
-      <!-- Выбор размера страницы -->
       <div style="display: flex; align-items: center; gap: 5px; margin-left: 15px;">
         <span style="font-size: 0.9em; color: #666;">Показывать:</span>
         <select onchange="window.location.href=this.value"
@@ -218,43 +172,31 @@
                   th:selected="${pageSize == 100}">100</option>
         </select>
       </div>
-
-
     </div>
   </div>
 
-  <!-- Модальное окно для добавления оплаты -->
+  <!-- Модальные окна (без изменений) -->
   <div id="addPaymentModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
     <div style="background: white; padding: 25px; border-radius: 8px; max-width: 500px; width: 90%;">
       <h3>➕ Добавить оплату</h3>
       <p>Ребенок: <strong id="addPaymentChildName"></strong></p>
-
       <form id="addPaymentForm" method="post" action="/payments/add-amount">
         <input type="hidden" name="childId" id="addPaymentChildId">
-
         <div style="margin-top: 15px;">
           <label style="font-weight: bold; display: block; margin-bottom: 5px;">Месяц оплаты:</label>
-          <select name="monthYear" id="addPaymentMonth" required
-                  style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
-            <option th:each="m : ${allMonths}"
-                    th:value="${#temporals.format(m, 'yyyy-MM')}"
-                    th:text="${#temporals.format(m, 'MMMM yyyy')}"></option>
+          <select name="monthYear" id="addPaymentMonth" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            <option th:each="m : ${allMonths}" th:value="${#temporals.format(m, 'yyyy-MM')}" th:text="${#temporals.format(m, 'MMMM yyyy')}"></option>
           </select>
         </div>
-
         <div style="margin-top: 15px;">
           <label style="font-weight: bold; display: block; margin-bottom: 5px;">Сумма оплаты (₽):</label>
-          <input type="number" name="amount" id="addPaymentAmount" step="1" min="0" required
-                 style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1em;">
+          <input type="number" name="amount" id="addPaymentAmount" step="1" min="0" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1em;">
           <small style="color: #6c757d;">Введите сумму, которую родитель оплатил</small>
         </div>
-
         <div style="margin-top: 15px;">
           <label style="font-weight: bold; display: block; margin-bottom: 5px;">Комментарий (опционально):</label>
-          <textarea name="comment" rows="2" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"
-                    placeholder="Например: оплата по квитанции №123"></textarea>
+          <textarea name="comment" rows="2" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" placeholder="Например: оплата по квитанции №123"></textarea>
         </div>
-
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
           <button type="button" onclick="closeAddPaymentModal()" class="btn" style="background-color: #6c757d;">Отмена</button>
           <button type="submit" class="btn" style="background-color: #28a745;">✅ Добавить оплату</button>
@@ -263,38 +205,27 @@
     </div>
   </div>
 
-  <!-- Модальное окно для изменения оплаты -->
   <div id="editPaymentModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
     <div style="background: white; padding: 25px; border-radius: 8px; max-width: 500px; width: 90%;">
       <h3>✏️ Изменить оплату</h3>
       <p>Ребенок: <strong id="editPaymentChildName"></strong></p>
-
       <form id="editPaymentForm" method="post" action="/payments/edit-payment">
         <input type="hidden" name="childId" id="editPaymentChildId">
-
         <div style="margin-top: 15px;">
           <label style="font-weight: bold; display: block; margin-bottom: 5px;">Месяц оплаты:</label>
-          <select name="monthYear" id="editPaymentMonth" required
-                  style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
-            <option th:each="m : ${allMonths}"
-                    th:value="${#temporals.format(m, 'yyyy-MM')}"
-                    th:text="${#temporals.format(m, 'MMMM yyyy')}"></option>
+          <select name="monthYear" id="editPaymentMonth" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            <option th:each="m : ${allMonths}" th:value="${#temporals.format(m, 'yyyy-MM')}" th:text="${#temporals.format(m, 'MMMM yyyy')}"></option>
           </select>
         </div>
-
         <div style="margin-top: 15px;">
           <label style="font-weight: bold; display: block; margin-bottom: 5px;">Новая сумма оплаты (₽):</label>
-          <input type="number" name="amount" id="editPaymentAmount" step="1" min="0" required
-                 style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1em;">
+          <input type="number" name="amount" id="editPaymentAmount" step="1" min="0" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1em;">
           <small style="color: #6c757d;">Введите новую сумму оплаты (может быть меньше или больше предыдущей)</small>
         </div>
-
         <div style="margin-top: 15px;">
           <label style="font-weight: bold; display: block; margin-bottom: 5px;">Комментарий (опционально):</label>
-          <textarea name="comment" rows="2" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"
-                    placeholder="Например: корректировка суммы оплаты"></textarea>
+          <textarea name="comment" rows="2" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" placeholder="Например: корректировка суммы оплаты"></textarea>
         </div>
-
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
           <button type="button" onclick="closeEditPaymentModal()" class="btn" style="background-color: #6c757d;">Отмена</button>
           <button type="submit" class="btn" style="background-color: #007bff;">✏️ Сохранить изменения</button>
@@ -303,7 +234,6 @@
     </div>
   </div>
 
-  <!-- Модальное окно для отправки напоминания -->
   <div id="reminderModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
     <div style="background: white; padding: 20px; border-radius: 8px; max-width: 500px; width: 90%;">
       <h3>Отправить напоминание</h3>
@@ -324,122 +254,66 @@
   </div>
 
   <script>
-    // === Модальное окно для добавления оплаты ===
     function openAddPaymentModal(childId, childName) {
       document.getElementById('addPaymentChildId').value = childId;
       document.getElementById('addPaymentChildName').textContent = childName;
       document.getElementById('addPaymentModal').style.display = 'flex';
-
-      setTimeout(function() {
-        document.getElementById('addPaymentAmount').focus();
-      }, 300);
+      setTimeout(function() { document.getElementById('addPaymentAmount').focus(); }, 300);
     }
-
     function closeAddPaymentModal() {
       document.getElementById('addPaymentModal').style.display = 'none';
       document.getElementById('addPaymentForm').reset();
     }
-
-    // === Модальное окно для изменения оплаты ===
     function openEditPaymentModal(childId, childName) {
       document.getElementById('editPaymentChildId').value = childId;
       document.getElementById('editPaymentChildName').textContent = childName;
       document.getElementById('editPaymentModal').style.display = 'flex';
-
-      setTimeout(function() {
-        document.getElementById('editPaymentAmount').focus();
-      }, 300);
+      setTimeout(function() { document.getElementById('editPaymentAmount').focus(); }, 300);
     }
-
     function closeEditPaymentModal() {
       document.getElementById('editPaymentModal').style.display = 'none';
       document.getElementById('editPaymentForm').reset();
     }
-
-    // === Модальное окно для отправки напоминания ===
     function openReminderModal(childId, childName, parentVk) {
       document.getElementById('reminderChildId').value = childId;
       document.getElementById('reminderChildName').textContent = childName;
       document.getElementById('reminderForm').action = '/payments/send-reminder/' + parentVk;
       document.getElementById('reminderModal').style.display = 'flex';
     }
-
     function closeReminderModal() {
       document.getElementById('reminderModal').style.display = 'none';
     }
 
-    // === Функция для проверки открытых модальных окон ===
-    function isAnyModalOpen() {
-      var modals = document.querySelectorAll('.modal, [id$="Modal"]');
-      for (var i = 0; i < modals.length; i++) {
-        if (modals[i].style.display !== 'none' && modals[i].style.display !== '') {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    // === Обработчики событий ===
     document.addEventListener('DOMContentLoaded', function() {
-      // Обработчики для кнопок "Добавить оплату"
       document.querySelectorAll('.add-payment-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-          const childId = this.dataset.childId;
-          const childName = this.dataset.childName;
-          openAddPaymentModal(childId, childName);
+          openAddPaymentModal(this.dataset.childId, this.dataset.childName);
         });
       });
-
-      // Обработчики для кнопок "Изменить оплату"
       document.querySelectorAll('.edit-payment-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-          const childId = this.dataset.childId;
-          const childName = this.dataset.childName;
-          openEditPaymentModal(childId, childName);
+          openEditPaymentModal(this.dataset.childId, this.dataset.childName);
         });
       });
-
-      // Обработчики для кнопок "Напомнить"
       document.querySelectorAll('.send-reminder-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-          const childId = this.dataset.childId;
-          const childName = this.dataset.childName;
-          const parentVk = this.dataset.parentVk;
-          openReminderModal(childId, childName, parentVk);
+          openReminderModal(this.dataset.childId, this.dataset.childName, this.dataset.parentVk);
         });
       });
-
-      // Закрытие модальных окон по клику на фон
       document.getElementById('addPaymentModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-          closeAddPaymentModal();
-        }
+        if (e.target === this) closeAddPaymentModal();
       });
-
       document.getElementById('editPaymentModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-          closeEditPaymentModal();
-        }
+        if (e.target === this) closeEditPaymentModal();
       });
-
       document.getElementById('reminderModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-          closeReminderModal();
-        }
+        if (e.target === this) closeReminderModal();
       });
-
-      // Закрытие модальных окон по Escape
       document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-          if (document.getElementById('addPaymentModal').style.display !== 'none') {
-            closeAddPaymentModal();
-          }
-          if (document.getElementById('editPaymentModal').style.display !== 'none') {
-            closeEditPaymentModal();
-          }
-          if (document.getElementById('reminderModal').style.display !== 'none') {
-            closeReminderModal();
-          }
+          if (document.getElementById('addPaymentModal').style.display !== 'none') closeAddPaymentModal();
+          if (document.getElementById('editPaymentModal').style.display !== 'none') closeEditPaymentModal();
+          if (document.getElementById('reminderModal').style.display !== 'none') closeReminderModal();
         }
       });
     });

@@ -128,7 +128,12 @@ public class PaymentService {
             current = current.plusMonths(1);
         }
 
-        // 2. Получаем ВСЕХ детей с фильтром
+        // Форматируем месяцы для отображения
+        List<String> monthLabels = months.stream()
+                .map(m -> m.format(DateTimeFormatter.ofPattern("MMM yyyy")))
+                .toList();
+
+        // 2. Строим условия поиска
         String searchCondition = "";
         List<Object> params = new ArrayList<>();
 
@@ -138,9 +143,28 @@ public class PaymentService {
             params.add("%" + search + "%");
         }
 
-        // Сначала получаем ВСЕХ детей (их не так много, 254)
+        // 3. Получаем ОБЩЕЕ КОЛИЧЕСТВО детей
+        String countSql = """
+        SELECT COUNT(DISTINCT c.id) as total
+        FROM pool.children c
+        WHERE EXISTS (SELECT 1 FROM pool.group_children gc WHERE gc.child_id = c.id)
+        %s
+    """.formatted(searchCondition);
+
+        List<Object> countParams = new ArrayList<>();
+        if (search != null && !search.trim().isEmpty()) {
+            countParams.add("%" + search + "%");
+            countParams.add("%" + search + "%");
+        }
+
+        int totalItems = jdbcTemplate.queryForObject(countSql, countParams.toArray(), Integer.class);
+        int totalPages = (int) Math.ceil((double) totalItems / size);
+
+        System.out.println("📊 Total children: " + totalItems + ", pages: " + totalPages);
+
+        // 4. Получаем ТОЛЬКО нужных детей с пагинацией
         String childrenSql = """
-        SELECT DISTINCT 
+        SELECT 
             c.id as child_id,
             c.first_name,
             c.last_name,
@@ -152,33 +176,33 @@ public class PaymentService {
         WHERE EXISTS (SELECT 1 FROM pool.group_children gc WHERE gc.child_id = c.id)
         %s
         ORDER BY c.last_name, c.first_name
+        LIMIT ? OFFSET ?
     """.formatted(searchCondition);
 
-        List<Map<String, Object>> allChildren = jdbcTemplate.queryForList(childrenSql, params.toArray());
-        int totalItems = allChildren.size();
-        int totalPages = (int) Math.ceil((double) totalItems / size);
+        int offset = (page - 1) * size;
+        List<Object> childrenParams = new ArrayList<>(params);
+        childrenParams.add(size);
+        childrenParams.add(offset);
 
-        // Пагинация детей в Java (быстро, т.к. всего 254)
-        int start = (page - 1) * size;
-        int end = Math.min(start + size, allChildren.size());
-        List<Map<String, Object>> pagedChildren = allChildren.subList(start, end);
+        List<Map<String, Object>> pagedChildren = jdbcTemplate.queryForList(childrenSql, childrenParams.toArray());
 
-        // Получаем ID детей на текущей странице
-        List<Long> childIds = pagedChildren.stream()
-                .map(row -> (Long) row.get("child_id"))
-                .toList();
-
-        if (childIds.isEmpty()) {
+        if (pagedChildren.isEmpty()) {
             Map<String, Object> result = new HashMap<>();
-            result.put("months", months);
+            result.put("months", monthLabels);
             result.put("rows", new ArrayList<>());
             result.put("currentPage", page);
             result.put("totalPages", totalPages);
             result.put("totalItems", totalItems);
+            result.put("pageSize", size);
             return result;
         }
 
-        // 3. Получаем платежи ТОЛЬКО для этих детей
+        // 5. Получаем ID детей на текущей странице
+        List<Long> childIds = pagedChildren.stream()
+                .map(row -> (Long) row.get("child_id"))
+                .toList();
+
+        // 6. Получаем платежи ТОЛЬКО для этих детей
         String placeholders = String.join(",", Collections.nCopies(childIds.size(), "?"));
         String paymentsSql = """
         SELECT 
@@ -201,84 +225,110 @@ public class PaymentService {
 
         List<Map<String, Object>> payments = jdbcTemplate.queryForList(paymentsSql, paymentParams.toArray());
 
-        System.out.println("⏱ SQL: children=" + allChildren.size() +
+        System.out.println("⏱ SQL: children=" + totalItems +
                 ", paged=" + pagedChildren.size() +
                 ", payments=" + payments.size());
 
-        // 4. Группируем данные
-        Map<Long, Map<String, Object>> childrenMap = new LinkedHashMap<>();
-        Map<Long, Map<LocalDate, Map<String, Object>>> paymentsMap = new HashMap<>();
+        // 7. Группируем данные в ПЛОСКУЮ структуру для Thymeleaf
+        // Создаем карту: childId -> массив значений для каждого месяца
+        Map<Long, String[]> monthStatusMap = new HashMap<>();
+        Map<Long, String[]> monthAmountMap = new HashMap<>();
+        Map<Long, String[]> monthTotalMap = new HashMap<>();
+        Map<Long, BigDecimal> totalPaidMap = new HashMap<>();
+        Map<Long, String> childNameMap = new LinkedHashMap<>();
+        Map<Long, Integer> childAgeMap = new HashMap<>();
+        Map<Long, String> childSkillMap = new HashMap<>();
+        Map<Long, Long> childParentVkMap = new HashMap<>();
 
+        // Инициализация для каждого ребенка
         for (Map<String, Object> childRow : pagedChildren) {
             Long childId = (Long) childRow.get("child_id");
-            Map<String, Object> childData = new LinkedHashMap<>();
-            childData.put("childId", childId);
-            childData.put("childName", childRow.get("last_name") + " " + childRow.get("first_name"));
-            childData.put("age", childRow.get("age"));
-            childData.put("skill", childRow.get("skill"));
-            childData.put("parentVkId", childRow.get("parent_vk_id"));
-            childData.put("totalPaid", BigDecimal.ZERO);
-            childrenMap.put(childId, childData);
-            paymentsMap.put(childId, new HashMap<>());
+            childNameMap.put(childId, childRow.get("last_name") + " " + childRow.get("first_name"));
+            childAgeMap.put(childId, (Integer) childRow.get("age"));
+            childSkillMap.put(childId, (String) childRow.get("skill"));
+            childParentVkMap.put(childId, (Long) childRow.get("parent_vk_id"));
+            totalPaidMap.put(childId, BigDecimal.ZERO);
+
+            // Инициализируем массивы для месяцев
+            String[] statusArray = new String[months.size()];
+            String[] amountArray = new String[months.size()];
+            String[] totalArray = new String[months.size()];
+            Arrays.fill(statusArray, "NOT_GENERATED");
+            Arrays.fill(amountArray, "0");
+            Arrays.fill(totalArray, "0");
+
+            monthStatusMap.put(childId, statusArray);
+            monthAmountMap.put(childId, amountArray);
+            monthTotalMap.put(childId, totalArray);
         }
 
+        // Заполняем данные платежей
         for (Map<String, Object> payment : payments) {
             Long childId = (Long) payment.get("child_id");
-            if (!paymentsMap.containsKey(childId)) continue;
+            if (!monthStatusMap.containsKey(childId)) continue;
 
             java.sql.Date sqlDate = (java.sql.Date) payment.get("month_year");
             LocalDate paymentMonth = sqlDate.toLocalDate();
 
-            Map<String, Object> paymentData = new HashMap<>();
-            paymentData.put("id", payment.get("id"));
-            paymentData.put("isPaid", payment.get("is_paid"));
-            paymentData.put("status", payment.get("status"));
-            paymentData.put("amount", payment.get("amount"));
-            paymentData.put("totalPaid", payment.get("total_paid"));
-            paymentData.put("receiptFileUrl", payment.get("receipt_file_url"));
-            paymentData.put("month", paymentMonth);
+            // Находим индекс месяца
+            int monthIndex = months.indexOf(paymentMonth);
+            if (monthIndex == -1) continue;
 
-            paymentsMap.get(childId).put(paymentMonth, paymentData);
-
+            String status = (String) payment.get("status");
             BigDecimal totalPaid = (BigDecimal) payment.get("total_paid");
+            BigDecimal amount = (BigDecimal) payment.get("amount");
+
+            // Заполняем статус
+            String displayStatus;
+            if ("PAID".equals(status)) {
+                displayStatus = "paid";
+            } else if ("REJECTED".equals(status)) {
+                displayStatus = "rejected";
+            } else if ("PENDING".equals(status)) {
+                displayStatus = "pending";
+            } else {
+                displayStatus = "not_generated";
+            }
+            monthStatusMap.get(childId)[monthIndex] = displayStatus;
+
+            // Заполняем суммы
+            monthAmountMap.get(childId)[monthIndex] = amount != null ? amount.toString() : "0";
+            monthTotalMap.get(childId)[monthIndex] = totalPaid != null ? totalPaid.toString() : "0";
+
+            // Суммируем общую оплату
             if (totalPaid != null && totalPaid.compareTo(BigDecimal.ZERO) > 0) {
-                Map<String, Object> childData = childrenMap.get(childId);
-                BigDecimal currentTotal = (BigDecimal) childData.get("totalPaid");
-                childData.put("totalPaid", currentTotal.add(totalPaid));
+                BigDecimal currentTotal = totalPaidMap.get(childId);
+                totalPaidMap.put(childId, currentTotal.add(totalPaid));
             }
         }
 
-        // 5. Строим финальный результат
+        // 8. Строим финальный результат - ПЛОСКИЙ список строк
         List<Map<String, Object>> rows = new ArrayList<>();
-        for (Map.Entry<Long, Map<String, Object>> entry : childrenMap.entrySet()) {
-            Map<String, Object> row = entry.getValue();
-            Long childId = entry.getKey();
-            Map<LocalDate, Map<String, Object>> paymentMonthMap = paymentsMap.get(childId);
+        for (Long childId : childNameMap.keySet()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("childId", childId);
+            row.put("childName", childNameMap.get(childId));
+            row.put("age", childAgeMap.get(childId));
+            row.put("skill", childSkillMap.get(childId));
+            row.put("parentVkId", childParentVkMap.get(childId));
+            row.put("totalPaid", totalPaidMap.get(childId).toString());
 
-            Map<LocalDate, Map<String, Object>> monthData = new LinkedHashMap<>();
-            for (LocalDate month : months) {
-                Map<String, Object> cell = paymentMonthMap.getOrDefault(month, new HashMap<>());
-                if (cell.isEmpty()) {
-                    cell.put("isPaid", false);
-                    cell.put("status", "NOT_GENERATED");
-                    cell.put("amount", BigDecimal.ZERO);
-                    cell.put("totalPaid", BigDecimal.ZERO);
-                }
-                monthData.put(month, cell);
-            }
-            row.put("months", monthData);
+            // Готовые строки для каждого месяца
+            row.put("statuses", monthStatusMap.get(childId));    // массив статусов
+            row.put("amounts", monthAmountMap.get(childId));     // массив сумм
+            row.put("totals", monthTotalMap.get(childId));       // массив total_paid
+
             rows.add(row);
         }
 
+        // 9. Формируем результат
         Map<String, Object> result = new HashMap<>();
-        result.put("months", months);
+        result.put("months", monthLabels);  // Только названия месяцев
         result.put("rows", rows);
-        result.put("startMonth", startMonth);
-        result.put("endMonth", endMonth);
-        result.put("defaultAmount", BigDecimal.ZERO);
         result.put("currentPage", page);
         result.put("totalPages", totalPages);
         result.put("totalItems", totalItems);
+        result.put("pageSize", size);
 
         System.out.println("⏱ TOTAL execution time: " + (System.currentTimeMillis() - startTime) + " ms");
 
