@@ -22,7 +22,7 @@ public class BroadcastService {
     public void createBroadcast(AdminUser sender, String targetType, Long groupId, String text) {
         String sql = "INSERT INTO pool.broadcast_messages (sender_id, target_type, target_group_id, message_text, created_at, status) VALUES (?, ?, ?, ?, ?, 'PENDING')";
 
-        
+
         String finalText = text;
         if (sender.getRole() == ru.sashil.admin.model.AdminUser.Role.COACH) {
             String initials = NameUtils.toInitials(sender.getFullName());
@@ -31,33 +31,33 @@ public class BroadcastService {
             finalText += "\n\nС уважением, Администрация бассейна";
         }
 
-        
+
         String recipientInfo = "";
         if ("ALL".equals(targetType)) {
             recipientInfo = "\n[Рассылка всем родителям]";
         } else if (groupId != null) {
-            
-            Integer groupNumber = getGroupNumberById(groupId);
-            if (groupNumber != null) {
-                recipientInfo = "\n[Рассылка группе №" + groupNumber + "]";
+
+            String groupName = getGroupNameById(groupId);
+            if (groupName != null) {
+                recipientInfo = "\n[Рассылка группе \"" + groupName + "\"]";
             } else {
-                recipientInfo = "\n[Рассылка группе ID=" + groupId + "]"; 
+                recipientInfo = "\n[Рассылка группе ID=" + groupId + "]";
             }
         }
 
-        
+
         finalText = text + recipientInfo + (finalText.equals(text) ? "" : finalText.substring(text.length()));
 
         jdbcTemplate.update(sql, sender.getId(), targetType, groupId, finalText, LocalDateTime.now());
     }
 
     /**
-     * Вспомогательный метод для получения номера группы по ID.
+     * Вспомогательный метод для получения названия группы по ID.
      */
-    private Integer getGroupNumberById(Long groupId) {
+    private String getGroupNameById(Long groupId) {
         try {
-            String sql = "SELECT number FROM pool.groups WHERE id = ?";
-            return jdbcTemplate.queryForObject(sql, Integer.class, groupId);
+            String sql = "SELECT name FROM pool.groups WHERE id = ?";
+            return jdbcTemplate.queryForObject(sql, String.class, groupId);
         } catch (Exception e) {
             return null;
         }
